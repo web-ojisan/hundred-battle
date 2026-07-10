@@ -329,6 +329,16 @@
         <button class="opt" data-v="300">5分</button>
       </div>
     </div>
+
+    <div class="optGroup full">
+      <div class="label">🎵 BGM（残り30秒でテンポUP・ラスト10秒は警告音）</div>
+      <div class="optRow" data-set="bgm">
+        <button class="opt on" data-v="race">8bitレーシング</button>
+        <button class="opt" data-v="panic">カウントダウン<small>パニック</small></button>
+        <button class="opt" data-v="rock">疾走ロック</button>
+        <button class="opt" data-v="off">なし</button>
+      </div>
+    </div>
     <button id="startBtn">よーいドン！</button>
     <div class="note" style="font-size:10px;opacity:.6;text-align:center;">タブレットを机の真ん中に置いて、向かい合って対戦してね</div>
   </div>
@@ -359,7 +369,7 @@
 (() => {
   // ---------- 設定 ----------
   const cfg = {
-    mode: 'family', timeLimit: 180, sound: 'on',
+    mode: 'family', timeLimit: 180, sound: 'on', bgm: 'race',
     // 親子モード
     childRows: 5, adultOp: '×', randomPad: false, deathMode: false, showEq: 'both',
     // 友だちモード
@@ -469,6 +479,118 @@
       u.volume = 0;
       speechSynthesis.speak(u);
     }
+  }
+
+  // ---------- BGM（WebAudioで自動生成・残り時間でテンポアップ） ----------
+  const bgm = { playing: false, timer: null, nextTime: 0, step: 0 };
+  let noiseBuf = null;
+
+  function getNoise() {
+    if (!noiseBuf) {
+      const ctx = audioCtx();
+      noiseBuf = ctx.createBuffer(1, ctx.sampleRate * .2 | 0, ctx.sampleRate);
+      const d = noiseBuf.getChannelData(0);
+      for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+    }
+    return noiseBuf;
+  }
+  // ドラム類
+  function drumHat(t, vol = .035, dur = .03) {
+    const ctx = audioCtx();
+    const s = ctx.createBufferSource(); s.buffer = getNoise();
+    const f = ctx.createBiquadFilter(); f.type = 'highpass'; f.frequency.value = 6500;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(.001, t + dur);
+    s.connect(f); f.connect(g); g.connect(ctx.destination);
+    s.start(t); s.stop(t + dur);
+  }
+  function drumSnare(t, vol = .07) {
+    const ctx = audioCtx();
+    const s = ctx.createBufferSource(); s.buffer = getNoise();
+    const f = ctx.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 2000;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(.001, t + .1);
+    s.connect(f); f.connect(g); g.connect(ctx.destination);
+    s.start(t); s.stop(t + .1);
+  }
+  function drumKick(t, vol = .13) {
+    const ctx = audioCtx();
+    const o = ctx.createOscillator(), g = ctx.createGain();
+    o.type = 'sine';
+    o.frequency.setValueAtTime(150, t);
+    o.frequency.exponentialRampToValueAtTime(45, t + .12);
+    g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(.001, t + .15);
+    o.connect(g); g.connect(ctx.destination);
+    o.start(t); o.stop(t + .16);
+  }
+  // 音程もの（残り時間でキーが上がる）
+  function bNote(freq, t, dur, type = 'square', vol = .045) {
+    const ctx = audioCtx();
+    const o = ctx.createOscillator(), g = ctx.createGain();
+    o.type = type; o.frequency.value = freq * bgmPitch();
+    g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(.001, t + dur);
+    o.connect(g); g.connect(ctx.destination);
+    o.start(t); o.stop(t + dur);
+  }
+  // 残り時間による煽り：30秒切りでテンポ＆キーUP、10秒切りでさらにUP＋警告ピコピコ
+  const bgmTempo = () => timeLeft <= 10 ? 1.35 : timeLeft <= 30 ? 1.18 : 1;
+  const bgmPitch = () => timeLeft <= 10 ? 1.26 : timeLeft <= 30 ? 1.122 : 1;
+
+  // 音符データ（Aマイナー / Eベース）
+  const raceBass = [55, 0, 55, 65.41, 73.42, 0, 55, 65.41, 82.41, 0, 73.42, 65.41, 55, 65.41, 73.42, 82.41];
+  const raceArp = [220, 261.6, 329.6, 440, 329.6, 261.6];
+  const rockRiff = [82.41, 82.41, 98, 82.41, 110, 98, 82.41, 73.42];
+
+  function bgmStep(s, t, dt) {
+    // 全スタイル共通：ラスト10秒の警告ピコピコ
+    if (timeLeft <= 10) {
+      if (s === 0) bNote(1568 / bgmPitch(), t, .07, 'square', .05);
+      if (s === 8) bNote(1244 / bgmPitch(), t, .07, 'square', .05);
+    }
+    if (cfg.bgm === 'race') {
+      drumHat(t, s % 4 === 0 ? .05 : .03);
+      if (s % 4 === 0) drumKick(t, .11);
+      const b = raceBass[s];
+      if (b) bNote(b, t, dt * 1.7, 'square', .05);
+      if (s % 2 === 1) bNote(raceArp[(bgm.step >> 1) % raceArp.length], t, dt * 1.2, 'triangle', .028);
+    } else if (cfg.bgm === 'panic') {
+      if (s === 0) { bNote(1800 / bgmPitch(), t, .025, 'square', .055); bNote(55, t, dt * 15, 'sawtooth', .02); }
+      if (s === 8) bNote(1400 / bgmPitch(), t, .025, 'square', .055);
+      if (s === 0) drumKick(t, .13);           // ドッ
+      if (s === 3) drumKick(t, .09);           // クン（心臓の鼓動）
+      if (timeLeft <= 30 && (s === 4 || s === 12)) drumHat(t, .04);
+    } else if (cfg.bgm === 'rock') {
+      if (s % 2 === 0) {
+        const f = rockRiff[(s / 2) | 0];
+        bNote(f, t, dt * 1.6, 'sawtooth', .055);
+        bNote(f * 1.5, t, dt * 1.6, 'sawtooth', .035); // 5度重ねパワーコード
+      }
+      if (s % 4 === 0) drumKick(t, .11);
+      if (s === 4 || s === 12) drumSnare(t);
+      if (s % 2 === 0) drumHat(t, .025);
+    }
+  }
+  function bgmTick() {
+    if (!bgm.playing) return;
+    const ctx = audioCtx();
+    const base = cfg.bgm === 'race' ? 152 : cfg.bgm === 'panic' ? 118 : 144;
+    const dt = 60 / (base * bgmTempo()) / 4; // 16分音符の長さ
+    while (bgm.nextTime < ctx.currentTime + .12) {
+      bgmStep(bgm.step % 16, bgm.nextTime, dt);
+      bgm.nextTime += dt;
+      bgm.step++;
+    }
+  }
+  function bgmStart() {
+    if (cfg.sound !== 'on' || cfg.bgm === 'off') return;
+    bgmStop();
+    const ctx = audioCtx();
+    bgm.playing = true; bgm.step = 0; bgm.nextTime = ctx.currentTime + .05;
+    bgm.timer = setInterval(bgmTick, 25);
+  }
+  function bgmStop() {
+    bgm.playing = false;
+    if (bgm.timer) { clearInterval(bgm.timer); bgm.timer = null; }
   }
 
   // ---------- プレイヤー状態 ----------
@@ -711,6 +833,7 @@
         clearInterval(cd);
         ov.classList.add('hidden');
         running = true;
+        bgmStart(); // 🎵 BGMスタート
         renderIO(adult); renderIO(child);
         updateAttackBtn(child); updateAttackBtn(adult);
         timerId = setInterval(tick, 1000);
@@ -721,6 +844,7 @@
   function finish(winnerByComplete) {
     running = false;
     clearInterval(timerId);
+    bgmStop(); // 🎵 BGM停止
     let title;
     if (winnerByComplete) title = `🏆 ${winnerByComplete.name}の勝ち！`;
     else {
