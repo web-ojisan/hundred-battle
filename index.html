@@ -300,6 +300,14 @@
     </div>
 
     <div class="optGroup">
+      <div class="label">🔊 サウンド</div>
+      <div class="optRow" data-set="sound">
+        <button class="opt on" data-v="on">ON<small>正解でほめ声＆効果音</small></button>
+        <button class="opt" data-v="off">OFF<small>音なし</small></button>
+      </div>
+    </div>
+
+    <div class="optGroup">
       <div class="label">⏱ 制限時間</div>
       <div class="optRow" data-set="timeLimit">
         <button class="opt" data-v="120">2分</button>
@@ -337,7 +345,7 @@
 (() => {
   // ---------- 設定 ----------
   const cfg = {
-    mode: 'family', timeLimit: 180,
+    mode: 'family', timeLimit: 180, sound: 'on',
     // 親子モード
     childRows: 5, adultOp: '×', randomPad: false, deathMode: false, showEq: 'both',
     // 友だちモード
@@ -368,6 +376,73 @@
   const friends = () => cfg.mode === 'friends';
   const canAttack = p => friends() ? cfg.fAttack : (cfg.deathMode && p === child);
   const padRandom = p => friends() ? cfg.fRandom : (cfg.randomPad && p === adult);
+
+  // ---------- サウンド ----------
+  const praiseWords = ['Good!', 'OK!', 'Marvelous!', 'Awesome!', 'Cool!', 'Great!', 'Nice!', 'Excellent!', 'Perfect!'];
+  let actx = null, enVoice = null, lastPraise = -1;
+
+  function loadVoice() {
+    const vs = speechSynthesis.getVoices();
+    // なるべく端末内蔵の英語音声を選ぶ（オフラインでも鳴る）
+    enVoice = vs.find(v => v.lang === 'en-US' && v.localService)
+           || vs.find(v => v.lang.startsWith('en') && v.localService)
+           || vs.find(v => v.lang.startsWith('en'))
+           || null;
+  }
+  if ('speechSynthesis' in window) {
+    loadVoice();
+    speechSynthesis.onvoiceschanged = loadVoice; // 音声リストは非同期で届く端末がある
+  }
+
+  function audioCtx() {
+    if (!actx) actx = new (window.AudioContext || window.webkitAudioContext)();
+    if (actx.state === 'suspended') actx.resume();
+    return actx;
+  }
+  function tone(freq, dur, delay = 0, type = 'square', vol = .12) {
+    try {
+      const ctx = audioCtx(), t = ctx.currentTime + delay;
+      const o = ctx.createOscillator(), g = ctx.createGain();
+      o.type = type; o.frequency.value = freq;
+      g.gain.setValueAtTime(vol, t);
+      g.gain.exponentialRampToValueAtTime(.001, t + dur);
+      o.connect(g); g.connect(ctx.destination);
+      o.start(t); o.stop(t + dur);
+    } catch (e) { /* 音が出せない環境でもゲームは止めない */ }
+  }
+  function say(text, pitch = 1.15, rate = 1.1) {
+    if (!('speechSynthesis' in window)) return;
+    speechSynthesis.cancel(); // 連打で声が溜まって遅れないように、常に最新だけ喋る
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = 'en-US';
+    if (enVoice) u.voice = enVoice;
+    u.pitch = pitch; u.rate = rate; u.volume = 1;
+    speechSynthesis.speak(u);
+  }
+  function sfxCorrect() {
+    if (cfg.sound !== 'on') return;
+    tone(880, .09); tone(1318, .14, .07); // ピコン♪（即時フィードバック）
+    // 直前と同じ言葉は避けてランダムに
+    let i;
+    do { i = Math.random() * praiseWords.length | 0; } while (i === lastPraise && praiseWords.length > 1);
+    lastPraise = i;
+    say(praiseWords[i]);
+  }
+  function sfxWrong() {
+    if (cfg.sound !== 'on') return;
+    tone(150, .22, 0, 'sawtooth', .1); // ブブッ
+    say('oh...', .7, .9); // 低め・ゆっくりで残念そうに
+  }
+  function unlockAudio() {
+    // iPad/iPhone等はユーザー操作の中で一度鳴らさないと音が解禁されない
+    if (cfg.sound !== 'on') return;
+    try { audioCtx(); } catch (e) {}
+    if ('speechSynthesis' in window) {
+      const u = new SpeechSynthesisUtterance(' ');
+      u.volume = 0;
+      speechSynthesis.speak(u);
+    }
+  }
 
   // ---------- プレイヤー状態 ----------
   const shuffle = a => { for (let i = a.length - 1; i > 0; i--) { const j = Math.random() * (i + 1) | 0; [a[i], a[j]] = [a[j], a[i]]; } return a; };
@@ -468,6 +543,7 @@
   }
 
   function correct(p, cell) {
+    sfxCorrect(); // 🔊 ピコン♪ ＋ 英語のほめ言葉
     cell.done = true;
     cell.el.classList.remove('sel', 'target');
     cell.el.classList.add('done');
@@ -486,6 +562,7 @@
   }
 
   function wrong(p, cell) {
+    sfxWrong(); // 🔊 ブブッ ＋ 「oh...」
     p.miss++; p.streak = 0; p.input = '';
     cell.el.classList.add('wrongflash');
     setTimeout(() => cell.el.classList.remove('wrongflash'), 320);
@@ -560,6 +637,7 @@
   });
 
   function startGame() {
+    unlockAudio(); // 🔊 タップの中で音を解禁（iPad対策）
     document.getElementById('setupOverlay').classList.add('hidden');
     const opName = op => op === '+' ? 'たし算' : 'かけ算';
     if (friends()) {
