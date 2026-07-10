@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<title>ちょい足しサイモン — 爆弾押しつけ記憶バトル</title>
+<title>うたわないとドッカン！ — わがまま爆弾ボムたんの記憶メロディバトル</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DotGothic16&family=M+PLUS+Rounded+1c:wght@500;700;800&display=swap" rel="stylesheet">
 <style>
@@ -54,7 +54,16 @@
   @keyframes wob{0%,100%{transform:rotate(-8deg);}50%{transform:rotate(8deg);}}
   @keyframes panic{0%,100%{transform:rotate(-14deg) scale(1.12);}50%{transform:rotate(14deg) scale(1.12);}}
   @keyframes spinfly{from{transform:rotate(0) scale(1.15);}to{transform:rotate(720deg) scale(1.15);}}
-  @media (prefers-reduced-motion:reduce){#bomb{animation:none!important;transition:none;}}
+  #bomb svg{width:100%;height:100%;display:block;filter:drop-shadow(0 2px 3px rgba(0,0,0,.5));}
+  #bomb .fWarn,#bomb .fPanic{display:none;}
+  #bomb.warn .fCalm,#bomb.panic .fCalm{display:none;}
+  #bomb.warn .fWarn{display:inline;}
+  #bomb.panic .fPanic{display:inline;}
+  .spark{animation:spark .4s infinite alternate;transform-origin:40px 4px;transform-box:fill-box;}
+  #bomb.warn .spark{animation-duration:.22s;}
+  #bomb.panic .spark{animation-duration:.1s;fill:#FF5A5F;}
+  @keyframes spark{from{opacity:.5;transform:scale(.6);}to{opacity:1;transform:scale(1.3);}}
+  @media (prefers-reduced-motion:reduce){#bomb{animation:none!important;transition:none;}.spark{animation:none;}}
 
   #boom{
     position:fixed;z-index:30;font-size:110px;transform:translate(-50%,-50%) scale(0);
@@ -154,13 +163,51 @@
   </div>
 </div>
 
-<div id="bomb" class="calm hidden">💣</div>
+<div id="bomb" class="calm hidden">
+  <svg viewBox="0 0 64 64" shape-rendering="crispEdges" aria-hidden="true">
+    <!-- 導火線＋火花 -->
+    <rect x="30" y="6" width="4" height="6" fill="#8a5a2b"/>
+    <rect x="34" y="3" width="4" height="5" fill="#8a5a2b"/>
+    <circle class="spark" cx="40" cy="4" r="3.5" fill="#FFB13D"/>
+    <!-- 本体 -->
+    <rect x="26" y="10" width="12" height="7" fill="#3a4158" stroke="#000" stroke-width="2"/>
+    <circle cx="32" cy="38" r="24" fill="#23283a" stroke="#000" stroke-width="2.5"/>
+    <ellipse cx="23" cy="27" rx="6" ry="4" fill="#414a6b" opacity=".9"/>
+    <!-- かお：ごきげん♪ -->
+    <g class="fCalm" fill="#B6FF6E">
+      <rect x="20" y="31" width="8" height="8"/>
+      <rect x="36" y="31" width="8" height="8"/>
+      <rect x="23" y="45" width="4" height="4"/>
+      <rect x="27" y="47" width="10" height="4"/>
+      <rect x="37" y="45" width="4" height="4"/>
+    </g>
+    <!-- かお：ふあん… -->
+    <g class="fWarn" fill="#FFD34D">
+      <rect x="18" y="27" width="5" height="4"/><rect x="23" y="30" width="5" height="4"/>
+      <rect x="41" y="27" width="5" height="4"/><rect x="36" y="30" width="5" height="4"/>
+      <rect x="20" y="36" width="8" height="6"/>
+      <rect x="36" y="36" width="8" height="6"/>
+      <rect x="23" y="46" width="4" height="4"/><rect x="27" y="44" width="4" height="4"/>
+      <rect x="31" y="46" width="4" height="4"/><rect x="35" y="44" width="4" height="4"/>
+    </g>
+    <!-- かお：もうムリ！！ -->
+    <g class="fPanic">
+      <rect x="15" y="25" width="9" height="4" fill="#FF5A5F"/><rect x="40" y="25" width="9" height="4" fill="#FF5A5F"/>
+      <rect x="17" y="30" width="11" height="10" fill="#ffffff"/>
+      <rect x="36" y="30" width="11" height="10" fill="#ffffff"/>
+      <rect x="22" y="34" width="4" height="4" fill="#0a0d16"/>
+      <rect x="38" y="34" width="4" height="4" fill="#0a0d16"/>
+      <rect x="24" y="44" width="16" height="11" fill="#0a0d16" stroke="#ffffff" stroke-width="2"/>
+      <rect x="27" y="51" width="10" height="4" fill="#FF5A5F"/>
+    </g>
+  </svg>
+</div>
 <div id="boom">💥</div>
 
 <!-- 設定 -->
 <div class="overlay" id="setupOverlay">
   <div class="panel">
-    <h1>ちょい足しサイモン<small>爆弾押しつけ 記憶しりとりバトル</small></h1>
+    <h1>うたわないとドッカン！<small>わがまま爆弾「ボムたん」の 記憶メロディバトル</small></h1>
     <div class="optGroup">
       <div class="label">🔲 マス目</div>
       <div class="optRow" data-set="size">
@@ -170,7 +217,7 @@
       </div>
     </div>
     <div class="optGroup">
-      <div class="label">🏁 MAXターン（ここまで生き残ったら引き分け）</div>
+      <div class="label">🏁 メロディのながさ（この音数まで歌いきれたら引き分け）</div>
       <div class="optRow" data-set="maxTurns">
         <button class="opt" data-v="8">8</button>
         <button class="opt on" data-v="12">12</button>
@@ -179,18 +226,23 @@
       </div>
     </div>
     <div class="optGroup">
-      <div class="label">💣 導火線の速さ（1ターンの制限時間）</div>
+      <div class="label">💣 ボムたんのがまん時間（1ターンの制限時間）</div>
       <div class="optRow" data-set="speed">
         <button class="opt" data-v="slow">のんびり</button>
         <button class="opt on" data-v="normal">ふつう</button>
         <button class="opt" data-v="oni">おに</button>
       </div>
     </div>
-    <div class="rules">
-      📖 あそびかた：自分の番が来たら、いままでの光った順番を<b>ぜんぶ同じ順にタップ</b>→ 最後に<b>すきなマスを1つ「ちょい足し」</b>。
-      成功すると爆弾が相手に飛んでいく！ 押し間違い・時間切れで……💥
+    <div class="rules" style="background:#1b2140;border-radius:10px;padding:10px 12px;">
+      📖 おはなし：歌がだいすきな爆弾の子・<b>ボムたん💣</b>。光のメロディをまちがえずに歌ってあげないと、キゲンをそこねて<b>ドッカン！</b>
+      しかも1回歌うたびに<b>「もう1音ふやして♪」</b>とわがまま。歌いおわると満足して、こんどは<b>相手のところへあまえに行く</b>——
+      ボムたんをごきげんに保ちつづけるのは、どっちだ！？
     </div>
-    <button id="startBtn" class="arcade">💣 スイッチON！</button>
+    <div class="rules">
+      🎵 あそびかた：自分の番が来たら、いままで光った順番を<b>ぜんぶ同じ順にタップ（＝うたう）</b>→ 最後に<b>すきなマスを1音「ちょい足し」</b>。
+      押し間違い・時間切れで……💥
+    </div>
+    <button id="startBtn" class="arcade">💣 ボムたん とうじょう！</button>
     <div class="note">タブレットを机の真ん中に置いて、向かい合って対戦してね　<a href="../index.html">← ゲームせんたくにもどる</a></div>
   </div>
 </div>
@@ -321,7 +373,7 @@
     cur = p; pos = 0;
     phase = seq.length ? 'replay' : 'add';
     zones.forEach((z, i) => { z.classList.toggle('active', i === p); z.classList.toggle('idle', i !== p); });
-    msgs[1 - p].textContent = 'まって…（順番をおぼえておこう）';
+    msgs[1 - p].textContent = 'まって…（メロディをおぼえておこう）';
     updateMsg();
     board.classList.remove('locked');
     turnTime = timeFor(seq.length);
@@ -334,11 +386,11 @@
 
   function updateMsg() {
     if (phase === 'replay')
-      msgs[cur].textContent = `順番どおりタップ！（${pos}/${seq.length}）`;
+      msgs[cur].textContent = `♪ メロディをうたって！（${pos}/${seq.length}）`;
     else if (phase === 'add')
       msgs[cur].textContent = seq.length
-        ? '✨ ちょい足し！ すきなマスを1つ'
-        : '✨ さいしょの1マスをえらんで！';
+        ? '✨ 「もう1音ふやして♪」ちょい足しする マスをえらんで'
+        : '✨ さいしょの1音を きかせてあげて！';
   }
 
   function fuseLoop(now) {
@@ -381,7 +433,7 @@
       if (cfg.maxTurns > 0 && seq.length >= cfg.maxTurns) { draw(); return; }
       // 爆弾を相手へ！
       phase = 'transfer';
-      msgs[cur].textContent = `セーフ！ 爆弾は${NAMES[1 - cur]}へ…`;
+      msgs[cur].textContent = `ごきげん♪ ボムたんは${NAMES[1 - cur]}のところへ…`;
       setTimeout(() => {
         sndWhoosh();
         moveBombTo(1 - cur, true);
@@ -425,8 +477,8 @@
     setTimeout(() => document.body.classList.remove('shake'), 550);
     const loser = cur, winner = 1 - cur;
     setTimeout(() => showResult(
-      `💥 ${NAMES[loser]} 爆発！\n🏆 ${NAMES[winner]}の勝ち！`,
-      `${reason}／のこした順番：${seq.length}マス`
+      `💥 ${NAMES[loser]}のばんでドッカン！\n🏆 ${NAMES[winner]}の勝ち！`,
+      `${reason}／うたえたメロディ：${seq.length}音`
     ), 1100);
   }
 
@@ -435,7 +487,7 @@
     cancelAnimationFrame(rafId);
     bomb.classList.add('hidden');
     sndOK(); tone(660, .3, 'triangle', .3, .2);
-    showResult('🤝 引き分け！\nふたりとも生き残った！', `MAXターン ${cfg.maxTurns} 到達`);
+    showResult('🤝 引き分け！\nボムたん大まんぞくで帰っていった♪', `メロディ ${cfg.maxTurns}音 かんせい！`);
   }
 
   function showResult(title, sub) {
