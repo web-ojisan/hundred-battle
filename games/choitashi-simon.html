@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>ちょい足しサイモン — 爆弾押しつけ記憶バトル</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DotGothic16&family=M+PLUS+Rounded+1c:wght@500;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#10141F; --panel:#1A2030; --ink:#EDF1FF;
+    --p1:#FF8A3D; --p2:#4DA3FF;
+    --bad:#E5484D; --gold:#FFD34D; --ok:#2EBD6B;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{height:100%;overflow:hidden;}
+  body{
+    font-family:"M PLUS Rounded 1c",system-ui,sans-serif;color:var(--ink);
+    background:var(--bg);user-select:none;-webkit-user-select:none;touch-action:manipulation;
+  }
+  .arcade{font-family:"DotGothic16",monospace;}
+
+  #stage{display:flex;flex-direction:column;height:100dvh;padding:8px;gap:8px;}
+
+  /* ===== プレイヤーゾーン ===== */
+  .zone{
+    height:88px;border-radius:16px;background:var(--panel);
+    display:flex;align-items:center;gap:14px;padding:0 16px;
+    border:3px solid transparent;transition:border-color .3s, opacity .3s;
+    position:relative;
+  }
+  #zoneTop{transform:rotate(180deg);}
+  .zone.active{border-color:var(--gold);}
+  .zone.idle{opacity:.45;}
+  .zone .pname{font-family:"DotGothic16";font-size:22px;min-width:44px;}
+  #zoneTop .pname{color:var(--p2);}
+  #zoneBottom .pname{color:var(--p1);}
+  .zone .status{flex:1;min-width:0;}
+  .zone .msg{font-weight:800;font-size:15px;line-height:1.3;}
+  .fuseWrap{height:12px;background:#0a0d16;border-radius:99px;margin-top:6px;overflow:hidden;border:1.5px solid #2c3550;}
+  .fuse{height:100%;width:100%;background:linear-gradient(90deg,var(--ok),var(--gold),var(--bad));border-radius:99px;}
+  .zone .anchor{width:56px;height:56px;flex:none;}
+
+  /* ===== 爆弾 ===== */
+  #bomb{
+    position:fixed;width:56px;height:56px;font-size:44px;line-height:56px;text-align:center;
+    z-index:20;pointer-events:none;filter:drop-shadow(0 3px 4px rgba(0,0,0,.6));
+    transition:left .7s cubic-bezier(.4,-.3,.5,1.3), top .7s cubic-bezier(.4,-.3,.5,1.3);
+  }
+  #bomb.calm{animation:wob 1s infinite ease-in-out;}
+  #bomb.warn{animation:wob .45s infinite ease-in-out;}
+  #bomb.panic{animation:panic .18s infinite;}
+  #bomb.flying{animation:spinfly .7s linear;}
+  @keyframes wob{0%,100%{transform:rotate(-8deg);}50%{transform:rotate(8deg);}}
+  @keyframes panic{0%,100%{transform:rotate(-14deg) scale(1.12);}50%{transform:rotate(14deg) scale(1.12);}}
+  @keyframes spinfly{from{transform:rotate(0) scale(1.15);}to{transform:rotate(720deg) scale(1.15);}}
+  @media (prefers-reduced-motion:reduce){#bomb{animation:none!important;transition:none;}}
+
+  #boom{
+    position:fixed;z-index:30;font-size:110px;transform:translate(-50%,-50%) scale(0);
+    pointer-events:none;
+  }
+  #boom.go{animation:boom .8s ease-out forwards;}
+  @keyframes boom{
+    0%{transform:translate(-50%,-50%) scale(.2);opacity:1;}
+    60%{transform:translate(-50%,-50%) scale(2.2);opacity:1;}
+    100%{transform:translate(-50%,-50%) scale(2.6);opacity:0;}
+  }
+  body.shake #stage{animation:quake .5s;}
+  @keyframes quake{
+    0%,100%{transform:translate(0,0);}20%{transform:translate(-8px,4px);}
+    40%{transform:translate(7px,-5px);}60%{transform:translate(-5px,-4px);}80%{transform:translate(5px,5px);}
+  }
+
+  /* ===== 盤面 ===== */
+  #boardWrap{flex:1;min-height:0;display:flex;align-items:center;justify-content:center;}
+  #board{
+    display:grid;gap:8px;
+    width:min(92vw, calc(100dvh - 240px));
+    aspect-ratio:1;
+  }
+  .tile{
+    border:none;border-radius:14px;cursor:pointer;
+    box-shadow:inset 0 -5px 0 rgba(0,0,0,.35);
+    filter:brightness(.55) saturate(.85);
+    transition:filter .12s, transform .12s;
+  }
+  .tile:active{transform:scale(.96);}
+  .tile.lit{filter:brightness(1.25) saturate(1.2);box-shadow:0 0 18px 2px currentColor, inset 0 -5px 0 rgba(0,0,0,.2);}
+  .tile.wrongTile{filter:brightness(1.1) grayscale(.2);background:var(--bad)!important;}
+  #board.locked .tile{cursor:default;}
+
+  /* ===== オーバーレイ ===== */
+  .overlay{position:fixed;inset:0;background:rgba(8,10,20,.93);z-index:50;display:flex;align-items:center;justify-content:center;}
+  .hidden{display:none!important;}
+  .panel{
+    width:min(540px,94vw);max-height:92dvh;overflow:auto;background:#141930;
+    border:3px solid var(--gold);border-radius:20px;padding:22px 24px;
+    display:flex;flex-direction:column;gap:16px;
+  }
+  .panel h1{font-family:"DotGothic16";font-size:28px;color:var(--gold);text-align:center;line-height:1.25;}
+  .panel h1 small{display:block;font-size:12px;color:#fff;opacity:.8;font-family:"M PLUS Rounded 1c";letter-spacing:.08em;margin-top:4px;}
+  .optGroup{display:flex;flex-direction:column;gap:8px;}
+  .optGroup .label{font-size:13px;font-weight:800;color:#9fb0e8;}
+  .optRow{display:flex;gap:8px;flex-wrap:wrap;}
+  .opt{
+    flex:1;min-width:84px;padding:10px 6px;border-radius:10px;border:2px solid #39456f;
+    background:#1b2140;color:#fff;font-family:inherit;font-weight:800;font-size:14px;cursor:pointer;
+  }
+  .opt.on{background:var(--gold);color:#000;border-color:var(--gold);}
+  .opt small{display:block;font-weight:500;font-size:10px;opacity:.75;margin-top:2px;}
+  #startBtn{
+    font-family:"DotGothic16";font-size:24px;padding:16px;border-radius:14px;border:3px solid #000;
+    background:var(--bad);color:#fff;cursor:pointer;box-shadow:0 5px 0 #8c2227;
+  }
+  #startBtn:active{transform:translateY(3px);box-shadow:0 2px 0 #8c2227;}
+  .rules{font-size:12px;opacity:.75;line-height:1.7;}
+  .note{font-size:10px;opacity:.6;text-align:center;}
+  .note a{color:var(--gold);}
+
+  .bothways{display:flex;flex-direction:column;align-items:center;gap:26px;text-align:center;}
+  .bothways .flip{transform:rotate(180deg);}
+  #countNum{font-family:"DotGothic16";font-size:90px;color:var(--gold);}
+  #countNumFlip{font-family:"DotGothic16";font-size:48px;color:var(--gold);}
+  #firstMsg,#firstMsgFlip{font-weight:800;font-size:18px;}
+
+  #resultPanel{text-align:center;gap:10px;}
+  #resultTitle{font-family:"DotGothic16";font-size:34px;color:var(--gold);line-height:1.3;}
+  #resultTitleFlip{font-family:"DotGothic16";font-size:20px;color:var(--gold);transform:rotate(180deg);opacity:.85;}
+  #resultSub{font-size:14px;font-weight:800;opacity:.85;}
+</style>
+</head>
+<body>
+
+<div id="stage">
+  <div class="zone idle" id="zoneTop">
+    <div class="pname arcade">2P</div>
+    <div class="status">
+      <div class="msg" id="msgTop">まって…</div>
+      <div class="fuseWrap"><div class="fuse" id="fuseTop"></div></div>
+    </div>
+    <div class="anchor" id="anchorTop"></div>
+  </div>
+
+  <div id="boardWrap"><div id="board" class="locked"></div></div>
+
+  <div class="zone idle" id="zoneBottom">
+    <div class="pname arcade">1P</div>
+    <div class="status">
+      <div class="msg" id="msgBottom">まって…</div>
+      <div class="fuseWrap"><div class="fuse" id="fuseBottom"></div></div>
+    </div>
+    <div class="anchor" id="anchorBottom"></div>
+  </div>
+</div>
+
+<div id="bomb" class="calm hidden">💣</div>
+<div id="boom">💥</div>
+
+<!-- 設定 -->
+<div class="overlay" id="setupOverlay">
+  <div class="panel">
+    <h1>ちょい足しサイモン<small>爆弾押しつけ 記憶しりとりバトル</small></h1>
+    <div class="optGroup">
+      <div class="label">🔲 マス目</div>
+      <div class="optRow" data-set="size">
+        <button class="opt on" data-v="3">3×3<small>いりぐち</small></button>
+        <button class="opt" data-v="4">4×4<small>ちゅうきゅう</small></button>
+        <button class="opt" data-v="5">5×5<small>じごく</small></button>
+      </div>
+    </div>
+    <div class="optGroup">
+      <div class="label">🏁 MAXターン（ここまで生き残ったら引き分け）</div>
+      <div class="optRow" data-set="maxTurns">
+        <button class="opt" data-v="8">8</button>
+        <button class="opt on" data-v="12">12</button>
+        <button class="opt" data-v="16">16</button>
+        <button class="opt" data-v="0">なし<small>どちらかが爆発するまで</small></button>
+      </div>
+    </div>
+    <div class="optGroup">
+      <div class="label">💣 導火線の速さ（1ターンの制限時間）</div>
+      <div class="optRow" data-set="speed">
+        <button class="opt" data-v="slow">のんびり</button>
+        <button class="opt on" data-v="normal">ふつう</button>
+        <button class="opt" data-v="oni">おに</button>
+      </div>
+    </div>
+    <div class="rules">
+      📖 あそびかた：自分の番が来たら、いままでの光った順番を<b>ぜんぶ同じ順にタップ</b>→ 最後に<b>すきなマスを1つ「ちょい足し」</b>。
+      成功すると爆弾が相手に飛んでいく！ 押し間違い・時間切れで……💥
+    </div>
+    <button id="startBtn" class="arcade">💣 スイッチON！</button>
+    <div class="note">タブレットを机の真ん中に置いて、向かい合って対戦してね　<a href="../index.html">← ゲームせんたくにもどる</a></div>
+  </div>
+</div>
+
+<!-- カウントダウン -->
+<div class="overlay hidden" id="countOverlay">
+  <div class="bothways">
+    <div class="flip">
+      <div id="countNumFlip">3</div>
+      <div id="firstMsgFlip"></div>
+    </div>
+    <div>
+      <div id="countNum">3</div>
+      <div id="firstMsg"></div>
+    </div>
+  </div>
+</div>
+
+<!-- 結果 -->
+<div class="overlay hidden" id="resultOverlay">
+  <div class="panel" id="resultPanel">
+    <div id="resultTitleFlip">…</div>
+    <div id="resultTitle">…</div>
+    <div id="resultSub"></div>
+    <button id="againBtn" class="opt on" style="font-size:16px;padding:14px;">もう一回！</button>
+    <a href="../index.html" class="opt" style="display:block;text-align:center;text-decoration:none;font-size:13px;padding:10px;">🏠 ゲームせんたくへ</a>
+  </div>
+</div>
+
+<script>
+(() => {
+  // ---------- 設定 ----------
+  const cfg = { size: 3, maxTurns: 12, speed: 'normal' };
+  const SPEEDS = { slow: [5, 1.2], normal: [4, 0.8], oni: [2.5, 0.5] }; // [基本秒, 1マスあたり加算秒]
+
+  document.querySelectorAll('[data-set]').forEach(row => {
+    row.addEventListener('click', e => {
+      const b = e.target.closest('.opt'); if (!b) return;
+      row.querySelectorAll('.opt').forEach(o => o.classList.remove('on'));
+      b.classList.add('on');
+      const v = b.dataset.v;
+      cfg[row.dataset.set] = isNaN(v) ? v : +v;
+    });
+  });
+
+  // ---------- サウンド（Web Audio・外部ファイル不要）----------
+  let AC = null;
+  const audio = () => AC || (AC = new (window.AudioContext || window.webkitAudioContext)());
+  function tone(freq, dur = .18, type = 'square', vol = .25, when = 0) {
+    const ctx = audio(), t = ctx.currentTime + when;
+    const o = ctx.createOscillator(), g = ctx.createGain();
+    o.type = type; o.frequency.value = freq;
+    g.gain.setValueAtTime(vol, t);
+    g.gain.exponentialRampToValueAtTime(.001, t + dur);
+    o.connect(g).connect(ctx.destination);
+    o.start(t); o.stop(t + dur + .05);
+  }
+  function noise(dur, filterFrom, filterTo, vol = .5) {
+    const ctx = audio(), t = ctx.currentTime;
+    const buf = ctx.createBuffer(1, ctx.sampleRate * dur, ctx.sampleRate);
+    const d = buf.getChannelData(0);
+    for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+    const src = ctx.createBufferSource(); src.buffer = buf;
+    const f = ctx.createBiquadFilter(); f.type = 'lowpass';
+    f.frequency.setValueAtTime(filterFrom, t);
+    f.frequency.exponentialRampToValueAtTime(filterTo, t + dur);
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(vol, t);
+    g.gain.exponentialRampToValueAtTime(.001, t + dur);
+    src.connect(f).connect(g).connect(ctx.destination);
+    src.start(t);
+  }
+  const sndTick   = () => tone(1900, .04, 'square', .12);
+  const sndBoom   = () => { noise(1.1, 900, 60, .9); tone(70, .8, 'sine', .5); };
+  const sndWhoosh = () => noise(.55, 300, 4000, .3);
+  const sndOK     = () => { tone(880, .1, 'triangle', .3); tone(1320, .14, 'triangle', .3, .09); };
+  // マスごとの音階（ペンタトニック）
+  const SCALE = [262, 294, 330, 392, 440, 523, 587, 659, 784, 880, 1047, 1175, 1319, 1568, 1760, 2093, 233, 175, 196, 147, 131, 110, 98, 87, 82];
+  const tileTone = i => tone(SCALE[i % SCALE.length], .22, 'triangle', .35);
+
+  // ---------- 状態 ----------
+  let seq = [];          // 光る順番（タイル番号の配列）
+  let cur = 0;           // 0 = 1P(下), 1 = 2P(上)
+  let phase = 'idle';    // replay | add | transfer | idle
+  let pos = 0;           // 再現の進み具合
+  let deadline = 0, turnTime = 0, rafId = 0, nextTick = 0, running = false;
+  let tiles = [];
+
+  const board = document.getElementById('board');
+  const bomb = document.getElementById('bomb');
+  const zones = [document.getElementById('zoneBottom'), document.getElementById('zoneTop')];
+  const msgs  = [document.getElementById('msgBottom'), document.getElementById('msgTop')];
+  const fuses = [document.getElementById('fuseBottom'), document.getElementById('fuseTop')];
+  const anchors = [document.getElementById('anchorBottom'), document.getElementById('anchorTop')];
+  const NAMES = ['1P', '2P'];
+
+  // ---------- 盤面 ----------
+  function buildBoard() {
+    board.innerHTML = ''; tiles = [];
+    const n = cfg.size;
+    board.style.gridTemplateColumns = `repeat(${n},1fr)`;
+    board.style.gridTemplateRows = `repeat(${n},1fr)`;
+    for (let i = 0; i < n * n; i++) {
+      const b = document.createElement('button');
+      b.className = 'tile';
+      const hue = Math.round(i * 360 / (n * n));
+      b.style.background = `hsl(${hue} 75% 55%)`;
+      b.style.color = `hsl(${hue} 90% 65%)`;
+      b.addEventListener('pointerdown', e => { e.preventDefault(); tapTile(i); });
+      tiles.push(b);
+      board.appendChild(b);
+    }
+  }
+
+  function flash(i, ms = 260) {
+    tiles[i].classList.add('lit');
+    tileTone(i);
+    setTimeout(() => tiles[i].classList.remove('lit'), ms);
+  }
+
+  // ---------- ターン進行 ----------
+  const timeFor = len => {
+    const [base, per] = SPEEDS[cfg.speed];
+    return Math.min(30, base + per * len) * 1000;
+  };
+
+  function startTurn(p) {
+    cur = p; pos = 0;
+    phase = seq.length ? 'replay' : 'add';
+    zones.forEach((z, i) => { z.classList.toggle('active', i === p); z.classList.toggle('idle', i !== p); });
+    msgs[1 - p].textContent = 'まって…（順番をおぼえておこう）';
+    updateMsg();
+    board.classList.remove('locked');
+    turnTime = timeFor(seq.length);
+    deadline = performance.now() + turnTime;
+    nextTick = 0;
+    moveBombTo(p, false);
+    cancelAnimationFrame(rafId);
+    rafId = requestAnimationFrame(fuseLoop);
+  }
+
+  function updateMsg() {
+    if (phase === 'replay')
+      msgs[cur].textContent = `順番どおりタップ！（${pos}/${seq.length}）`;
+    else if (phase === 'add')
+      msgs[cur].textContent = seq.length
+        ? '✨ ちょい足し！ すきなマスを1つ'
+        : '✨ さいしょの1マスをえらんで！';
+  }
+
+  function fuseLoop(now) {
+    if (!running || phase === 'transfer') return;
+    const remain = Math.max(0, deadline - now);
+    fuses[cur].style.width = (remain / turnTime * 100) + '%';
+    // 爆弾の焦りレベル＆チクタク
+    bomb.classList.toggle('panic', remain < 3000);
+    bomb.classList.toggle('warn', remain >= 3000 && remain < 6000);
+    bomb.classList.toggle('calm', remain >= 6000);
+    if (now >= nextTick) {
+      sndTick();
+      nextTick = now + (remain < 3000 ? 180 : remain < 6000 ? 380 : 650);
+    }
+    if (remain <= 0) { explode('時間切れ'); return; }
+    rafId = requestAnimationFrame(fuseLoop);
+  }
+
+  // ---------- タップ処理 ----------
+  function tapTile(i) {
+    if (!running || phase === 'idle' || phase === 'transfer') return;
+    if (phase === 'replay') {
+      if (i === seq[pos]) {
+        flash(i);
+        pos++;
+        if (pos === seq.length) phase = 'add';
+        updateMsg();
+      } else {
+        tiles[i].classList.add('wrongTile');
+        flash(seq[pos], 700); // 正解はここだったよ
+        explode('押し間違い');
+      }
+    } else if (phase === 'add') {
+      seq.push(i);
+      flash(i, 400);
+      board.classList.add('locked');
+      cancelAnimationFrame(rafId);
+      fuses[cur].style.width = '100%';
+      sndOK();
+      if (cfg.maxTurns > 0 && seq.length >= cfg.maxTurns) { draw(); return; }
+      // 爆弾を相手へ！
+      phase = 'transfer';
+      msgs[cur].textContent = `セーフ！ 爆弾は${NAMES[1 - cur]}へ…`;
+      setTimeout(() => {
+        sndWhoosh();
+        moveBombTo(1 - cur, true);
+        setTimeout(() => startTurn(1 - cur), 750);
+      }, 350);
+    }
+  }
+
+  // ---------- 爆弾の移動 ----------
+  function bombTargetXY(p) {
+    const r = anchors[p].getBoundingClientRect();
+    return [r.left + r.width / 2 - 28, r.top + r.height / 2 - 28];
+  }
+  function moveBombTo(p, fly) {
+    const [x, y] = bombTargetXY(p);
+    bomb.classList.remove('hidden');
+    if (fly) {
+      bomb.classList.add('flying');
+      setTimeout(() => bomb.classList.remove('flying'), 720);
+    } else {
+      const t = bomb.style.transition; bomb.style.transition = 'none';
+      requestAnimationFrame(() => { bomb.style.transition = t || ''; });
+    }
+    bomb.style.left = x + 'px';
+    bomb.style.top = y + 'px';
+  }
+
+  // ---------- 爆発・引き分け ----------
+  function explode(reason) {
+    running = false; phase = 'idle';
+    cancelAnimationFrame(rafId);
+    board.classList.add('locked');
+    sndBoom();
+    const boom = document.getElementById('boom');
+    const r = bomb.getBoundingClientRect();
+    boom.style.left = (r.left + 28) + 'px';
+    boom.style.top = (r.top + 28) + 'px';
+    boom.classList.remove('go'); void boom.offsetWidth; boom.classList.add('go');
+    bomb.classList.add('hidden');
+    document.body.classList.add('shake');
+    setTimeout(() => document.body.classList.remove('shake'), 550);
+    const loser = cur, winner = 1 - cur;
+    setTimeout(() => showResult(
+      `💥 ${NAMES[loser]} 爆発！\n🏆 ${NAMES[winner]}の勝ち！`,
+      `${reason}／のこした順番：${seq.length}マス`
+    ), 1100);
+  }
+
+  function draw() {
+    running = false; phase = 'idle';
+    cancelAnimationFrame(rafId);
+    bomb.classList.add('hidden');
+    sndOK(); tone(660, .3, 'triangle', .3, .2);
+    showResult('🤝 引き分け！\nふたりとも生き残った！', `MAXターン ${cfg.maxTurns} 到達`);
+  }
+
+  function showResult(title, sub) {
+    document.getElementById('resultTitle').textContent = title;
+    document.getElementById('resultTitleFlip').textContent = title;
+    document.getElementById('resultSub').textContent = sub;
+    document.getElementById('resultOverlay').classList.remove('hidden');
+  }
+
+  // ---------- 開始 ----------
+  document.getElementById('startBtn').addEventListener('click', () => {
+    audio().resume && audio().resume();
+    document.getElementById('setupOverlay').classList.add('hidden');
+    seq = [];
+    buildBoard();
+    fuses.forEach(f => f.style.width = '100%');
+    const first = Math.random() < .5 ? 0 : 1;
+    // カウントダウン＋先攻発表
+    const ov = document.getElementById('countOverlay');
+    ov.classList.remove('hidden');
+    const firstText = `先攻は ${NAMES[first]}！`;
+    document.getElementById('firstMsg').textContent = firstText;
+    document.getElementById('firstMsgFlip').textContent = firstText;
+    let n = 3;
+    const show = t => { document.getElementById('countNum').textContent = t; document.getElementById('countNumFlip').textContent = t; };
+    show(n); tone(440, .12);
+    const cd = setInterval(() => {
+      n--;
+      if (n > 0) { show(n); tone(440, .12); }
+      else if (n === 0) { show('GO!'); tone(880, .3); }
+      else {
+        clearInterval(cd);
+        ov.classList.add('hidden');
+        running = true;
+        startTurn(first);
+      }
+    }, 800);
+  });
+
+  document.getElementById('againBtn').addEventListener('click', () => {
+    document.getElementById('resultOverlay').classList.add('hidden');
+    document.getElementById('setupOverlay').classList.remove('hidden');
+  });
+
+  // 画面回転・リサイズで爆弾位置がズレないように
+  window.addEventListener('resize', () => { if (running) moveBombTo(cur, false); });
+})();
+</script>
+</body>
+</html>
