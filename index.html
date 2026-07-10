@@ -1,0 +1,637 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>半分半分 — 親子ガチンコ100マス計算バトル</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DotGothic16&family=M+PLUS+Rounded+1c:wght@500;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --child-bg:#FFF6DE; --child-grid:#FFFFFF; --child-accent:#FF8A3D; --child-ink:#4A301B;
+    --adult-bg:#171C2E; --adult-grid:#222A45; --adult-accent:#FF4D6D; --adult-ink:#E9EEFF;
+    --ok:#2EBD6B; --ok-soft:#DFF6E8; --ok-soft-dark:#1E4D38;
+    --bad:#E5484D; --gold:#FFD34D; --bar:#0B0E19;
+    --radius:12px;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{height:100%;overflow:hidden;}
+  body{
+    font-family:"M PLUS Rounded 1c",system-ui,sans-serif;
+    background:var(--bar);
+    user-select:none;-webkit-user-select:none;touch-action:manipulation;
+  }
+  .arcade{font-family:"DotGothic16",monospace;}
+
+  /* ===== 全体レイアウト ===== */
+  #stage{display:flex;flex-direction:column;height:100dvh;}
+  .half{flex:1;min-height:0;display:flex;gap:8px;padding:8px;}
+  #adultHalf{background:var(--adult-bg);color:var(--adult-ink);transform:rotate(180deg);}
+  #childHalf{background:var(--child-bg);color:var(--child-ink);}
+
+  /* ===== 中央バトルバー（シグネチャ）===== */
+  #battleBar{
+    height:56px;background:var(--bar);color:#fff;
+    display:flex;align-items:center;gap:10px;padding:0 12px;
+    border-top:3px solid #000;border-bottom:3px solid #000;position:relative;z-index:2;
+  }
+  #battleBar .score{font-size:24px;min-width:64px;text-align:center;}
+  #battleBar .score small{display:block;font-size:9px;letter-spacing:.2em;opacity:.7;font-family:"M PLUS Rounded 1c";}
+  #scoreA{color:var(--adult-accent);transform:rotate(180deg);}
+  #scoreC{color:var(--child-accent);}
+  #tug{flex:1;height:14px;border:2px solid #fff;border-radius:99px;overflow:hidden;display:flex;background:#2a2a2a;}
+  #tugA{background:var(--adult-accent);width:0%;transition:width .3s;}
+  #tugGap{flex:1;}
+  #tugC{background:var(--child-accent);width:0%;transition:width .3s;}
+  #vsBadge{
+    position:absolute;left:50%;top:50%;transform:translate(-50%,-50%) rotate(-6deg);
+    background:var(--gold);color:#000;font-size:20px;padding:2px 10px;border:3px solid #000;
+    border-radius:8px;box-shadow:3px 3px 0 #000;pointer-events:none;
+  }
+  #timerWrap{display:flex;flex-direction:column;align-items:center;line-height:1;}
+  #timer{font-size:26px;color:var(--gold);}
+  #timerFlip{font-size:11px;opacity:.6;transform:rotate(180deg);color:var(--gold);}
+
+  /* ===== プレイエリア共通 ===== */
+  .board{flex:1;min-width:0;display:flex;flex-direction:column;gap:6px;}
+  .grid{flex:1;min-height:0;display:grid;gap:2px;}
+  .cell{
+    display:flex;align-items:center;justify-content:center;
+    border-radius:6px;font-weight:800;overflow:hidden;
+    font-size:clamp(9px,2.1vh,18px);
+  }
+  #childHalf .cell{background:var(--child-grid);border:1.5px solid #EAD9B0;}
+  #adultHalf .cell{background:var(--adult-grid);border:1.5px solid #34406B;}
+  .cell.head{font-family:"DotGothic16";font-weight:400;}
+  #childHalf .cell.head{background:var(--child-accent);color:#fff;border-color:#d96f27;}
+  #adultHalf .cell.head{background:#3A466F;color:#BFD0FF;border-color:#2b3556;}
+  .cell.corner{background:transparent!important;border:none!important;}
+  .cell.sel{outline:3px solid currentColor;outline-offset:-3px;}
+  #childHalf .cell.sel{color:var(--child-accent);}
+  #adultHalf .cell.sel{color:var(--gold);}
+  .cell.done{color:#fff!important;}
+  #childHalf .cell.done{background:var(--ok);border-color:#249655;}
+  #adultHalf .cell.done{background:#1F7A4C;border-color:#175c39;}
+  .cell.target{outline:3px dashed var(--bad);outline-offset:-3px;animation:pulse .7s infinite alternate;}
+  .cell.wrongflash{animation:shake .3s;background:var(--bad)!important;}
+  @keyframes pulse{from{box-shadow:0 0 0 0 rgba(229,72,77,.7);}to{box-shadow:0 0 0 6px rgba(229,72,77,0);}}
+  @keyframes shake{0%,100%{transform:translateX(0);}25%{transform:translateX(-3px);}75%{transform:translateX(3px);}}
+  @media (prefers-reduced-motion:reduce){.cell.target,.cell.wrongflash{animation:none;}}
+
+  /* ===== サイドパネル（テンキー）===== */
+  .side{width:150px;display:flex;flex-direction:column;gap:6px;}
+  .readout{
+    height:44px;border-radius:var(--radius);display:flex;align-items:center;justify-content:center;
+    font-family:"DotGothic16";font-size:24px;letter-spacing:.1em;
+  }
+  #childHalf .readout{background:#fff;border:2px solid var(--child-accent);color:var(--child-ink);}
+  #adultHalf .readout{background:#0d1122;border:2px solid var(--adult-accent);color:#fff;}
+  .qline{font-size:13px;font-weight:800;text-align:center;min-height:18px;}
+  .pad{flex:1;display:grid;grid-template-columns:repeat(3,1fr);gap:6px;align-content:stretch;}
+  .pad button{
+    border:none;border-radius:var(--radius);font-family:inherit;font-weight:800;
+    font-size:clamp(16px,3vh,26px);cursor:pointer;min-height:0;
+    box-shadow:0 3px 0 rgba(0,0,0,.25);
+  }
+  .pad button:active{transform:translateY(2px);box-shadow:0 1px 0 rgba(0,0,0,.25);}
+  #childHalf .pad button{background:#fff;color:var(--child-ink);border:2px solid #EAD9B0;}
+  #childHalf .pad button.fn{background:var(--child-accent);color:#fff;border-color:#d96f27;}
+  #adultHalf .pad button{background:#333D63;color:#fff;border:2px solid #232A45;}
+  #adultHalf .pad button.fn{background:var(--adult-accent);border-color:#b52f4a;}
+
+  .attackBtn{
+    height:52px;border:3px solid #000;border-radius:var(--radius);
+    font-family:"DotGothic16";font-size:16px;cursor:pointer;
+    background:#ccc;color:#666;box-shadow:3px 3px 0 rgba(0,0,0,.3);
+  }
+  .attackBtn.ready{background:var(--bad);color:#fff;animation:pulse .7s infinite alternate;}
+  .attackBtn:disabled{cursor:default;}
+
+  .tag{
+    font-family:"DotGothic16";font-size:12px;text-align:center;padding:3px 0;
+    border-radius:6px;letter-spacing:.15em;
+  }
+  #childHalf .tag{background:var(--child-accent);color:#fff;}
+  #adultHalf .tag{background:var(--adult-accent);color:#fff;}
+
+  /* デスモード警告バナー */
+  .alertBanner{
+    position:absolute;inset:0;display:none;align-items:center;justify-content:center;
+    pointer-events:none;z-index:5;
+  }
+  .alertBanner.show{display:flex;}
+  .alertBanner span{
+    font-family:"DotGothic16";font-size:34px;color:#fff;background:var(--bad);
+    padding:8px 24px;border:4px solid #fff;border-radius:12px;transform:rotate(-4deg);
+    box-shadow:0 0 30px rgba(229,72,77,.9);
+  }
+  .halfwrap{position:relative;flex:1;min-height:0;display:flex;flex-direction:column;}
+
+  /* ===== オーバーレイ（設定・カウントダウン・結果）===== */
+  .overlay{
+    position:fixed;inset:0;background:rgba(8,10,20,.92);z-index:50;
+    display:flex;align-items:center;justify-content:center;color:#fff;
+  }
+  .hidden{display:none!important;}
+  .panel{
+    width:min(560px,94vw);max-height:92dvh;overflow:auto;background:#141930;
+    border:3px solid var(--gold);border-radius:20px;padding:22px 24px;
+    display:flex;flex-direction:column;gap:16px;
+  }
+  .panel h1{font-family:"DotGothic16";font-size:30px;color:var(--gold);text-align:center;line-height:1.2;}
+  .panel h1 small{display:block;font-size:12px;color:#fff;opacity:.8;font-family:"M PLUS Rounded 1c";letter-spacing:.1em;margin-top:4px;}
+  .optGroup{display:flex;flex-direction:column;gap:8px;}
+  .optGroup .label{font-size:13px;font-weight:800;color:#9fb0e8;}
+  .optRow{display:flex;gap:8px;flex-wrap:wrap;}
+  .opt{
+    flex:1;min-width:90px;padding:10px 6px;border-radius:10px;border:2px solid #39456f;
+    background:#1b2140;color:#fff;font-family:inherit;font-weight:800;font-size:14px;cursor:pointer;
+  }
+  .opt.on{background:var(--gold);color:#000;border-color:var(--gold);}
+  .opt.onRed{background:var(--bad);color:#fff;border-color:var(--bad);}
+  .opt small{display:block;font-weight:500;font-size:10px;opacity:.75;margin-top:2px;}
+  #startBtn{
+    font-family:"DotGothic16";font-size:26px;padding:16px;border-radius:14px;border:3px solid #000;
+    background:var(--child-accent);color:#fff;cursor:pointer;box-shadow:0 5px 0 #b35a1c;
+  }
+  #startBtn:active{transform:translateY(3px);box-shadow:0 2px 0 #b35a1c;}
+
+  #countNum{font-family:"DotGothic16";font-size:120px;color:var(--gold);}
+  .bothways{display:flex;flex-direction:column;align-items:center;gap:30px;}
+  .bothways .flip{transform:rotate(180deg);}
+
+  #resultPanel{text-align:center;gap:10px;}
+  #resultTitle{font-family:"DotGothic16";font-size:40px;color:var(--gold);}
+  #resultTitleFlip{font-family:"DotGothic16";font-size:22px;color:var(--gold);transform:rotate(180deg);opacity:.85;}
+  .resultScores{display:flex;justify-content:center;gap:30px;font-size:15px;font-weight:800;}
+  .resultScores b{font-family:"DotGothic16";font-size:26px;display:block;}
+  .resultScores b small{font-size:11px;opacity:.7;font-family:"M PLUS Rounded 1c";}
+  .missLine{
+    display:block;margin-top:6px;padding:4px 10px;border-radius:8px;
+    background:rgba(229,72,77,.18);color:#FF8A93;font-size:14px;
+  }
+  #againBtn{margin-top:6px;}
+  /* モード別の設定グループ表示切替 */
+  #setupPanel .mFriends{display:none;}
+  #setupPanel.friends .mFriends{display:flex;}
+  #setupPanel.friends .mFamily{display:none;}
+</style>
+</head>
+<body>
+
+<div id="stage">
+  <!-- 大人エリア（180度反転） -->
+  <section class="half" id="adultHalf">
+    <div class="halfwrap" style="flex-direction:row;gap:8px;">
+      <div class="board">
+        <div class="grid" id="adultGrid"></div>
+      </div>
+      <div class="side">
+        <div class="tag" id="adultTag">オトナ・かけ算100マス</div>
+        <div class="qline" id="adultQ">&nbsp;</div>
+        <div class="readout" id="adultReadout">&nbsp;</div>
+        <div class="pad" id="adultPad"></div>
+        <button class="attackBtn arcade" id="adultAttackBtn" disabled>お邪魔アタック ×0</button>
+      </div>
+      <div class="alertBanner" id="adultAlert"><span>🎯 ココを解け！</span></div>
+    </div>
+  </section>
+
+  <!-- 中央バトルバー -->
+  <div id="battleBar">
+    <div class="score arcade" id="scoreA">0<small id="labelA">OTONA</small></div>
+    <div id="tug"><div id="tugA"></div><div id="tugGap"></div><div id="tugC"></div></div>
+    <div id="timerWrap"><div class="arcade" id="timer">3:00</div><div class="arcade" id="timerFlip">3:00</div></div>
+    <div class="score arcade" id="scoreC">0<small id="labelC">KODOMO</small></div>
+    <div id="vsBadge" class="arcade">VS</div>
+  </div>
+
+  <!-- 子どもエリア -->
+  <section class="half" id="childHalf">
+    <div class="halfwrap" style="flex-direction:row;gap:8px;">
+      <div class="board">
+        <div class="grid" id="childGrid"></div>
+      </div>
+      <div class="side">
+        <div class="tag" id="childTag">コドモ・たし算</div>
+        <div class="qline" id="childQ">&nbsp;</div>
+        <div class="readout" id="childReadout">&nbsp;</div>
+        <div class="pad" id="childPad"></div>
+        <button class="attackBtn arcade" id="childAttackBtn" disabled>お邪魔アタック ×0</button>
+      </div>
+      <div class="alertBanner" id="childAlert"><span>🎯 ココを解け！</span></div>
+    </div>
+  </section>
+</div>
+
+<!-- 設定オーバーレイ -->
+<div class="overlay" id="setupOverlay">
+  <div class="panel" id="setupPanel">
+    <h1>半分半分<small>1台のタブレットで ガチンコ100マス計算バトル</small></h1>
+    <div class="optGroup">
+      <div class="label">🎮 モード</div>
+      <div class="optRow" data-set="mode">
+        <button class="opt on" data-v="family">親子バトル<small>ハンデあり</small></button>
+        <button class="opt" data-v="friends">友だちバトル<small>同じルールでガチ勝負</small></button>
+      </div>
+    </div>
+
+    <!-- ===== 親子モード ===== -->
+    <div class="optGroup mFamily">
+      <div class="label">🧒 子どものマス数（たし算）</div>
+      <div class="optRow" data-set="childRows">
+        <button class="opt" data-v="3">30マス<small>はじめて</small></button>
+        <button class="opt on" data-v="5">50マス<small>ふつう</small></button>
+        <button class="opt" data-v="10">100マス<small>ガチ</small></button>
+      </div>
+    </div>
+    <div class="optGroup mFamily">
+      <div class="label">🧑 大人の計算（100マス固定）</div>
+      <div class="optRow" data-set="adultOp">
+        <button class="opt" data-v="+">たし算<small>ちょっと優しく</small></button>
+        <button class="opt on" data-v="×">かけ算<small>本気モード</small></button>
+      </div>
+    </div>
+    <div class="optGroup mFamily">
+      <div class="label">🧑 大人のハンデ</div>
+      <div class="optRow">
+        <button class="opt" id="optRandom">テンキー配置ランダム<small>1問ごとに数字がシャッフル</small></button>
+        <button class="opt" id="optDeath">デスモード<small>子どものお邪魔アタック解禁</small></button>
+      </div>
+    </div>
+    <div class="optGroup mFamily">
+      <div class="label">🔢 テンキー上の式表示（7×8=? など）</div>
+      <div class="optRow" data-set="showEq">
+        <button class="opt on" data-v="both">両方に表示</button>
+        <button class="opt" data-v="child">子どもだけ<small>大人はガチ100マス</small></button>
+        <button class="opt" data-v="none">表示しない<small>本格派</small></button>
+      </div>
+    </div>
+
+    <!-- ===== 友だちモード ===== -->
+    <div class="optGroup mFriends">
+      <div class="label">🔲 マス数（ふたり同じ）</div>
+      <div class="optRow" data-set="fRows">
+        <button class="opt" data-v="3">30マス</button>
+        <button class="opt on" data-v="5">50マス</button>
+        <button class="opt" data-v="10">100マス</button>
+      </div>
+    </div>
+    <div class="optGroup mFriends">
+      <div class="label">➕ 計算（ふたり同じ）</div>
+      <div class="optRow" data-set="fOp">
+        <button class="opt on" data-v="+">たし算</button>
+        <button class="opt" data-v="×">かけ算</button>
+      </div>
+    </div>
+    <div class="optGroup mFriends">
+      <div class="label">🔥 追加ルール（ふたりとも同じ条件）</div>
+      <div class="optRow">
+        <button class="opt" id="optFRandom">テンキー配置ランダム<small>両者とも毎問シャッフル</small></button>
+        <button class="opt" id="optFAttack">お邪魔アタック<small>5問正解で相手に強制ターゲット</small></button>
+      </div>
+    </div>
+    <div class="optGroup mFriends">
+      <div class="label">🔢 テンキー上の式表示</div>
+      <div class="optRow" data-set="fShowEq">
+        <button class="opt on" data-v="both">表示する</button>
+        <button class="opt" data-v="none">表示しない<small>本格派</small></button>
+      </div>
+    </div>
+
+    <div class="optGroup">
+      <div class="label">⏱ 制限時間</div>
+      <div class="optRow" data-set="timeLimit">
+        <button class="opt" data-v="120">2分</button>
+        <button class="opt on" data-v="180">3分</button>
+        <button class="opt" data-v="300">5分</button>
+      </div>
+    </div>
+    <button id="startBtn">よーいドン！</button>
+    <div style="font-size:11px;opacity:.6;text-align:center;">タブレットを机の真ん中に置いて、向かい合って対戦してね</div>
+  </div>
+</div>
+
+<!-- カウントダウン -->
+<div class="overlay hidden" id="countOverlay">
+  <div class="bothways">
+    <div id="countNumFlip" class="arcade flip" style="font-size:60px;color:var(--gold);">3</div>
+    <div id="countNum">3</div>
+  </div>
+</div>
+
+<!-- 結果 -->
+<div class="overlay hidden" id="resultOverlay">
+  <div class="panel" id="resultPanel">
+    <div id="resultTitleFlip">…</div>
+    <div id="resultTitle">…</div>
+    <div class="resultScores">
+      <div style="color:var(--adult-accent);"><span id="resNameA">オトナ</span><b id="resA">0</b><span class="missLine" id="resAsub"></span></div>
+      <div style="color:var(--child-accent);"><span id="resNameC">コドモ</span><b id="resC">0</b><span class="missLine" id="resCsub"></span></div>
+    </div>
+    <button id="againBtn" class="opt on" style="font-size:16px;padding:14px;">もう一回！</button>
+  </div>
+</div>
+
+<script>
+(() => {
+  // ---------- 設定 ----------
+  const cfg = {
+    mode: 'family', timeLimit: 180,
+    // 親子モード
+    childRows: 5, adultOp: '×', randomPad: false, deathMode: false, showEq: 'both',
+    // 友だちモード
+    fRows: 5, fOp: '+', fRandom: false, fAttack: false, fShowEq: 'both',
+  };
+
+  document.querySelectorAll('[data-set]').forEach(row => {
+    row.addEventListener('click', e => {
+      const b = e.target.closest('.opt'); if (!b) return;
+      row.querySelectorAll('.opt').forEach(o => o.classList.remove('on'));
+      b.classList.add('on');
+      const v = b.dataset.v;
+      cfg[row.dataset.set] = isNaN(v) ? v : +v;
+      if (row.dataset.set === 'mode')
+        document.getElementById('setupPanel').classList.toggle('friends', cfg.mode === 'friends');
+    });
+  });
+  const optRandom = document.getElementById('optRandom');
+  const optDeath = document.getElementById('optDeath');
+  const optFRandom = document.getElementById('optFRandom');
+  const optFAttack = document.getElementById('optFAttack');
+  optRandom.onclick = () => { cfg.randomPad = !cfg.randomPad; optRandom.classList.toggle('onRed', cfg.randomPad); };
+  optDeath.onclick = () => { cfg.deathMode = !cfg.deathMode; optDeath.classList.toggle('onRed', cfg.deathMode); };
+  optFRandom.onclick = () => { cfg.fRandom = !cfg.fRandom; optFRandom.classList.toggle('onRed', cfg.fRandom); };
+  optFAttack.onclick = () => { cfg.fAttack = !cfg.fAttack; optFAttack.classList.toggle('onRed', cfg.fAttack); };
+
+  // モード別ルール判定ヘルパー
+  const friends = () => cfg.mode === 'friends';
+  const canAttack = p => friends() ? cfg.fAttack : (cfg.deathMode && p === child);
+  const padRandom = p => friends() ? cfg.fRandom : (cfg.randomPad && p === adult);
+
+  // ---------- プレイヤー状態 ----------
+  const shuffle = a => { for (let i = a.length - 1; i > 0; i--) { const j = Math.random() * (i + 1) | 0; [a[i], a[j]] = [a[j], a[i]]; } return a; };
+
+  function makePlayer(id, rows, op, name) {
+    return {
+      id, op, rows, name, cols: 10, opp: null,
+      rowH: [], colH: [],
+      cells: [],           // {el, r, c, ans, done}
+      sel: -1, forced: -1, // forced: お邪魔アタックの強制ターゲット
+      input: '', score: 0, miss: 0, streak: 0, charges: 0,
+      gridEl: document.getElementById(id + 'Grid'),
+      readout: document.getElementById(id + 'Readout'),
+      qline: document.getElementById(id + 'Q'),
+      attackBtn: document.getElementById(id + 'AttackBtn'),
+      alertEl: document.getElementById(id + 'Alert'),
+    };
+  }
+
+  let adult, child, running = false, timeLeft = 0, timerId = null;
+
+  function buildGrid(p) {
+    p.rowH = shuffle([...Array(p.rows === 10 ? 10 : 10).keys()].map(n => n + 1)).slice(0, p.rows);
+    p.colH = shuffle([...Array(10).keys()].map(n => n + 1));
+    p.cells = []; p.sel = -1; p.forced = -1; p.input = ''; p.score = 0; p.miss = 0; p.streak = 0; p.charges = 0;
+    const g = p.gridEl;
+    g.innerHTML = '';
+    g.style.gridTemplateColumns = `repeat(${p.cols + 1}, 1fr)`;
+    g.style.gridTemplateRows = `repeat(${p.rows + 1}, 1fr)`;
+    // 角
+    const corner = document.createElement('div');
+    corner.className = 'cell head corner';
+    corner.textContent = p.op === '+' ? '＋' : '×';
+    corner.style.background = 'transparent';
+    g.appendChild(corner);
+    // 列ヘッダ
+    p.colH.forEach(v => { const d = document.createElement('div'); d.className = 'cell head'; d.textContent = v; g.appendChild(d); });
+    // 行
+    for (let r = 0; r < p.rows; r++) {
+      const rh = document.createElement('div'); rh.className = 'cell head'; rh.textContent = p.rowH[r]; g.appendChild(rh);
+      for (let c = 0; c < p.cols; c++) {
+        const el = document.createElement('div'); el.className = 'cell';
+        const ans = p.op === '+' ? p.rowH[r] + p.colH[c] : p.rowH[r] * p.colH[c];
+        const idx = p.cells.length;
+        const cell = { el, r, c, ans: String(ans), done: false };
+        el.addEventListener('pointerdown', () => selectCell(p, idx));
+        p.cells.push(cell);
+        g.appendChild(el);
+      }
+    }
+    selectCell(p, 0, true);
+    updateScores();
+  }
+
+  function selectCell(p, idx, force = false) {
+    if (!running && !force) return;
+    if (p.cells[idx].done) return;
+    if (p.forced >= 0 && idx !== p.forced) return; // デスモード中は移動禁止
+    if (p.sel >= 0) p.cells[p.sel].el.classList.remove('sel');
+    p.sel = idx; p.input = '';
+    p.cells[idx].el.classList.add('sel');
+    renderIO(p);
+  }
+
+  function nextCell(p) {
+    if (p.forced >= 0) { selectCell(p, p.forced, true); return; }
+    const n = p.cells.length;
+    for (let k = 1; k <= n; k++) {
+      const i = (p.sel + k) % n;
+      if (!p.cells[i].done) { selectCell(p, i, true); return; }
+    }
+  }
+
+  const eqOn = p => friends()
+    ? cfg.fShowEq === 'both'
+    : (cfg.showEq === 'both' || (cfg.showEq === 'child' && p === child));
+
+  function renderIO(p) {
+    p.readout.textContent = p.input || '　';
+    if (eqOn(p) && p.sel >= 0 && !p.cells[p.sel].done) {
+      const c = p.cells[p.sel];
+      p.qline.textContent = `${p.rowH[c.r]} ${p.op === '+' ? '＋' : '×'} ${p.colH[c.c]} = ?`;
+    } else p.qline.innerHTML = '&nbsp;';
+  }
+
+  // ---------- 入力 ----------
+  function press(p, key) {
+    if (!running || p.sel < 0) return;
+    if (key === 'C') { p.input = ''; renderIO(p); return; }
+    if (key === '⌫') { p.input = p.input.slice(0, -1); renderIO(p); return; }
+    p.input += key;
+    const cell = p.cells[p.sel];
+    if (p.input === cell.ans) {
+      correct(p, cell);
+    } else if (p.input.length >= cell.ans.length) {
+      wrong(p, cell);
+    } else renderIO(p);
+  }
+
+  function correct(p, cell) {
+    cell.done = true;
+    cell.el.classList.remove('sel', 'target');
+    cell.el.classList.add('done');
+    cell.el.textContent = cell.ans;
+    p.score++; p.streak++;
+    if (p.forced === p.cells.indexOf(cell)) { p.forced = -1; p.alertEl.classList.remove('show'); }
+    // 5問正解ごとにアタック権ゲット（最大3）
+    if (canAttack(p) && p.score % 5 === 0 && p.charges < 3) {
+      p.charges++; updateAttackBtn(p);
+    }
+    p.input = '';
+    updateScores();
+    if (padRandom(p)) buildPad(p, true); // 1問ごとにシャッフル
+    if (p.cells.every(c => c.done)) { finish(p); return; }
+    nextCell(p);
+  }
+
+  function wrong(p, cell) {
+    p.miss++; p.streak = 0; p.input = '';
+    cell.el.classList.add('wrongflash');
+    setTimeout(() => cell.el.classList.remove('wrongflash'), 320);
+    renderIO(p);
+  }
+
+  // ---------- テンキー ----------
+  function buildPad(p, random) {
+    const pad = document.getElementById(p.id + 'Pad');
+    pad.innerHTML = '';
+    let digits = ['7','8','9','4','5','6','1','2','3','0'];
+    if (random) digits = shuffle(digits.slice());
+    // 数字10個 + C/⌫（機能キーの位置は固定）
+    const keys = [...digits.slice(0, 9), 'C', digits[9], '⌫'];
+    keys.forEach(k => {
+      const b = document.createElement('button');
+      b.textContent = k;
+      if (k === 'C' || k === '⌫') b.classList.add('fn');
+      b.addEventListener('pointerdown', e => { e.preventDefault(); press(p, k); });
+      pad.appendChild(b);
+    });
+  }
+
+  // ---------- お邪魔アタック ----------
+  function updateAttackBtn(p) {
+    if (!p || !p.attackBtn) return;
+    p.attackBtn.textContent = `お邪魔アタック ×${p.charges}`;
+    const ready = canAttack(p) && p.charges > 0 && running;
+    p.attackBtn.disabled = !ready;
+    p.attackBtn.classList.toggle('ready', ready);
+  }
+
+  function doAttack(p) {
+    if (!p || !running || p.charges <= 0) return;
+    const t = p.opp;
+    if (t.forced >= 0) return;
+    const open = t.cells.map((c, i) => c.done ? -1 : i).filter(i => i >= 0);
+    if (!open.length) return;
+    p.charges--;
+    const idx = open[Math.random() * open.length | 0];
+    t.forced = idx;
+    t.cells[idx].el.classList.add('target');
+    selectCell(t, idx, true);
+    t.alertEl.classList.add('show');
+    setTimeout(() => t.alertEl.classList.remove('show'), 1500);
+    updateAttackBtn(p);
+  }
+
+  document.getElementById('childAttackBtn').addEventListener('pointerdown', () => doAttack(child));
+  document.getElementById('adultAttackBtn').addEventListener('pointerdown', () => doAttack(adult));
+
+  // ---------- スコア・タイマー ----------
+  const fmt = s => `${s / 60 | 0}:${String(s % 60).padStart(2, '0')}`;
+  function updateScores() {
+    document.getElementById('scoreA').firstChild.nodeValue = adult.score;
+    document.getElementById('scoreC').firstChild.nodeValue = child.score;
+    document.getElementById('tugA').style.width = (adult.score / adult.cells.length * 50) + '%';
+    document.getElementById('tugC').style.width = (child.score / child.cells.length * 50) + '%';
+  }
+  function tick() {
+    timeLeft--;
+    document.getElementById('timer').textContent = fmt(timeLeft);
+    document.getElementById('timerFlip').textContent = fmt(timeLeft);
+    if (timeLeft <= 0) finish(null);
+  }
+
+  // ---------- 開始・終了 ----------
+  document.getElementById('startBtn').addEventListener('click', startGame);
+  document.getElementById('againBtn').addEventListener('click', () => {
+    document.getElementById('resultOverlay').classList.add('hidden');
+    document.getElementById('setupOverlay').classList.remove('hidden');
+  });
+
+  function startGame() {
+    document.getElementById('setupOverlay').classList.add('hidden');
+    const opName = op => op === '+' ? 'たし算' : 'かけ算';
+    if (friends()) {
+      adult = makePlayer('adult', cfg.fRows, cfg.fOp, 'プレイヤー2');
+      child = makePlayer('child', cfg.fRows, cfg.fOp, 'プレイヤー1');
+      document.getElementById('adultTag').textContent = `2P・${opName(cfg.fOp)}${cfg.fRows * 10}マス`;
+      document.getElementById('childTag').textContent = `1P・${opName(cfg.fOp)}${cfg.fRows * 10}マス`;
+      document.getElementById('labelA').textContent = '2P';
+      document.getElementById('labelC').textContent = '1P';
+    } else {
+      adult = makePlayer('adult', 10, cfg.adultOp, 'オトナ');
+      child = makePlayer('child', cfg.childRows, '+', 'コドモ');
+      document.getElementById('adultTag').textContent = `オトナ・${opName(cfg.adultOp)}100マス`;
+      document.getElementById('childTag').textContent = `コドモ・たし算${cfg.childRows * 10}マス`;
+      document.getElementById('labelA').textContent = 'OTONA';
+      document.getElementById('labelC').textContent = 'KODOMO';
+    }
+    adult.opp = child; child.opp = adult;
+    buildGrid(adult); buildGrid(child);
+    buildPad(child, padRandom(child));
+    buildPad(adult, padRandom(adult));
+    child.qline.style.display = eqOn(child) ? '' : 'none';
+    adult.qline.style.display = eqOn(adult) ? '' : 'none';
+    child.attackBtn.style.display = canAttack(child) ? '' : 'none';
+    adult.attackBtn.style.display = canAttack(adult) ? '' : 'none';
+    child.alertEl.classList.remove('show');
+    adult.alertEl.classList.remove('show');
+    updateAttackBtn(child); updateAttackBtn(adult);
+    timeLeft = cfg.timeLimit;
+    document.getElementById('timer').textContent = fmt(timeLeft);
+    document.getElementById('timerFlip').textContent = fmt(timeLeft);
+    // カウントダウン
+    const ov = document.getElementById('countOverlay');
+    ov.classList.remove('hidden');
+    let n = 3;
+    const show = t => { document.getElementById('countNum').textContent = t; document.getElementById('countNumFlip').textContent = t; };
+    show(n);
+    const cd = setInterval(() => {
+      n--;
+      if (n > 0) show(n);
+      else if (n === 0) show('GO!');
+      else {
+        clearInterval(cd);
+        ov.classList.add('hidden');
+        running = true;
+        renderIO(adult); renderIO(child);
+        updateAttackBtn(child); updateAttackBtn(adult);
+        timerId = setInterval(tick, 1000);
+      }
+    }, 800);
+  }
+
+  function finish(winnerByComplete) {
+    running = false;
+    clearInterval(timerId);
+    let title;
+    if (winnerByComplete) title = `🏆 ${winnerByComplete.name}の勝ち！`;
+    else {
+      const ra = adult.score / adult.cells.length, rc = child.score / child.cells.length;
+      title = ra > rc ? `🏆 ${adult.name}の勝ち！` : rc > ra ? `🏆 ${child.name}の勝ち！` : '🤝 引き分け！';
+    }
+    document.getElementById('resultTitle').textContent = title;
+    document.getElementById('resultTitleFlip').textContent = title;
+    document.getElementById('resNameA').textContent = adult.name;
+    document.getElementById('resNameC').textContent = child.name;
+    document.getElementById('resA').innerHTML = `${adult.score}/${adult.cells.length}<small> 正解</small>`;
+    document.getElementById('resC').innerHTML = `${child.score}/${child.cells.length}<small> 正解</small>`;
+    document.getElementById('resAsub').textContent = `❌ まちがい ${adult.miss}回`;
+    document.getElementById('resCsub').textContent = `❌ まちがい ${child.miss}回`;
+    document.getElementById('resultOverlay').classList.remove('hidden');
+  }
+})();
+</script>
+</body>
+</html>
