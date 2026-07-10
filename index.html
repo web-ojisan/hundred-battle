@@ -140,6 +140,20 @@
   }
   .panel h1{font-family:"DotGothic16";font-size:30px;color:var(--gold);text-align:center;line-height:1.2;}
   .panel h1 small{display:block;font-size:12px;color:#fff;opacity:.8;font-family:"M PLUS Rounded 1c";letter-spacing:.1em;margin-top:4px;}
+  /* 設定パネル：iPadでスクロール不要になるよう2カラム＆コンパクト化 */
+  #setupPanel{
+    display:grid;grid-template-columns:1fr 1fr;gap:10px 18px;align-content:center;
+    width:min(740px,96vw);padding:14px 20px 16px;
+  }
+  #setupPanel h1{grid-column:1/-1;font-size:22px;}
+  #setupPanel h1 small{font-size:10px;margin-top:2px;}
+  #setupPanel .full{grid-column:1/-1;}
+  #setupPanel .optGroup{gap:4px;}
+  #setupPanel .label{font-size:11px;}
+  #setupPanel .opt{padding:6px 4px;font-size:12px;min-width:70px;border-radius:8px;}
+  #setupPanel .opt small{font-size:9px;margin-top:1px;}
+  #setupPanel #startBtn{grid-column:1/-1;font-size:20px;padding:10px;box-shadow:0 4px 0 #b35a1c;}
+  #setupPanel .note{grid-column:1/-1;}
   .optGroup{display:flex;flex-direction:column;gap:8px;}
   .optGroup .label{font-size:13px;font-weight:800;color:#9fb0e8;}
   .optRow{display:flex;gap:8px;flex-wrap:wrap;}
@@ -228,7 +242,7 @@
 <div class="overlay" id="setupOverlay">
   <div class="panel" id="setupPanel">
     <h1>半分半分<small>1台のタブレットで ガチンコ100マス計算バトル</small></h1>
-    <div class="optGroup">
+    <div class="optGroup full">
       <div class="label">🎮 モード</div>
       <div class="optRow" data-set="mode">
         <button class="opt on" data-v="family">親子バトル<small>ハンデあり</small></button>
@@ -316,7 +330,7 @@
       </div>
     </div>
     <button id="startBtn">よーいドン！</button>
-    <div style="font-size:11px;opacity:.6;text-align:center;">タブレットを机の真ん中に置いて、向かい合って対戦してね</div>
+    <div class="note" style="font-size:10px;opacity:.6;text-align:center;">タブレットを机の真ん中に置いて、向かい合って対戦してね</div>
   </div>
 </div>
 
@@ -419,14 +433,27 @@
     u.pitch = pitch; u.rate = rate; u.volume = 1;
     speechSynthesis.speak(u);
   }
-  function sfxCorrect() {
+  function sfxCorrect(p) {
     if (cfg.sound !== 'on') return;
-    tone(880, .09); tone(1318, .14, .07); // ピコン♪（即時フィードバック）
+    tone(880, .09); tone(1318, .14, .07); // ピコン♪（即時フィードバック・両者共通）
+    if (friends() || p !== child) return; // ほめ言葉ボイスは親子モードの子ども側だけ（友だちモードはなし）
     // 直前と同じ言葉は避けてランダムに
     let i;
     do { i = Math.random() * praiseWords.length | 0; } while (i === lastPraise && praiseWords.length > 1);
     lastPraise = i;
     say(praiseWords[i]);
+  }
+  function sfxAttack() {
+    if (cfg.sound !== 'on') return;
+    // デデーン！（低いサワートゥース和音を デ・デ・デーン と3発）
+    const hit = (f, dur, delay) => {
+      tone(f, dur, delay, 'sawtooth', .14);
+      tone(f * 1.189, dur, delay, 'sawtooth', .09); // 短3度上を重ねて不穏な響きに
+      tone(f / 2, dur, delay, 'square', .1);
+    };
+    hit(196, .18, 0);      // デ
+    hit(196, .18, .22);    // デ
+    hit(155.6, .8, .44);   // デーン（低く長く）
   }
   function sfxWrong() {
     if (cfg.sound !== 'on') return;
@@ -543,7 +570,7 @@
   }
 
   function correct(p, cell) {
-    sfxCorrect(); // 🔊 ピコン♪ ＋ 英語のほめ言葉
+    sfxCorrect(p); // 🔊 ピコン♪（ほめ言葉ボイスは子ども側のみ）
     cell.done = true;
     cell.el.classList.remove('sel', 'target');
     cell.el.classList.add('done');
@@ -602,6 +629,7 @@
     const open = t.cells.map((c, i) => c.done ? -1 : i).filter(i => i >= 0);
     if (!open.length) return;
     p.charges--;
+    sfxAttack(); // 🔊 デデーン！
     const idx = open[Math.random() * open.length | 0];
     t.forced = idx;
     t.cells[idx].el.classList.add('target');
