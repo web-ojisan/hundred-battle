@@ -153,6 +153,17 @@
   #setupPanel .opt small{font-size:9px;margin-top:1px;}
   #setupPanel #startBtn{grid-column:1/-1;font-size:20px;padding:10px;box-shadow:0 4px 0 #b35a1c;}
   #setupPanel .note{grid-column:1/-1;}
+  .player-col{
+    display:flex;flex-direction:column;gap:8px;
+    background:rgba(255,255,255,.04);border:1.5px solid #2b3252;
+    border-radius:10px;padding:8px 10px;
+  }
+  .col-header{
+    font-family:"DotGothic16";font-size:11px;letter-spacing:.1em;
+    padding:4px 0;border-radius:6px;text-align:center;
+  }
+  .col-child{background:var(--child-accent);color:#fff;}
+  .col-adult{background:var(--adult-accent);color:#fff;}
   .optGroup{display:flex;flex-direction:column;gap:8px;}
   .optGroup .label{font-size:13px;font-weight:800;color:#9fb0e8;}
   .optRow{display:flex;gap:8px;flex-wrap:wrap;}
@@ -274,6 +285,7 @@
 <div class="overlay" id="setupOverlay">
   <div class="panel" id="setupPanel">
     <h1>100マス計算バトル<small>昨日の自分を超えろ！</small></h1>
+
     <div class="optGroup full">
       <div class="label">🎮 モード</div>
       <div class="optRow" data-set="mode">
@@ -282,27 +294,33 @@
       </div>
     </div>
 
-    <!-- ===== 親子モード ===== -->
-    <div class="optGroup mFamily">
-      <div class="label">🧒 子どものマス数（たし算）</div>
-      <div class="optRow" data-set="childRows">
-        <button class="opt" data-v="3">30マス<small>はじめて</small></button>
-        <button class="opt on" data-v="5">50マス<small>ふつう</small></button>
-        <button class="opt" data-v="10">100マス<small>ガチ</small></button>
+    <!-- ===== 親子モード: コドモ／オトナ 2列 ===== -->
+    <div class="player-col mFamily">
+      <div class="col-header col-child">🧒 コドモ</div>
+      <div class="optGroup">
+        <div class="label">マス数（たし算）</div>
+        <div class="optRow" data-set="childRows">
+          <button class="opt" data-v="3">30マス<small>はじめて</small></button>
+          <button class="opt on" data-v="5">50マス<small>ふつう</small></button>
+          <button class="opt" data-v="10">100マス<small>ガチ</small></button>
+        </div>
       </div>
     </div>
-    <div class="optGroup mFamily">
-      <div class="label">🧑 大人の計算（100マス固定）</div>
-      <div class="optRow" data-set="adultOp">
-        <button class="opt" data-v="+">たし算<small>ちょっと優しく</small></button>
-        <button class="opt on" data-v="×">かけ算<small>本気モード</small></button>
+    <div class="player-col mFamily">
+      <div class="col-header col-adult">🧑 オトナ</div>
+      <div class="optGroup">
+        <div class="label">計算（100マス固定）</div>
+        <div class="optRow" data-set="adultOp">
+          <button class="opt" data-v="+">たし算<small>ちょっと優しく</small></button>
+          <button class="opt on" data-v="×">かけ算<small>本気モード</small></button>
+        </div>
       </div>
-    </div>
-    <div class="optGroup mFamily">
-      <div class="label">🧑 大人のハンデ</div>
-      <div class="optRow">
-        <button class="opt" id="optRandom">テンキー配置ランダム<small>1問ごとに数字がシャッフル</small></button>
-        <button class="opt" id="optDeath">デスモード<small>子どものお邪魔アタック解禁</small></button>
+      <div class="optGroup">
+        <div class="label">ハンデ</div>
+        <div class="optRow">
+          <button class="opt" id="optRandom">テンキー配置ランダム<small>1問ごとに数字がシャッフル</small></button>
+          <button class="opt" id="optDeath">デスモード<small>子どものお邪魔アタック解禁</small></button>
+        </div>
       </div>
     </div>
 
@@ -322,21 +340,15 @@
         <button class="opt" data-v="×">かけ算</button>
       </div>
     </div>
-    <div class="optGroup mFriends">
+    <div class="optGroup mFriends full">
       <div class="label">🔥 追加ルール（ふたりとも同じ条件）</div>
       <div class="optRow">
         <button class="opt" id="optFRandom">テンキー配置ランダム<small>両者とも毎問シャッフル</small></button>
         <button class="opt" id="optFAttack">お邪魔アタック<small>5問正解で相手に強制ターゲット</small></button>
       </div>
     </div>
-    <div class="optGroup">
-      <div class="label">🔊 サウンド</div>
-      <div class="optRow" data-set="sound">
-        <button class="opt on" data-v="on">ON<small>正解でほめ声＆効果音</small></button>
-        <button class="opt" data-v="off">OFF<small>音なし</small></button>
-      </div>
-    </div>
 
+    <!-- ===== 共通設定 ===== -->
     <div class="optGroup">
       <div class="label">⏱ 制限時間</div>
       <div class="optRow" data-set="timeLimit">
@@ -346,7 +358,13 @@
         <button class="opt" data-v="300">5分</button>
       </div>
     </div>
-
+    <div class="optGroup">
+      <div class="label">🔊 サウンド</div>
+      <div class="optRow" data-set="sound">
+        <button class="opt on" data-v="on">ON<small>正解でほめ声＆効果音</small></button>
+        <button class="opt" data-v="off">OFF<small>音なし</small></button>
+      </div>
+    </div>
     <div class="optGroup full">
       <div class="label">🎵 BGM（残り30秒でテンポUP・ラスト10秒は警告音）</div>
       <div class="optRow" data-set="bgm">
