@@ -146,11 +146,12 @@
   .goal-chip{
     display:flex; align-items:center; justify-content:center; gap:6px;
     text-align:center; margin:0 auto 10px; width:fit-content;
-    font-family:'M PLUS Rounded 1c', sans-serif; font-weight:800; font-size:.82rem;
-    color:var(--gold-text); background:linear-gradient(160deg,#FFF3D0,#FFE8A8);
-    border:2px dashed var(--gold-deep); border-radius:999px; padding:5px 14px;
+    font-family:'M PLUS Rounded 1c', sans-serif; font-weight:800; font-size:.95rem;
+    color:var(--gold-text); background:linear-gradient(160deg,#FFE580,#FFD23F);
+    border:2px solid var(--gold-deep); border-radius:999px; padding:7px 18px;
+    box-shadow:0 0 14px rgba(255,210,63,.45);
   }
-  .goal-chip b{ font-family:'Baloo 2', sans-serif; font-size:1rem; }
+  .goal-chip b{ font-family:'Baloo 2', sans-serif; font-size:1.25rem; }
   .equation{ display:flex; align-items:center; justify-content:center; flex-wrap:nowrap; gap:4px 5px; }
   .plus{ font-family:'Baloo 2', sans-serif; font-weight:700; font-size:1.1rem; color:var(--ink-soft);}
 
@@ -426,16 +427,7 @@
       <div class="final-score-label">スコア</div>
       <div class="final-score-val" id="finalScoreVal"></div>
       <div class="final-medals-row" id="finalMedalsRow"></div>
-      <div class="mode-buttons" style="margin-top:4px;">
-        <button class="mode-btn mode-btn-10" id="retryBtn" type="button">
-          <span class="mode-btn-num">▶</span>
-          <span class="mode-btn-label">もういちど</span>
-        </button>
-        <button class="mode-btn mode-btn-20" id="menuBackBtn" type="button">
-          <span class="mode-btn-num">🏠</span>
-          <span class="mode-btn-label">メニューへ</span>
-        </button>
-      </div>
+      <button class="switch-mode-link" id="menuBackBtn" type="button">← メニューにもどる</button>
       <a href="../index.html" class="back-link">← ゲームせんたくにもどる</a>
     </div>
 
@@ -509,7 +501,6 @@
     roundTotal:   document.getElementById('roundTotal'),
     finalScoreVal:document.getElementById('finalScoreVal'),
     finalMedalsRow:document.getElementById('finalMedalsRow'),
-    retryBtn:     document.getElementById('retryBtn'),
     menuBackBtn:  document.getElementById('menuBackBtn'),
   };
 
@@ -939,7 +930,6 @@
     bgmStop(); clearRoundTimer();
     els.gameScreen.hidden=true; els.modeSelect.hidden=false;
   });
-  els.retryBtn.addEventListener('click',()=>{ els.finalScreen.hidden=true; startGame(currentTarget); });
   els.menuBackBtn.addEventListener('click',()=>{
     bgmStop(); els.finalScreen.hidden=true; els.modeSelect.hidden=false;
   });
