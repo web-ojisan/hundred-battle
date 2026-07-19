@@ -403,7 +403,6 @@
       <div class="final-score-label">スコア</div>
       <div class="final-score-val" id="finalScoreVal"></div>
       <div class="final-medals-row" id="finalMedalsRow"></div>
-      <button class="switch-mode-link" id="menuBackBtn" type="button">← メニューにもどる</button>
       <a href="../index.html" class="back-link">← ゲームせんたくにもどる</a>
     </div>
 
@@ -473,7 +472,6 @@
     timerVal:     document.getElementById('timerVal'),
     finalScoreVal:document.getElementById('finalScoreVal'),
     finalMedalsRow:document.getElementById('finalMedalsRow'),
-    menuBackBtn:  document.getElementById('menuBackBtn'),
   };
 
   function randInt(min,max){ return Math.floor(Math.random()*(max-min+1))+min; }
@@ -888,9 +886,6 @@
   // ---------- event handlers ----------
   document.querySelectorAll('.mode-btn[data-target]').forEach(btn=>{
     btn.addEventListener('click',()=>startGame(Number(btn.dataset.target)));
-  });
-  els.menuBackBtn.addEventListener('click',()=>{
-    bgmStop(); els.finalScreen.hidden=true; els.modeSelect.hidden=false;
   });
 
 })();
