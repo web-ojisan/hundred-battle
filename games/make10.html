@@ -166,7 +166,6 @@
     background:var(--bubble-bg); border:2px solid var(--bubble-border); color:var(--ink-soft);
   }
   .mini-bubble.gold{ background:linear-gradient(160deg,#FFE580,var(--gold)); border-color:var(--gold-deep); color:var(--gold-text);}
-  .mini-bubble.negative{ background:linear-gradient(160deg,#F3D9FF,#D79CFF); border-color:#A855D6; color:#4A1466; }
   .mini-plus{ font-size:.85rem; color:var(--ink-soft); font-weight:700;}
 
   .current-row{ padding-top:6px; }
@@ -205,11 +204,6 @@
     background:linear-gradient(160deg,#FFE580,var(--gold));
     border-color:var(--gold-deep);
     color:var(--gold-text);
-  }
-  .bubble.negative{
-    background:linear-gradient(160deg,#F3D9FF,#D79CFF);
-    border-color:#A855D6;
-    color:#4A1466;
   }
   .bubble.pulse-gold{ animation:popGold .6s ease; }
   .bubble.pulse-normal{ animation:popNormal .45s ease; }
@@ -315,7 +309,6 @@
   .mode-btn-label{ font-family:'M PLUS Rounded 1c', sans-serif; font-weight:700; font-size:.82rem; }
   .mode-btn-10{ background:linear-gradient(160deg,#FFE580,var(--gold)); color:#7A4300; }
   .mode-btn-20{ background:linear-gradient(160deg,#BFE3FF,#8FC7FF); color:#123A63; }
-  .mode-btn-mix{ background:linear-gradient(160deg,#F3D9FF,#D79CFF); color:#4A1466; }
 
   .switch-mode-link{
     display:block; margin:14px auto 0; background:none; border:none;
@@ -371,17 +364,13 @@
       <h1 class="game-title">Make 10! Speed Link</h1>
       <p class="mode-select-sub">どっちで あそぶ？</p>
       <div class="mode-buttons">
-        <button class="mode-btn mode-btn-10" data-target="10" data-mix="false" type="button">
+        <button class="mode-btn mode-btn-10" data-target="10" type="button">
           <span class="mode-btn-num">10</span>
           <span class="mode-btn-label">10ゲーム</span>
         </button>
-        <button class="mode-btn mode-btn-20" data-target="20" data-mix="false" type="button">
+        <button class="mode-btn mode-btn-20" data-target="20" type="button">
           <span class="mode-btn-num">20</span>
           <span class="mode-btn-label">20ゲーム</span>
-        </button>
-        <button class="mode-btn mode-btn-mix" data-target="10" data-mix="true" type="button">
-          <span class="mode-btn-num">±10</span>
-          <span class="mode-btn-label">たしひき10</span>
         </button>
       </div>
       <a href="../index.html" class="back-link">← ゲームせんたくにもどる</a>
@@ -454,7 +443,6 @@
   let silverCount = 0;
   let bronzeCount = 0;
   let currentTarget = 10;
-  let mixMode = false;
   let combo = 0;
   let selectTime = null;
 
@@ -718,17 +706,10 @@
     [9,8,3],[9,7,4],[9,6,5],[8,7,5],[7,7,6],[9,9,2],[8,8,4],[8,6,6]
   ];
 
-  // 常に6個固定。target=10: ペア×2+フィラー×2、target=20: トリプル×2、mix: ±コンボ×2
-  function generateEquation(target, mix){
+  // 常に6個固定。target=10: ペア×2+フィラー×2、target=20: トリプル×2
+  function generateEquation(target){
     let values = [];
-    if(mix){
-      // (p1+p2+n=10) × 2 = 6個でちょうど2つの10が保証される
-      const makeCombo = () => {
-        const p1 = randInt(6,9), p2 = randInt(6,9);
-        return [p1, p2, -(p1+p2-10)];
-      };
-      values = [...makeCombo(), ...makeCombo()];
-    } else if(target === 20){
+    if(target === 20){
       // トリプル×2 = 6個でちょうど2つの20が保証される
       const t1 = triplesPool20[randInt(0, triplesPool20.length-1)];
       const t2 = triplesPool20[randInt(0, triplesPool20.length-1)];
@@ -743,9 +724,8 @@
     return values.map(v => ({ id: idCounter++, value: v }));
   }
 
-  function startGame(target, mix){
+  function startGame(target){
     currentTarget = target;
-    mixMode = mix;
     round = 1;
     score = 0;
     tensCount = 0;
@@ -759,7 +739,7 @@
     combo = 0;
     selectTime = null;
     els.comboChip.hidden = true;
-    numbers = generateEquation(currentTarget, mixMode);
+    numbers = generateEquation(currentTarget);
     maxPossibleTens = maxTens(numbers.map(n => n.value), currentTarget);
     els.modeSelect.hidden = true;
     els.gameScreen.hidden = false;
@@ -769,7 +749,7 @@
 
   function newRound(){
     round += 1;
-    numbers = generateEquation(currentTarget, mixMode);
+    numbers = generateEquation(currentTarget);
     trail = [];
     selectedId = null;
     resultShown = false;
@@ -818,7 +798,7 @@
           row.appendChild(plus);
         }
         const mb = document.createElement('div');
-        mb.className = 'mini-bubble' + (v < 0 ? ' negative' : '');
+        mb.className = 'mini-bubble';
         mb.textContent = v;
         row.appendChild(mb);
       });
@@ -848,7 +828,6 @@
       b.dataset.id = String(n.id);
       if(n.id === selectedId) b.classList.add('selected');
       if(n.gold) b.classList.add('gold');
-      if(n.value < 0) b.classList.add('negative');
       if(animatingIds.has(n.id)) b.classList.add(n.gold ? 'pulse-gold' : 'pulse-normal');
       b.setAttribute('aria-label', 'すうじ ' + n.value);
       b.addEventListener('click', () => onBubbleClick(n.id));
@@ -980,9 +959,7 @@
 
   document.querySelectorAll('.mode-btn').forEach(btn => {
     btn.addEventListener('click', () => {
-      const t = Number(btn.dataset.target);
-      const m = btn.dataset.mix === 'true';
-      startGame(t, m);
+      startGame(Number(btn.dataset.target));
     });
   });
 
