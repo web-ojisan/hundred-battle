@@ -56,29 +56,30 @@
     display:flex; align-items:center; justify-content:space-between;
     gap:10px; margin-bottom:14px; flex-wrap:wrap;
   }
-  .necklace-wrap{display:flex; flex-direction:column; gap:4px;}
-  .necklace-label{font-size:.72rem; color:var(--ink-soft); font-weight:700; padding-left:4px;}
-  .necklace-row{display:flex; align-items:center; gap:6px;}
-  .rod-badge{
-    font-family:'Baloo 2', sans-serif; font-weight:800; font-size:.85rem;
-    color:#7A4300; background:linear-gradient(160deg,#FFE580,var(--gold));
-    border:2px solid var(--gold-deep); border-radius:999px; padding:2px 8px;
+  .round-track{ display:flex; gap:5px; flex-wrap:wrap; align-items:center; max-width:190px; }
+  .round-dot{
+    width:16px; height:16px; border-radius:50%;
+    background:rgba(255,255,255,.12); border:2px solid rgba(255,255,255,.18);
+    transition:background .3s, border-color .3s, box-shadow .3s;
+    flex-shrink:0;
   }
-  .necklace{
-    display:flex; gap:5px; padding:6px 10px; border-radius:999px;
-    background:linear-gradient(180deg,var(--rod-a),var(--rod-b));
-    box-shadow:inset 0 2px 5px rgba(0,0,0,.18);
+  .round-dot.gold{
+    background:radial-gradient(circle at 35% 30%, #FFFBE0, var(--gold));
+    border-color:var(--gold-deep); box-shadow:0 0 7px rgba(255,210,63,.65);
   }
-  .pearl{width:14px;height:14px;border-radius:50%; background:rgba(255,255,255,.28); transition:all .25s ease;}
-  .pearl.filled{
-    background:radial-gradient(circle at 30% 28%, #FFFBEF, var(--pearl-rim));
-    box-shadow:0 0 7px rgba(255,209,74,.85); transform:scale(1.05);
+  .round-dot.silver{
+    background:radial-gradient(circle at 35% 30%, #D8E4EE, #9AA7B4);
+    border-color:#7080A0;
   }
-  .round-counter{ text-align:center; }
-  .round-val{
-    font-family:'Baloo 2', sans-serif; font-weight:800; font-size:1.4rem; line-height:1.1; color:var(--ink);
+  .round-dot.bronze{
+    background:radial-gradient(circle at 35% 30%, #D4A87A, #C97A3D);
+    border-color:#8A4A18;
   }
-  .round-val .slash{ font-size:.9rem; color:var(--ink-soft); }
+  .round-dot.current{
+    border-color:var(--ink-soft); border-style:dashed;
+    animation:dotPulse 1.2s ease-in-out infinite;
+  }
+  @keyframes dotPulse{ 0%,100%{opacity:.35} 50%{opacity:1} }
   .score-label{ font-size:.72rem; color:var(--ink-soft); font-weight:700; }
   .score-wrap{text-align:right; max-width:170px;}
   .score-value{
@@ -97,18 +98,7 @@
   @keyframes comboPop{ 0%{transform:scale(.5)} 60%{transform:scale(1.25)} 100%{transform:scale(1)} }
   @keyframes comboBreak{ 0%{transform:scale(1);opacity:1} 100%{transform:scale(.55);opacity:0} }
 
-  .medal-tracker{
-    display:flex; align-items:center; justify-content:center; gap:8px; margin-bottom:12px;
-  }
-  .medal-chip{
-    display:flex; align-items:center; gap:4px;
-    font-family:'Baloo 2', sans-serif; font-weight:700; font-size:.95rem;
-    padding:4px 10px; border-radius:999px; background:#1b2140; border:2px solid transparent;
-  }
-  .medal-chip .icon{ font-size:1.05rem; }
-  .medal-chip.gold{ border-color:var(--gold-deep); color:var(--gold); }
-  .medal-chip.silver{ border-color:#9AA7B4; color:#9AA7B4; }
-  .medal-chip.bronze{ border-color:#C97A3D; color:#C97A3D; }
+  .final-medals-row{ display:flex; gap:6px; flex-wrap:wrap; justify-content:center; }
 
   main.board{
     position:relative; overflow:hidden; background:#0d1122;
@@ -385,27 +375,13 @@
     <!-- GAME SCREEN -->
     <div class="game-screen" id="gameScreen" hidden>
       <header class="topbar">
-        <div class="necklace-wrap">
-          <div class="necklace-label">みつけた かいすう</div>
-          <div class="necklace-row">
-            <div id="rodBadges"></div>
-            <div class="necklace" id="necklace"></div>
-          </div>
-        </div>
-        <div class="round-counter">
-          <div class="score-label">もん</div>
-          <div class="round-val">
-            <span id="roundCurrent">1</span><span class="slash">/</span><span id="roundTotal">10</span>
-          </div>
-        </div>
+        <div class="round-track" id="roundTrack"></div>
         <div class="score-wrap">
           <div class="score-label">スコア</div>
           <div class="score-value" id="scoreValue">0</div>
           <div class="combo-chip" id="comboChip" hidden></div>
         </div>
       </header>
-
-      <div class="medal-tracker" id="medalTracker"></div>
 
       <main class="board">
         <div class="board-flash" id="boardFlash"></div>
@@ -418,7 +394,6 @@
       </main>
 
       <p class="hint" id="hint">2つの すうじを タップしてね</p>
-      <button class="switch-mode-link" id="switchModeBtn" type="button">モードをかえる</button>
     </div>
 
     <!-- FINAL SCREEN -->
@@ -459,6 +434,7 @@
   let animatingIds = new Set(), maxPossibleTens = 0, roundTens = 0;
   let goldCount = 0, silverCount = 0, bronzeCount = 0, currentTarget = 10;
   let combo = 0, selectTime = null;
+  let roundResults = {};
 
   const bigUnits = ['','万','億','兆','京','垓','秭','穣','溝','澗','正','載','極','恒河沙','阿僧祇','那由他','不可思議','無量大数'];
   function formatScoreDisplay(num){
@@ -483,22 +459,17 @@
     equation:     document.getElementById('equation'),
     trail:        document.getElementById('trail'),
     scoreValue:   document.getElementById('scoreValue'),
-    necklace:     document.getElementById('necklace'),
-    rodBadges:    document.getElementById('rodBadges'),
+    roundTrack:   document.getElementById('roundTrack'),
     goalChip:     document.getElementById('goalChip'),
-    medalTracker: document.getElementById('medalTracker'),
     comboChip:    document.getElementById('comboChip'),
     appRoot:      document.getElementById('appRoot'),
     boardFlash:   document.getElementById('boardFlash'),
     modeSelect:   document.getElementById('modeSelect'),
     gameScreen:   document.getElementById('gameScreen'),
     finalScreen:  document.getElementById('finalScreen'),
-    switchModeBtn:document.getElementById('switchModeBtn'),
     hint:         document.getElementById('hint'),
     timerChip:    document.getElementById('timerChip'),
     timerVal:     document.getElementById('timerVal'),
-    roundCurrent: document.getElementById('roundCurrent'),
-    roundTotal:   document.getElementById('roundTotal'),
     finalScoreVal:document.getElementById('finalScoreVal'),
     finalMedalsRow:document.getElementById('finalMedalsRow'),
     menuBackBtn:  document.getElementById('menuBackBtn'),
@@ -621,8 +592,8 @@
   function onRoundTimeout(){
     if(resultShown) return;
     resultShown = true;
-    bronzeCount++;
-    renderMedalTracker();
+    bronzeCount++; roundResults[round]='bronze';
+    renderRoundTrack();
     playFinalChime();
     els.goalChip.innerHTML = '⏱ じかんぎれ！';
     els.goalChip.hidden = false;
@@ -762,7 +733,7 @@
   // ---------- game flow ----------
   function startGame(target){
     currentTarget=target; round=1; score=0; tensCount=0;
-    goldCount=0; silverCount=0; bronzeCount=0;
+    goldCount=0; silverCount=0; bronzeCount=0; roundResults={};
     selectedId=null; trail=[]; resultShown=false; roundTens=0; combo=0; selectTime=null;
     els.comboChip.hidden=true;
     numbers=generateEquation(currentTarget);
@@ -793,24 +764,29 @@
     }
     els.gameScreen.hidden=true; els.finalScreen.hidden=false;
     els.finalScoreVal.textContent=formatScoreDisplay(score);
-    els.finalMedalsRow.innerHTML='🥇 '+goldCount+'　🥈 '+silverCount+'　🥉 '+bronzeCount;
+    els.finalMedalsRow.innerHTML='';
+    for(let i=1; i<=cfg.rounds; i++){
+      const dot=document.createElement('div');
+      dot.className='round-dot '+(roundResults[i]||'bronze');
+      els.finalMedalsRow.appendChild(dot);
+    }
   }
 
   // ---------- rendering ----------
-  function renderRoundCounter(){
-    els.roundCurrent.textContent=round;
-    els.roundTotal.textContent=cfg.rounds;
+  function renderRoundTrack(){
+    els.roundTrack.innerHTML='';
+    for(let i=1; i<=cfg.rounds; i++){
+      const dot=document.createElement('div');
+      dot.className='round-dot';
+      if(roundResults[i]) dot.classList.add(roundResults[i]);
+      else if(i===round) dot.classList.add('current');
+      els.roundTrack.appendChild(dot);
+    }
   }
   function render(){
     renderGoal(); renderTrail(); renderEquation();
-    renderNecklace(); renderMedalTracker(); renderRoundCounter();
+    renderRoundTrack();
     els.scoreValue.textContent=formatScoreDisplay(score);
-  }
-  function renderMedalTracker(){
-    els.medalTracker.innerHTML=
-      '<span class="medal-chip gold"><span class="icon">🥇</span>'+goldCount+'</span>'+
-      '<span class="medal-chip silver"><span class="icon">🥈</span>'+silverCount+'</span>'+
-      '<span class="medal-chip bronze"><span class="icon">🥉</span>'+bronzeCount+'</span>';
   }
   function renderGoal(){
     if(maxPossibleTens>0){
@@ -849,28 +825,14 @@
       setTimeout(showResult, 750);
     }
   }
-  function renderNecklace(){
-    const filled=tensCount%10, rods=Math.floor(tensCount/10);
-    els.rodBadges.innerHTML='';
-    for(let i=0;i<rods;i++){
-      const badge=document.createElement('span'); badge.className='rod-badge';
-      badge.textContent='×'+(i+1)+'0'; els.rodBadges.appendChild(badge);
-    }
-    els.necklace.innerHTML='';
-    for(let i=0;i<10;i++){
-      const p=document.createElement('div');
-      p.className='pearl'+(i<filled?' filled':''); els.necklace.appendChild(p);
-    }
-  }
-
   function showResult(){
     clearRoundTimer();
     const isPerfect = maxPossibleTens>0 && roundTens===maxPossibleTens;
     let medalIcon, medalLabel;
-    if(isPerfect){         goldCount++;   medalIcon='🥇'; medalLabel='コンプリート！'; }
-    else if(roundTens>=1){ silverCount++; medalIcon='🥈'; medalLabel=roundTens+'/'+maxPossibleTens+' みつけた！'; }
-    else {                 bronzeCount++; medalIcon='🥉'; medalLabel='つぎがんばろう'; }
-    renderMedalTracker();
+    if(isPerfect){         goldCount++;   medalIcon='🥇'; medalLabel='コンプリート！';   roundResults[round]='gold'; }
+    else if(roundTens>=1){ silverCount++; medalIcon='🥈'; medalLabel=roundTens+'/'+maxPossibleTens+' みつけた！'; roundResults[round]='silver'; }
+    else {                 bronzeCount++; medalIcon='🥉'; medalLabel='つぎがんばろう';  roundResults[round]='bronze'; }
+    renderRoundTrack();
     playFinalChime();
     const bubbleEl=els.equation.querySelector('.bubble');
     if(bubbleEl){ bubbleEl.classList.add('final-burst'); spawnStars(bubbleEl); }
@@ -925,10 +887,6 @@
   // ---------- event handlers ----------
   document.querySelectorAll('.mode-btn[data-target]').forEach(btn=>{
     btn.addEventListener('click',()=>startGame(Number(btn.dataset.target)));
-  });
-  els.switchModeBtn.addEventListener('click',()=>{
-    bgmStop(); clearRoundTimer();
-    els.gameScreen.hidden=true; els.modeSelect.hidden=false;
   });
   els.menuBackBtn.addEventListener('click',()=>{
     bgmStop(); els.finalScreen.hidden=true; els.modeSelect.hidden=false;
