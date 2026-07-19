@@ -5,22 +5,22 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Make 10! Speed Link</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;700;800&family=M+PLUS+Rounded+1c:wght@400;500;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;700;800&family=DotGothic16&family=M+PLUS+Rounded+1c:wght@400;500;700;800&display=swap" rel="stylesheet">
 <style>
   :root{
-    --bg-top:#BFE8FF;
-    --bg-bottom:#F3FBFF;
-    --ink:#1B3358;
-    --ink-soft:#5A7BA0;
+    --bg-top:#0B0E19;
+    --bg-bottom:#141930;
+    --ink:#E9EEFF;
+    --ink-soft:#9fb0e8;
     --bubble-bg:#FFFFFF;
-    --bubble-border:#BFE3FF;
-    --bubble-shadow:rgba(41,98,153,0.22);
-    --gold:#FFD23F;
-    --gold-deep:#FF8C42;
+    --bubble-border:#5a80b0;
+    --bubble-shadow:rgba(0,0,0,.45);
+    --gold:#FFD34D;
+    --gold-deep:#FF8A3D;
     --gold-text:#7A4300;
     --pearl-rim:#E8B84B;
-    --rod-a:#8FA8C4;
-    --rod-b:#7C9CC0;
+    --rod-a:#39456f;
+    --rod-b:#2b3252;
   }
   *{box-sizing:border-box;}
   html,body{margin:0;padding:0;height:100%;}
@@ -40,8 +40,8 @@
   .ambient{position:fixed; inset:0; pointer-events:none; z-index:0; overflow:hidden;}
   .ambient span{
     position:absolute; bottom:-60px; border-radius:50%;
-    background:radial-gradient(circle at 35% 30%, rgba(255,255,255,.9), rgba(255,255,255,.15));
-    opacity:.55;
+    background:radial-gradient(circle at 35% 30%, rgba(100,140,255,.25), rgba(80,100,200,.05));
+    opacity:.4;
     animation:rise linear infinite;
   }
   @keyframes rise{
@@ -55,12 +55,11 @@
   .stage{ width:100%; max-width:560px; padding:18px; position:relative; z-index:1;}
 
   .app{
-    background:rgba(255,255,255,.55);
-    border:2px solid rgba(255,255,255,.7);
+    background:#141930;
+    border:2px solid #39456f;
     border-radius:28px;
     padding:18px 16px 22px;
-    backdrop-filter: blur(6px);
-    box-shadow:0 18px 40px rgba(41,98,153,.18);
+    box-shadow:0 18px 40px rgba(0,0,0,.5);
   }
 
   header.topbar{
@@ -124,7 +123,7 @@
   .medal-chip{
     display:flex; align-items:center; gap:4px;
     font-family:'Baloo 2', sans-serif; font-weight:700; font-size:.95rem;
-    padding:4px 10px; border-radius:999px; background:rgba(255,255,255,.7);
+    padding:4px 10px; border-radius:999px; background:#1b2140;
     border:2px solid transparent;
   }
   .medal-chip .icon{ font-size:1.05rem; }
@@ -134,7 +133,7 @@
 
   main.board{
     position:relative; overflow:hidden;
-    background:rgba(255,255,255,.5);
+    background:#0d1122;
     border-radius:20px;
     padding:16px 12px 20px;
     min-height:260px;
@@ -293,22 +292,33 @@
 
   .mode-select{ text-align:center; padding:22px 8px 8px; }
   .game-title{
-    font-family:'Baloo 2', sans-serif; font-weight:800; font-size:1.55rem;
-    color:var(--ink); margin:0 0 4px;
+    font-family:'DotGothic16', monospace; font-size:1.5rem;
+    color:var(--gold); text-shadow:2px 2px 0 #000; margin:0 0 6px;
+    letter-spacing:.05em;
   }
-  .mode-select-sub{ font-size:.88rem; color:var(--ink-soft); font-weight:700; margin:0 0 20px; }
-  .mode-buttons{ display:flex; gap:10px; justify-content:center; flex-wrap:wrap; }
+  .mode-select-sub{ font-size:.85rem; color:var(--ink-soft); font-weight:700; margin:0 0 22px; }
+  .mode-buttons{ display:flex; gap:12px; justify-content:center; flex-wrap:wrap; }
   .mode-btn{
-    border:none; cursor:pointer; display:flex; flex-direction:column;
-    align-items:center; gap:6px; padding:18px 22px; border-radius:22px;
-    box-shadow:0 10px 22px rgba(41,98,153,.2); transition:transform .15s ease;
+    border:3px solid #39456f; cursor:pointer; display:flex; flex-direction:column;
+    align-items:center; gap:6px; padding:18px 28px; border-radius:14px;
+    background:#1b2140; color:var(--ink);
+    box-shadow:0 4px 0 rgba(0,0,0,.4); transition:transform .15s ease, box-shadow .15s ease;
   }
-  .mode-btn:hover{ transform:translateY(-4px); }
-  .mode-btn:focus-visible{ outline:3px solid var(--ink); outline-offset:3px; }
-  .mode-btn-num{ font-family:'Baloo 2', sans-serif; font-weight:800; font-size:2.1rem; line-height:1; }
+  .mode-btn:hover{ transform:translateY(-3px); }
+  .mode-btn:active{ transform:translateY(2px); box-shadow:0 1px 0 rgba(0,0,0,.4); }
+  .mode-btn:focus-visible{ outline:3px solid var(--gold); outline-offset:3px; }
+  .mode-btn-num{ font-family:'DotGothic16', monospace; font-size:2.2rem; line-height:1; }
   .mode-btn-label{ font-family:'M PLUS Rounded 1c', sans-serif; font-weight:700; font-size:.82rem; }
-  .mode-btn-10{ background:linear-gradient(160deg,#FFE580,var(--gold)); color:#7A4300; }
-  .mode-btn-20{ background:linear-gradient(160deg,#BFE3FF,#8FC7FF); color:#123A63; }
+  .mode-btn-10{
+    background:linear-gradient(160deg,#FFE580,var(--gold)); border-color:var(--gold-deep);
+    color:var(--gold-text); box-shadow:0 4px 0 #b35a1c;
+  }
+  .mode-btn-10:active{ box-shadow:0 1px 0 #b35a1c; }
+  .mode-btn-20{
+    background:linear-gradient(160deg,#3A466F,#2b3252); border-color:#4DA3FF;
+    color:#BFD0FF; box-shadow:0 4px 0 #0d1530;
+  }
+  .mode-btn-20:active{ box-shadow:0 1px 0 #0d1530; }
 
   .switch-mode-link{
     display:block; margin:14px auto 0; background:none; border:none;

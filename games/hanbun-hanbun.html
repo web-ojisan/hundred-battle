@@ -850,10 +850,11 @@
     let n = 3;
     const show = t => { document.getElementById('countNum').textContent = t; document.getElementById('countNumFlip').textContent = t; };
     show(n);
+    if (cfg.sound === 'on') tone(440, .09);
     const cd = setInterval(() => {
       n--;
-      if (n > 0) show(n);
-      else if (n === 0) show('GO!');
+      if (n > 0) { show(n); if (cfg.sound === 'on') tone(440, .09); }
+      else if (n === 0) { show('GO!'); if (cfg.sound === 'on') tone(880, .35, 0, 'square', .1); }
       else {
         clearInterval(cd);
         ov.classList.add('hidden');
