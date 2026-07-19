@@ -86,7 +86,6 @@
   }
   #childHalf .readout{background:#fff;border:2px solid var(--child-accent);color:var(--child-ink);}
   #adultHalf .readout{background:#0d1122;border:2px solid var(--adult-accent);color:#fff;}
-  .qline{font-size:13px;font-weight:800;text-align:center;min-height:18px;}
   .pad{flex:1;display:grid;grid-template-columns:repeat(3,1fr);gap:6px;align-content:stretch;}
   .pad button{
     border:none;border-radius:var(--radius);font-family:inherit;font-weight:800;
@@ -231,7 +230,6 @@
       </div>
       <div class="side">
         <div class="tag" id="adultTag">オトナ・かけ算100マス</div>
-        <div class="qline" id="adultQ">&nbsp;</div>
         <div class="readout" id="adultReadout">&nbsp;</div>
         <div class="pad" id="adultPad"></div>
         <button class="attackBtn arcade" id="adultAttackBtn" disabled>お邪魔アタック ×0</button>
@@ -257,7 +255,6 @@
       </div>
       <div class="side">
         <div class="tag" id="childTag">コドモ・たし算</div>
-        <div class="qline" id="childQ">&nbsp;</div>
         <div class="readout" id="childReadout">&nbsp;</div>
         <div class="pad" id="childPad"></div>
         <button class="attackBtn arcade" id="childAttackBtn" disabled>お邪魔アタック ×0</button>
@@ -308,14 +305,6 @@
         <button class="opt" id="optDeath">デスモード<small>子どものお邪魔アタック解禁</small></button>
       </div>
     </div>
-    <div class="optGroup mFamily">
-      <div class="label">🔢 テンキー上の式表示（7×8=? など）</div>
-      <div class="optRow" data-set="showEq">
-        <button class="opt on" data-v="both">両方に表示</button>
-        <button class="opt" data-v="child">子どもだけ<small>大人はガチ100マス</small></button>
-        <button class="opt" data-v="none">表示しない<small>本格派</small></button>
-      </div>
-    </div>
 
     <!-- ===== 友だちモード ===== -->
     <div class="optGroup mFriends">
@@ -340,14 +329,6 @@
         <button class="opt" id="optFAttack">お邪魔アタック<small>5問正解で相手に強制ターゲット</small></button>
       </div>
     </div>
-    <div class="optGroup mFriends">
-      <div class="label">🔢 テンキー上の式表示</div>
-      <div class="optRow" data-set="fShowEq">
-        <button class="opt on" data-v="both">表示する</button>
-        <button class="opt" data-v="none">表示しない<small>本格派</small></button>
-      </div>
-    </div>
-
     <div class="optGroup">
       <div class="label">🔊 サウンド</div>
       <div class="optRow" data-set="sound">
@@ -408,9 +389,9 @@
   const cfg = {
     mode: 'family', timeLimit: 180, sound: 'on', bgm: 'race',
     // 親子モード
-    childRows: 5, adultOp: '×', randomPad: false, deathMode: false, showEq: 'both',
+    childRows: 5, adultOp: '×', randomPad: false, deathMode: false,
     // 友だちモード
-    fRows: 5, fOp: '+', fRandom: false, fAttack: false, fShowEq: 'both',
+    fRows: 5, fOp: '+', fRandom: false, fAttack: false,
   };
 
   document.querySelectorAll('[data-set]').forEach(row => {
@@ -642,7 +623,6 @@
       input: '', score: 0, miss: 0, streak: 0, charges: 0,
       gridEl: document.getElementById(id + 'Grid'),
       readout: document.getElementById(id + 'Readout'),
-      qline: document.getElementById(id + 'Q'),
       attackBtn: document.getElementById(id + 'AttackBtn'),
       alertEl: document.getElementById(id + 'Alert'),
     };
@@ -702,16 +682,8 @@
     }
   }
 
-  const eqOn = p => friends()
-    ? cfg.fShowEq === 'both'
-    : (cfg.showEq === 'both' || (cfg.showEq === 'child' && p === child));
-
   function renderIO(p) {
     p.readout.textContent = p.input || '　';
-    if (eqOn(p) && p.sel >= 0 && !p.cells[p.sel].done) {
-      const c = p.cells[p.sel];
-      p.qline.textContent = `${p.rowH[c.r]} ${p.op === '+' ? '＋' : '×'} ${p.colH[c.c]} = ?`;
-    } else p.qline.innerHTML = '&nbsp;';
   }
 
   // ---------- 入力 ----------
@@ -846,8 +818,6 @@
     buildGrid(adult); buildGrid(child);
     buildPad(child, padRandom(child));
     buildPad(adult, padRandom(adult));
-    child.qline.style.display = eqOn(child) ? '' : 'none';
-    adult.qline.style.display = eqOn(adult) ? '' : 'none';
     child.attackBtn.style.display = canAttack(child) ? '' : 'none';
     adult.attackBtn.style.display = canAttack(adult) ? '' : 'none';
     child.alertEl.classList.remove('show');
