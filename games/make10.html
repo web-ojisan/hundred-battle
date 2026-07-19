@@ -179,15 +179,15 @@
   }
   .goal-chip b{ font-family:'Baloo 2', sans-serif; font-size:1rem; }
   .equation{
-    display:flex; align-items:center; justify-content:center; flex-wrap:wrap;
-    gap:8px 10px;
+    display:flex; align-items:center; justify-content:center; flex-wrap:nowrap;
+    gap:4px 5px;
   }
-  .plus{ font-family:'Baloo 2', sans-serif; font-weight:700; font-size:1.4rem; color:var(--ink-soft);}
+  .plus{ font-family:'Baloo 2', sans-serif; font-weight:700; font-size:1.1rem; color:var(--ink-soft);}
 
   .bubble{
-    width:62px; height:62px; border-radius:50%;
+    width:52px; height:52px; border-radius:50%;
     display:flex; align-items:center; justify-content:center;
-    font-family:'Baloo 2', sans-serif; font-weight:800; font-size:1.55rem;
+    font-family:'Baloo 2', sans-serif; font-weight:800; font-size:1.2rem;
     background:var(--bubble-bg); border:3px solid var(--bubble-border);
     box-shadow:0 6px 14px var(--bubble-shadow);
     cursor:pointer; user-select:none; color:var(--ink);
@@ -697,57 +697,29 @@
     [9,8,3],[9,7,4],[9,6,5],[8,7,5],[7,7,6],[9,9,2],[8,8,4],[8,6,6]
   ];
 
-  function generateEquation(length, target, mix){
+  // 常に6個固定。target=10: ペア×2+フィラー×2、target=20: トリプル×2、mix: ±コンボ×2
+  function generateEquation(target, mix){
     let values = [];
     if(mix){
-      const p1 = randInt(6,9);
-      const p2 = randInt(6,9);
-      const n = -(p1 + p2 - 10);
-      values = [p1, p2, n];
-      if(length >= 7 && Math.random() < 0.5){
-        const p1b = randInt(6,9);
-        const p2b = randInt(6,9);
-        const nb = -(p1b + p2b - 10);
-        values.push(p1b, p2b, nb);
-      }
+      // (p1+p2+n=10) × 2 = 6個でちょうど2つの10が保証される
+      const makeCombo = () => {
+        const p1 = randInt(6,9), p2 = randInt(6,9);
+        return [p1, p2, -(p1+p2-10)];
+      };
+      values = [...makeCombo(), ...makeCombo()];
     } else if(target === 20){
-      if(Math.random() < 0.5){
-        const p1 = pairsPool10[randInt(0,pairsPool10.length-1)];
-        const p2 = pairsPool10[randInt(0,pairsPool10.length-1)];
-        values = [p1[0], p1[1], p2[0], p2[1]];
-      } else {
-        const t = triplesPool20[randInt(0,triplesPool20.length-1)];
-        values = t.slice();
-      }
-      if(length >= 8 && Math.random() < 0.5){
-        const extra = Math.random() < 0.5
-          ? (() => { const p = pairsPool10[randInt(0,pairsPool10.length-1)]; return [p[0],p[1]]; })()
-          : triplesPool20[randInt(0,triplesPool20.length-1)].slice();
-        if(values.length + extra.length <= length) values.push(...extra);
-      }
+      // トリプル×2 = 6個でちょうど2つの20が保証される
+      const t1 = triplesPool20[randInt(0, triplesPool20.length-1)];
+      const t2 = triplesPool20[randInt(0, triplesPool20.length-1)];
+      values = [...t1, ...t2];
     } else {
-      const pair = pairsPool10[randInt(0,pairsPool10.length-1)];
-      values = [pair[0], pair[1]];
-      if(length >= 7 && Math.random() < 0.6){
-        const p2 = pairsPool10[randInt(0,pairsPool10.length-1)];
-        values.push(p2[0], p2[1]);
-      }
-    }
-    while(values.length < length){
-      if(mix){
-        const mag = randInt(1,9);
-        values.push(Math.random() < 0.5 ? mag : -mag);
-      } else {
-        values.push(randInt(1,9));
-      }
+      // ペア×2 = 4個でベース2つの10を保証、残り2個はフィラー
+      const p1 = pairsPool10[randInt(0, pairsPool10.length-1)];
+      const p2 = pairsPool10[randInt(0, pairsPool10.length-1)];
+      values = [p1[0], p1[1], p2[0], p2[1], randInt(1,9), randInt(1,9)];
     }
     shuffle(values);
-    return values.slice(0,length).map(v => ({ id: idCounter++, value: v }));
-  }
-
-  function computeLength(){
-    if(currentTarget === 20) return Math.min(9, 6 + Math.floor(round/3));
-    return Math.min(8, 5 + Math.floor(round/3));
+    return values.map(v => ({ id: idCounter++, value: v }));
   }
 
   function startGame(target, mix){
@@ -766,7 +738,7 @@
     combo = 0;
     selectTime = null;
     els.comboChip.hidden = true;
-    numbers = generateEquation(computeLength(), currentTarget, mixMode);
+    numbers = generateEquation(currentTarget, mixMode);
     maxPossibleTens = maxTens(numbers.map(n => n.value), currentTarget);
     els.modeSelect.hidden = true;
     els.gameScreen.hidden = false;
@@ -777,7 +749,7 @@
 
   function newRound(){
     round += 1;
-    numbers = generateEquation(computeLength(), currentTarget, mixMode);
+    numbers = generateEquation(currentTarget, mixMode);
     trail = [];
     selectedId = null;
     resultShown = false;
