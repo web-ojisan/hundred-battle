@@ -28,47 +28,33 @@
     font-family:'M PLUS Rounded 1c', sans-serif;
     background:linear-gradient(180deg,var(--bg-top) 0%, var(--bg-bottom) 55%);
     min-height:100vh;
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    color:var(--ink);
-    overflow-x:hidden;
-    position:relative;
+    display:flex; align-items:center; justify-content:center;
+    color:var(--ink); overflow-x:hidden; position:relative;
   }
 
-  /* ambient floating bubbles */
   .ambient{position:fixed; inset:0; pointer-events:none; z-index:0; overflow:hidden;}
   .ambient span{
     position:absolute; bottom:-60px; border-radius:50%;
     background:radial-gradient(circle at 35% 30%, rgba(100,140,255,.25), rgba(80,100,200,.05));
-    opacity:.4;
-    animation:rise linear infinite;
+    opacity:.4; animation:rise linear infinite;
   }
   @keyframes rise{
     from{ transform:translateY(0) scale(1); }
     to{ transform:translateY(-110vh) scale(1.15); opacity:0; }
   }
-  @media (prefers-reduced-motion: reduce){
-    .ambient{display:none;}
-  }
+  @media (prefers-reduced-motion: reduce){ .ambient{display:none;} }
 
   .stage{ width:100%; max-width:560px; padding:18px; position:relative; z-index:1;}
 
   .app{
-    background:#141930;
-    border:2px solid #39456f;
-    border-radius:28px;
-    padding:18px 16px 22px;
-    box-shadow:0 18px 40px rgba(0,0,0,.5);
+    background:#141930; border:2px solid #39456f; border-radius:28px;
+    padding:18px 16px 22px; box-shadow:0 18px 40px rgba(0,0,0,.5);
   }
 
+  /* topbar */
   header.topbar{
-    display:flex;
-    align-items:center;
-    justify-content:space-between;
-    gap:10px;
-    margin-bottom:14px;
-    flex-wrap:wrap;
+    display:flex; align-items:center; justify-content:space-between;
+    gap:10px; margin-bottom:14px; flex-wrap:wrap;
   }
   .necklace-wrap{display:flex; flex-direction:column; gap:4px;}
   .necklace-label{font-size:.72rem; color:var(--ink-soft); font-weight:700; padding-left:4px;}
@@ -86,12 +72,15 @@
   .pearl{width:14px;height:14px;border-radius:50%; background:rgba(255,255,255,.28); transition:all .25s ease;}
   .pearl.filled{
     background:radial-gradient(circle at 30% 28%, #FFFBEF, var(--pearl-rim));
-    box-shadow:0 0 7px rgba(255,209,74,.85);
-    transform:scale(1.05);
+    box-shadow:0 0 7px rgba(255,209,74,.85); transform:scale(1.05);
   }
-
+  .round-counter{ text-align:center; }
+  .round-val{
+    font-family:'Baloo 2', sans-serif; font-weight:800; font-size:1.4rem; line-height:1.1; color:var(--ink);
+  }
+  .round-val .slash{ font-size:.9rem; color:var(--ink-soft); }
+  .score-label{ font-size:.72rem; color:var(--ink-soft); font-weight:700; }
   .score-wrap{text-align:right; max-width:170px;}
-  .score-label{font-size:.72rem; color:var(--ink-soft); font-weight:700;}
   .score-value{
     font-family:'Baloo 2',sans-serif; font-weight:800; font-size:1.9rem; line-height:1.1;
     color:var(--ink); word-break:break-all;
@@ -101,61 +90,47 @@
     margin-top:2px; display:inline-block;
     font-family:'Baloo 2', sans-serif; font-weight:800; font-size:.78rem;
     color:#fff; background:linear-gradient(160deg,#FF7A6B,#FF8C42);
-    padding:3px 10px; border-radius:999px;
-    box-shadow:0 4px 10px rgba(255,122,107,.45);
+    padding:3px 10px; border-radius:999px; box-shadow:0 4px 10px rgba(255,122,107,.45);
   }
   .combo-chip.pop{ animation:comboPop .4s ease; }
   .combo-chip.breakaway{ animation:comboBreak .32s ease forwards; }
-  @keyframes comboPop{
-    0%{ transform:scale(.5); }
-    60%{ transform:scale(1.25); }
-    100%{ transform:scale(1); }
-  }
-  @keyframes comboBreak{
-    0%{ transform:scale(1); opacity:1; }
-    100%{ transform:scale(.55); opacity:0; }
-  }
+  @keyframes comboPop{ 0%{transform:scale(.5)} 60%{transform:scale(1.25)} 100%{transform:scale(1)} }
+  @keyframes comboBreak{ 0%{transform:scale(1);opacity:1} 100%{transform:scale(.55);opacity:0} }
 
   .medal-tracker{
-    display:flex; align-items:center; justify-content:center; gap:8px;
-    margin-bottom:12px;
+    display:flex; align-items:center; justify-content:center; gap:8px; margin-bottom:12px;
   }
   .medal-chip{
     display:flex; align-items:center; gap:4px;
     font-family:'Baloo 2', sans-serif; font-weight:700; font-size:.95rem;
-    padding:4px 10px; border-radius:999px; background:#1b2140;
-    border:2px solid transparent;
+    padding:4px 10px; border-radius:999px; background:#1b2140; border:2px solid transparent;
   }
   .medal-chip .icon{ font-size:1.05rem; }
-  .medal-chip.gold{ border-color:var(--gold-deep); color:#7A4300; }
-  .medal-chip.silver{ border-color:#9AA7B4; color:#455566; }
-  .medal-chip.bronze{ border-color:#C97A3D; color:#7A4116; }
+  .medal-chip.gold{ border-color:var(--gold-deep); color:var(--gold); }
+  .medal-chip.silver{ border-color:#9AA7B4; color:#9AA7B4; }
+  .medal-chip.bronze{ border-color:#C97A3D; color:#C97A3D; }
 
   main.board{
-    position:relative; overflow:hidden;
-    background:#0d1122;
-    border-radius:20px;
-    padding:16px 12px 20px;
-    min-height:260px;
-    display:flex;
-    flex-direction:column;
-    justify-content:flex-end;
-    gap:4px;
+    position:relative; overflow:hidden; background:#0d1122;
+    border-radius:20px; padding:16px 12px 20px; min-height:260px;
+    display:flex; flex-direction:column; justify-content:flex-end; gap:4px;
   }
 
+  /* per-round timer */
+  .timer-chip{
+    text-align:center; font-family:'Baloo 2', sans-serif; font-weight:800;
+    font-size:1.5rem; color:var(--ink-soft); line-height:1; padding:4px 0 2px;
+  }
+  .timer-chip.urgent{ color:#FF6B6B; animation:timerPulse .5s ease infinite; }
+  @keyframes timerPulse{ 50%{transform:scale(1.12)} }
+
   .trail{
-    display:flex;
-    flex-direction:column;
-    align-items:center;
-    gap:2px;
-    max-height:180px;
-    overflow-y:auto;
-    scroll-behavior:smooth;
+    display:flex; flex-direction:column; align-items:center; gap:2px;
+    max-height:180px; overflow-y:auto; scroll-behavior:smooth;
   }
   .trail-row{
     display:flex; align-items:center; justify-content:center; flex-wrap:wrap;
-    gap:4px 6px; transform:scale(.6); transform-origin:center;
-    transition:opacity .3s ease;
+    gap:4px 6px; transform:scale(.6); transform-origin:center; transition:opacity .3s ease;
   }
   .trail-arrow{font-size:.9rem; color:var(--ink-soft); opacity:.5; margin:-2px 0;}
   .mini-bubble{
@@ -176,10 +151,7 @@
     border:2px dashed var(--gold-deep); border-radius:999px; padding:5px 14px;
   }
   .goal-chip b{ font-family:'Baloo 2', sans-serif; font-size:1rem; }
-  .equation{
-    display:flex; align-items:center; justify-content:center; flex-wrap:nowrap;
-    gap:4px 5px;
-  }
+  .equation{ display:flex; align-items:center; justify-content:center; flex-wrap:nowrap; gap:4px 5px; }
   .plus{ font-family:'Baloo 2', sans-serif; font-weight:700; font-size:1.1rem; color:var(--ink-soft);}
 
   .bubble{
@@ -201,8 +173,7 @@
   }
   .bubble.gold{
     background:linear-gradient(160deg,#FFE580,var(--gold));
-    border-color:var(--gold-deep);
-    color:var(--gold-text);
+    border-color:var(--gold-deep); color:var(--gold-text);
   }
   .bubble.pulse-gold{ animation:popGold .6s ease; }
   .bubble.pulse-normal{ animation:popNormal .45s ease; }
@@ -213,14 +184,8 @@
     75%{ transform:scale(1.35) rotate(-2deg); box-shadow:0 0 30px 12px rgba(255,209,74,.8); }
     100%{ transform:scale(1) rotate(0deg); box-shadow:0 6px 14px var(--bubble-shadow); }
   }
-  @keyframes popNormal{
-    0%{ transform:scale(.75); }
-    55%{ transform:scale(1.12); }
-    100%{ transform:scale(1); }
-  }
-  @media (prefers-reduced-motion: reduce){
-    .bubble.pulse-gold, .bubble.pulse-normal{ animation:none; }
-  }
+  @keyframes popNormal{ 0%{transform:scale(.75)} 55%{transform:scale(1.12)} 100%{transform:scale(1)} }
+  @media (prefers-reduced-motion: reduce){ .bubble.pulse-gold, .bubble.pulse-normal{ animation:none; } }
 
   .board-flash{
     position:absolute; inset:0; border-radius:20px; pointer-events:none;
@@ -232,30 +197,18 @@
     animation:boardFlashSuper .75s ease-out;
     background:conic-gradient(from 0deg, #FFD23F, #FF6B6B, #6BCBFF, #B79CFF, #6BFFB8, #FFD23F);
   }
-  @keyframes boardFlash{
-    0%{ opacity:0; }
-    15%{ opacity:1; }
-    100%{ opacity:0; }
-  }
-  @keyframes boardFlashSuper{
-    0%{ opacity:0; }
-    18%{ opacity:.85; }
-    100%{ opacity:0; }
-  }
+  @keyframes boardFlash{ 0%{opacity:0} 15%{opacity:1} 100%{opacity:0} }
+  @keyframes boardFlashSuper{ 0%{opacity:0} 18%{opacity:.85} 100%{opacity:0} }
 
   .app.shake{ animation:appShake .45s ease; }
   .app.shake-big{ animation:appShakeBig .55s ease; }
   @keyframes appShake{
-    10%,90%{ transform:translateX(-2px); }
-    20%,80%{ transform:translateX(4px); }
-    30%,50%,70%{ transform:translateX(-7px); }
-    40%,60%{ transform:translateX(7px); }
+    10%,90%{transform:translateX(-2px)} 20%,80%{transform:translateX(4px)}
+    30%,50%,70%{transform:translateX(-7px)} 40%,60%{transform:translateX(7px)}
   }
   @keyframes appShakeBig{
-    10%,90%{ transform:translateX(-3px) rotate(-.3deg); }
-    20%,80%{ transform:translateX(6px) rotate(.3deg); }
-    30%,50%,70%{ transform:translateX(-11px) rotate(-.5deg); }
-    40%,60%{ transform:translateX(11px) rotate(.5deg); }
+    10%,90%{transform:translateX(-3px) rotate(-.3deg)} 20%,80%{transform:translateX(6px) rotate(.3deg)}
+    30%,50%,70%{transform:translateX(-11px) rotate(-.5deg)} 40%,60%{transform:translateX(11px) rotate(.5deg)}
   }
 
   .confetti-particle{
@@ -271,8 +224,7 @@
     position:fixed; z-index:90; pointer-events:none;
     font-family:'Baloo 2', sans-serif; font-weight:800; font-size:1.6rem;
     color:var(--gold-deep); text-shadow:0 2px 3px rgba(255,255,255,.8), 0 0 10px rgba(255,209,74,.7);
-    animation:floatUp .9s ease-out forwards;
-    white-space:nowrap;
+    animation:floatUp .9s ease-out forwards; white-space:nowrap;
   }
   .plus-ten-float.super{
     font-size:2rem;
@@ -285,16 +237,16 @@
     18%{ opacity:1; transform:translate(-50%,-65%) scale(1.25); }
     100%{ transform:translate(-50%,-190%) scale(1); opacity:0; }
   }
-
   @media (prefers-reduced-motion: reduce){
-    .board-flash.active, .board-flash.active-super, .app.shake, .app.shake-big, .confetti-particle, .plus-ten-float{ animation:none !important; opacity:0 !important; }
+    .board-flash.active, .board-flash.active-super, .app.shake, .app.shake-big,
+    .confetti-particle, .plus-ten-float{ animation:none !important; opacity:0 !important; }
   }
 
+  /* mode select */
   .mode-select{ text-align:center; padding:22px 8px 8px; }
   .game-title{
     font-family:'DotGothic16', monospace; font-size:1.5rem;
-    color:var(--gold); text-shadow:2px 2px 0 #000; margin:0 0 6px;
-    letter-spacing:.05em;
+    color:var(--gold); text-shadow:2px 2px 0 #000; margin:0 0 6px; letter-spacing:.05em;
   }
   .mode-select-sub{ font-size:.85rem; color:var(--ink-soft); font-weight:700; margin:0 0 22px; }
   .mode-buttons{ display:flex; gap:12px; justify-content:center; flex-wrap:wrap; }
@@ -320,16 +272,27 @@
   }
   .mode-btn-20:active{ box-shadow:0 1px 0 #0d1530; }
 
+  /* settings chips */
+  .opt-section{ margin:20px 0 6px; display:flex; flex-direction:column; gap:10px; }
+  .opt-row-wrap{ display:flex; align-items:center; gap:8px; justify-content:center; }
+  .opt-label{ font-size:.78rem; color:var(--ink-soft); font-weight:700; width:52px; text-align:right; flex-shrink:0; }
+  .opt-row{ display:flex; gap:6px; }
+  .opt-chip{
+    border:2px solid #39456f; background:#1b2140; color:var(--ink-soft);
+    font-family:'M PLUS Rounded 1c', sans-serif; font-weight:700; font-size:.82rem;
+    padding:5px 12px; border-radius:8px; cursor:pointer;
+    transition:background .12s, color .12s, border-color .12s;
+  }
+  .opt-chip.active{ background:var(--gold); border-color:var(--gold-deep); color:var(--gold-text); }
+  .opt-chip:focus-visible{ outline:2px solid var(--gold); outline-offset:2px; }
+
   .switch-mode-link{
     display:block; margin:14px auto 0; background:none; border:none;
     color:var(--ink-soft); font-family:'M PLUS Rounded 1c', sans-serif;
     font-weight:700; font-size:.78rem; text-decoration:underline; cursor:pointer;
   }
 
-  .bubble.final-burst{
-    animation:finalBurst 1s ease-out forwards;
-    pointer-events:none;
-  }
+  .bubble.final-burst{ animation:finalBurst 1s ease-out forwards; pointer-events:none; }
   @keyframes finalBurst{
     0%  { transform:scale(1); }
     25% { transform:scale(1.6); box-shadow:0 0 0 10px rgba(255,210,63,.55), 0 0 32px 14px rgba(255,210,63,.45); }
@@ -337,8 +300,7 @@
     100%{ transform:scale(1.4); box-shadow:0 0 0 4px rgba(255,210,63,.25), 0 0 16px 6px rgba(255,210,63,.2); }
   }
   .star-particle{
-    position:fixed; z-index:90; pointer-events:none;
-    font-size:1.15rem; line-height:1;
+    position:fixed; z-index:90; pointer-events:none; font-size:1.15rem; line-height:1;
     animation:starBurst .95s ease-out forwards;
   }
   @keyframes starBurst{
@@ -346,22 +308,27 @@
     35% { transform:translate(calc(-50% + var(--dx)), calc(-50% + var(--dy))) scale(1.3); opacity:1; }
     100%{ transform:translate(calc(-50% + var(--dx)), calc(-50% + var(--dy))) scale(.6); opacity:0; }
   }
-  @media (prefers-reduced-motion:reduce){
-    .bubble.final-burst{ animation:none; }
-    .star-particle{ display:none; }
-  }
+  @media (prefers-reduced-motion:reduce){ .bubble.final-burst{animation:none} .star-particle{display:none} }
 
-  .hint{
-    text-align:center; font-size:.82rem; color:var(--ink-soft);
-    margin:12px 0 0; font-weight:700;
-  }
+  .hint{ text-align:center; font-size:.82rem; color:var(--ink-soft); margin:12px 0 0; font-weight:700; }
 
   .back-link{
     display:block; margin:16px auto 0; text-align:center;
-    font-size:.75rem; color:var(--ink-soft); font-weight:700; text-decoration:none;
-    opacity:.7;
+    font-size:.75rem; color:var(--ink-soft); font-weight:700; text-decoration:none; opacity:.7;
   }
   .back-link:hover{ opacity:1; }
+
+  /* final screen */
+  .final-screen{
+    text-align:center; padding:28px 16px 22px;
+    display:flex; flex-direction:column; align-items:center; gap:16px;
+  }
+  .final-score-label{ font-size:.8rem; color:var(--ink-soft); font-weight:700; margin-bottom:-12px; }
+  .final-score-val{
+    font-family:'Baloo 2', sans-serif; font-weight:800; font-size:3rem; line-height:1.1;
+    color:var(--gold); text-shadow:0 0 20px rgba(255,210,63,.5);
+  }
+  .final-medals-row{ font-size:1.15rem; font-weight:700; letter-spacing:.12em; color:var(--ink); }
 </style>
 </head>
 <body>
@@ -370,22 +337,51 @@
 
 <div class="stage">
   <div class="app" id="appRoot">
+
+    <!-- MODE SELECT -->
     <div class="mode-select" id="modeSelect">
       <h1 class="game-title">Make 10! Speed Link</h1>
       <p class="mode-select-sub">どっちで あそぶ？</p>
       <div class="mode-buttons">
         <button class="mode-btn mode-btn-10" data-target="10" type="button">
           <span class="mode-btn-num">10</span>
-          <span class="mode-btn-label">10ゲーム</span>
+          <span class="mode-btn-label">10をつくる</span>
         </button>
         <button class="mode-btn mode-btn-20" data-target="20" type="button">
           <span class="mode-btn-num">20</span>
-          <span class="mode-btn-label">20ゲーム</span>
+          <span class="mode-btn-label">20をつくる</span>
         </button>
+      </div>
+      <div class="opt-section">
+        <div class="opt-row-wrap">
+          <span class="opt-label">なんもん？</span>
+          <div class="opt-row" id="cfgRounds">
+            <button class="opt-chip" data-val="5" type="button">5</button>
+            <button class="opt-chip active" data-val="10" type="button">10</button>
+            <button class="opt-chip" data-val="20" type="button">20</button>
+          </div>
+        </div>
+        <div class="opt-row-wrap">
+          <span class="opt-label">じかん？</span>
+          <div class="opt-row" id="cfgTime">
+            <button class="opt-chip" data-val="15" type="button">15秒</button>
+            <button class="opt-chip" data-val="30" type="button">30秒</button>
+            <button class="opt-chip active" data-val="0" type="button">∞</button>
+          </div>
+        </div>
+        <div class="opt-row-wrap">
+          <span class="opt-label">BGM</span>
+          <div class="opt-row" id="cfgBgm">
+            <button class="opt-chip active" data-val="race" type="button">レース</button>
+            <button class="opt-chip" data-val="panic" type="button">パニック</button>
+            <button class="opt-chip" data-val="off" type="button">なし</button>
+          </div>
+        </div>
       </div>
       <a href="../index.html" class="back-link">← ゲームせんたくにもどる</a>
     </div>
 
+    <!-- GAME SCREEN -->
     <div class="game-screen" id="gameScreen" hidden>
       <header class="topbar">
         <div class="necklace-wrap">
@@ -393,6 +389,12 @@
           <div class="necklace-row">
             <div id="rodBadges"></div>
             <div class="necklace" id="necklace"></div>
+          </div>
+        </div>
+        <div class="round-counter">
+          <div class="score-label">もん</div>
+          <div class="round-val">
+            <span id="roundCurrent">1</span><span class="slash">/</span><span id="roundTotal">10</span>
           </div>
         </div>
         <div class="score-wrap">
@@ -406,6 +408,7 @@
 
       <main class="board">
         <div class="board-flash" id="boardFlash"></div>
+        <div class="timer-chip" id="timerChip" hidden>⏱ <span id="timerVal">30</span></div>
         <div class="trail" id="trail"></div>
         <div class="current-row">
           <div class="goal-chip" id="goalChip"></div>
@@ -416,6 +419,26 @@
       <p class="hint" id="hint">2つの すうじを タップしてね</p>
       <button class="switch-mode-link" id="switchModeBtn" type="button">モードをかえる</button>
     </div>
+
+    <!-- FINAL SCREEN -->
+    <div class="final-screen" id="finalScreen" hidden>
+      <h2 class="game-title">ゲームクリア！</h2>
+      <div class="final-score-label">スコア</div>
+      <div class="final-score-val" id="finalScoreVal"></div>
+      <div class="final-medals-row" id="finalMedalsRow"></div>
+      <div class="mode-buttons" style="margin-top:4px;">
+        <button class="mode-btn mode-btn-10" id="retryBtn" type="button">
+          <span class="mode-btn-num">▶</span>
+          <span class="mode-btn-label">もういちど</span>
+        </button>
+        <button class="mode-btn mode-btn-20" id="menuBackBtn" type="button">
+          <span class="mode-btn-num">🏠</span>
+          <span class="mode-btn-label">メニューへ</span>
+        </button>
+      </div>
+      <a href="../index.html" class="back-link">← ゲームせんたくにもどる</a>
+    </div>
+
   </div>
 </div>
 
@@ -423,93 +446,77 @@
 (function(){
   "use strict";
 
-  // ---------- ambient background bubbles ----------
+  // ---------- ambient ----------
   const ambient = document.getElementById('ambient');
   for(let i=0;i<10;i++){
     const s = document.createElement('span');
     const size = 14 + Math.random()*34;
-    s.style.width = size+'px';
-    s.style.height = size+'px';
+    s.style.width = size+'px'; s.style.height = size+'px';
     s.style.left = (Math.random()*100)+'vw';
     s.style.animationDuration = (14 + Math.random()*14)+'s';
     s.style.animationDelay = (Math.random()*14)+'s';
     ambient.appendChild(s);
   }
 
+  // ---------- config ----------
+  const cfg = { rounds: 10, timePerRound: 0, bgm: 'race' };
+
   // ---------- state ----------
-  let numbers = [];      // {id, value}
-  let selectedId = null;
-  let score = 0;
-  let tensCount = 0;
-  let trail = [];         // array of {values:[...], gold:bool per merged pair not tracked; just snapshot}
-  let round = 1;
-  let idCounter = 1;
-  let resultShown = false;
-  let lastMergeGold = false;
-  let animatingIds = new Set();
-  let maxPossibleTens = 0;
-  let roundTens = 0;
-  let goldCount = 0;
-  let silverCount = 0;
-  let bronzeCount = 0;
-  let currentTarget = 10;
-  let combo = 0;
-  let selectTime = null;
+  let numbers = [], selectedId = null, score = 0, tensCount = 0, trail = [];
+  let round = 1, idCounter = 1, resultShown = false;
+  let animatingIds = new Set(), maxPossibleTens = 0, roundTens = 0;
+  let goldCount = 0, silverCount = 0, bronzeCount = 0, currentTarget = 10;
+  let combo = 0, selectTime = null;
 
-  // 万進法: each unit is 10^4 above the previous, all the way to 無量大数 (10^68)
-  const bigUnits = ['', '万','億','兆','京','垓','秭','穣','溝','澗','正','載','極','恒河沙','阿僧祇','那由他','不可思議','無量大数'];
-
+  const bigUnits = ['','万','億','兆','京','垓','秭','穣','溝','澗','正','載','極','恒河沙','阿僧祇','那由他','不可思議','無量大数'];
   function formatScoreDisplay(num){
     num = Math.floor(num);
     if(num < 10000) return num.toLocaleString('ja-JP');
-    const digits = String(num);
-    const groups = [];
+    const digits = String(num), groups = [];
     let i = digits.length;
-    while(i > 0){
-      const start = Math.max(0, i - 4);
-      groups.unshift(digits.slice(start, i));
-      i = start;
-    }
-    let out = '';
-    const total = groups.length;
-    groups.forEach((groupStr, k) => {
-      const groupNum = parseInt(groupStr, 10);
-      if(groupNum === 0) return;
-      const unitIndex = total - 1 - k;
-      out += groupNum + (bigUnits[unitIndex] || '');
+    while(i > 0){ const start = Math.max(0, i-4); groups.unshift(digits.slice(start, i)); i = start; }
+    let out = ''; const total = groups.length;
+    groups.forEach((g, k) => {
+      const v = parseInt(g, 10); if(!v) return;
+      out += v + (bigUnits[total-1-k] || '');
     });
     return out || '0';
   }
-
-  function computeSpeedMultiplier(elapsedMs){
-    const s = elapsedMs / 1000;
-    if(s <= 1.2) return 3;
-    if(s <= 2.5) return 2;
-    if(s <= 5) return 1.5;
-    return 1;
+  function computeSpeedMultiplier(ms){
+    const s = ms/1000;
+    if(s <= 1.2) return 3; if(s <= 2.5) return 2; if(s <= 5) return 1.5; return 1;
   }
 
   const els = {
-    equation: document.getElementById('equation'),
-    trail: document.getElementById('trail'),
-    scoreValue: document.getElementById('scoreValue'),
-    necklace: document.getElementById('necklace'),
-    rodBadges: document.getElementById('rodBadges'),
-    goalChip: document.getElementById('goalChip'),
+    equation:     document.getElementById('equation'),
+    trail:        document.getElementById('trail'),
+    scoreValue:   document.getElementById('scoreValue'),
+    necklace:     document.getElementById('necklace'),
+    rodBadges:    document.getElementById('rodBadges'),
+    goalChip:     document.getElementById('goalChip'),
     medalTracker: document.getElementById('medalTracker'),
-    comboChip: document.getElementById('comboChip'),
-    appRoot: document.getElementById('appRoot'),
-    boardFlash: document.getElementById('boardFlash'),
-    modeSelect: document.getElementById('modeSelect'),
-    gameScreen: document.getElementById('gameScreen'),
-    switchModeBtn: document.getElementById('switchModeBtn'),
-    hint: document.getElementById('hint'),
+    comboChip:    document.getElementById('comboChip'),
+    appRoot:      document.getElementById('appRoot'),
+    boardFlash:   document.getElementById('boardFlash'),
+    modeSelect:   document.getElementById('modeSelect'),
+    gameScreen:   document.getElementById('gameScreen'),
+    finalScreen:  document.getElementById('finalScreen'),
+    switchModeBtn:document.getElementById('switchModeBtn'),
+    hint:         document.getElementById('hint'),
+    timerChip:    document.getElementById('timerChip'),
+    timerVal:     document.getElementById('timerVal'),
+    roundCurrent: document.getElementById('roundCurrent'),
+    roundTotal:   document.getElementById('roundTotal'),
+    finalScoreVal:document.getElementById('finalScoreVal'),
+    finalMedalsRow:document.getElementById('finalMedalsRow'),
+    retryBtn:     document.getElementById('retryBtn'),
+    menuBackBtn:  document.getElementById('menuBackBtn'),
   };
 
   function randInt(min,max){ return Math.floor(Math.random()*(max-min+1))+min; }
   const REDUCE_MOTION = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-  // ---------- celebration fx: sound ----------
+  // ---------- audio ----------
   let audioCtx = null;
   function ensureAudio(){
     if(!audioCtx){
@@ -521,462 +528,422 @@
     return audioCtx;
   }
   function playTone(ctx, freq, startTime, duration, type, gainPeak){
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
+    const osc = ctx.createOscillator(), gain = ctx.createGain();
     osc.type = type;
     osc.frequency.setValueAtTime(freq, startTime);
     gain.gain.setValueAtTime(0.0001, startTime);
     gain.gain.exponentialRampToValueAtTime(gainPeak, startTime + 0.02);
     gain.gain.exponentialRampToValueAtTime(0.0001, startTime + duration);
     osc.connect(gain).connect(ctx.destination);
-    osc.start(startTime);
-    osc.stop(startTime + duration + 0.03);
+    osc.start(startTime); osc.stop(startTime + duration + 0.03);
   }
-  function playTenFanfare(combo){
-    const ctx = ensureAudio();
-    if(!ctx) return;
+  function playTenFanfare(c){
+    const ctx = ensureAudio(); if(!ctx) return;
     const now = ctx.currentTime;
-    const semitoneShift = Math.min((combo - 1) * 2, 12);
-    const ratio = Math.pow(2, semitoneShift / 12);
-    const notes = [523.25, 659.25, 783.99, 1046.50].map(f => f * ratio); // C5 E5 G5 C6
-    notes.forEach((freq, i) => playTone(ctx, freq, now + i*0.085, 0.32, 'triangle', 0.24));
-    playTone(ctx, 1568.0 * ratio, now + 0.30, 0.24, 'sine', 0.13);
-    playTone(ctx, 2093.0 * ratio, now + 0.34, 0.20, 'sine', 0.10);
-    if(combo >= 5){
-      playTone(ctx, 2637.0 * ratio, now + 0.38, 0.22, 'sine', 0.10);
-      playTone(ctx, 3136.0 * ratio, now + 0.42, 0.18, 'sine', 0.08);
+    const ratio = Math.pow(2, Math.min((c-1)*2, 12)/12);
+    [523.25,659.25,783.99,1046.50].map(f=>f*ratio).forEach((f,i)=>playTone(ctx,f,now+i*.085,.32,'triangle',.24));
+    playTone(ctx,1568*ratio,now+.30,.24,'sine',.13);
+    playTone(ctx,2093*ratio,now+.34,.20,'sine',.10);
+    if(c>=5){ playTone(ctx,2637*ratio,now+.38,.22,'sine',.10); playTone(ctx,3136*ratio,now+.42,.18,'sine',.08); }
+  }
+  function playMergeTick(){ const ctx=ensureAudio(); if(!ctx) return; playTone(ctx,392,ctx.currentTime,.12,'sine',.08); }
+  function playFinalChime(){
+    const ctx = ensureAudio(); if(!ctx) return;
+    const now = ctx.currentTime;
+    [[523.25,0],[659.25,.075],[783.99,.15],[1046.5,.225]].forEach(([f,d])=>playTone(ctx,f,now+d,.38,'triangle',.28));
+    playTone(ctx,2093,now+.32,.22,'sine',.12);
+  }
+
+  // ---------- BGM ----------
+  const bgmState = { playing:false, timer:null, nextTime:0, step:0 };
+
+  function bgmPressure(){
+    const p = cfg.rounds > 0 ? (round-1)/cfg.rounds : 0;
+    return p >= 0.8 ? 1.3 : p >= 0.6 ? 1.15 : 1;
+  }
+  function bNote(freq, t, dur, type, vol){
+    const ctx = ensureAudio(); if(!ctx) return;
+    playTone(ctx, freq, t, dur, type, vol);
+  }
+  function bgmStep(s, t, dt){
+    const pr = bgmPressure();
+    if(s%4===0) bNote(65.41, t, dt*1.8, 'sawtooth', .022);
+    if(s===0)   bNote(1568/pr, t, .07, 'square', .048);
+    if(s===8)   bNote(1244/pr, t, .07, 'square', .048);
+    if(cfg.bgm === 'race'){
+      const arp = [523.25,659.25,783.99,1046.5,783.99,659.25];
+      if(s%2===0) bNote(130.81, t, dt*1.6, 'sawtooth', .026);
+      if(s%2===1) bNote(arp[(bgmState.step>>1)%arp.length], t, dt*1.2, 'triangle', .026);
+    } else if(cfg.bgm === 'panic'){
+      if(s===0){ bNote(1800/pr, t, .025, 'square', .05); bNote(55, t, dt*15, 'sawtooth', .018); }
+      if(s===8)  bNote(1400/pr, t, .025, 'square', .05);
+      const pa = [220,277.18,329.63,369.99,440,369.99,329.63,277.18];
+      bNote(pa[s%8], t, dt*.85, 'square', .028);
     }
   }
-  function playMergeTick(){
-    const ctx = ensureAudio();
-    if(!ctx) return;
-    playTone(ctx, 392.0, ctx.currentTime, 0.12, 'sine', 0.08);
+  function bgmTick(){
+    if(!bgmState.playing) return;
+    const ctx = ensureAudio(); if(!ctx) return;
+    const base = cfg.bgm==='panic' ? 118 : 152;
+    const dt = 60/(base*bgmPressure())/4;
+    while(bgmState.nextTime < ctx.currentTime+.12){
+      bgmStep(bgmState.step%16, bgmState.nextTime, dt);
+      bgmState.nextTime += dt; bgmState.step++;
+    }
   }
-  function playFinalChime(){
-    const ctx = ensureAudio();
-    if(!ctx) return;
-    const now = ctx.currentTime;
-    // てぃろりん：C5→E5→G5→C6 の短いアルペジオ
-    [[523.25,0],[659.25,.075],[783.99,.15],[1046.5,.225]].forEach(([f,d]) =>
-      playTone(ctx, f, now+d, 0.38, 'triangle', 0.28)
-    );
-    playTone(ctx, 2093.0, now+0.32, 0.22, 'sine', 0.12);
+  function bgmStart(){
+    if(cfg.bgm==='off') return;
+    bgmStop();
+    const ctx = ensureAudio(); if(!ctx) return;
+    bgmState.playing = true; bgmState.step = 0; bgmState.nextTime = ctx.currentTime+.05;
+    bgmState.timer = setInterval(bgmTick, 25);
   }
+  function bgmStop(){
+    bgmState.playing = false;
+    if(bgmState.timer){ clearInterval(bgmState.timer); bgmState.timer = null; }
+  }
+
+  // ---------- per-round timer ----------
+  let roundTimerInterval = null, roundTimeLeft = 0;
+
+  function startRoundTimer(){
+    clearRoundTimer();
+    if(cfg.timePerRound === 0){ els.timerChip.hidden = true; return; }
+    roundTimeLeft = cfg.timePerRound;
+    updateTimerDisplay();
+    els.timerChip.hidden = false;
+    roundTimerInterval = setInterval(() => {
+      roundTimeLeft--;
+      updateTimerDisplay();
+      if(roundTimeLeft <= 0){ clearRoundTimer(); onRoundTimeout(); }
+    }, 1000);
+  }
+  function clearRoundTimer(){
+    if(roundTimerInterval){ clearInterval(roundTimerInterval); roundTimerInterval = null; }
+    els.timerChip.hidden = true;
+    els.timerChip.classList.remove('urgent');
+  }
+  function updateTimerDisplay(){
+    els.timerVal.textContent = roundTimeLeft;
+    els.timerChip.classList.toggle('urgent', roundTimeLeft <= 5);
+  }
+  function onRoundTimeout(){
+    if(resultShown) return;
+    resultShown = true;
+    bronzeCount++;
+    renderMedalTracker();
+    playFinalChime();
+    els.goalChip.innerHTML = '⏱ じかんぎれ！';
+    els.goalChip.hidden = false;
+    els.hint.textContent = '';
+    setTimeout(() => {
+      if(round >= cfg.rounds){ showFinalResult(); } else { newRound(); }
+    }, 1100);
+  }
+
+  // ---------- celebration fx ----------
   function spawnStars(el){
     if(REDUCE_MOTION) return;
     const rect = el.getBoundingClientRect();
-    const cx = rect.left + rect.width/2;
-    const cy = rect.top + rect.height/2;
-    ['⭐','✨','⭐','✨','⭐','✨'].forEach((star, i) => {
+    const cx = rect.left+rect.width/2, cy = rect.top+rect.height/2;
+    ['⭐','✨','⭐','✨','⭐','✨'].forEach((star,i) => {
       const s = document.createElement('div');
-      s.className = 'star-particle';
-      s.textContent = star;
-      const angle = (i / 6) * Math.PI * 2 - Math.PI/2;
-      const dist = 48 + Math.random()*18;
-      s.style.left = cx+'px';
-      s.style.top = cy+'px';
+      s.className = 'star-particle'; s.textContent = star;
+      const angle = (i/6)*Math.PI*2-Math.PI/2, dist = 48+Math.random()*18;
+      s.style.left = cx+'px'; s.style.top = cy+'px';
       s.style.setProperty('--dx', (Math.cos(angle)*dist)+'px');
       s.style.setProperty('--dy', (Math.sin(angle)*dist)+'px');
-      s.style.animationDelay = (i*0.04)+'s';
+      s.style.animationDelay = (i*.04)+'s';
       document.body.appendChild(s);
-      setTimeout(() => s.remove(), 1000);
+      setTimeout(()=>s.remove(), 1000);
     });
   }
-
-  // ---------- celebration fx: visuals ----------
-  function spawnConfetti(x, y, combo){
+  function spawnConfetti(x, y, c){
     if(REDUCE_MOTION) return;
-    const goldColors = ['#FFD23F','#FF8C42','#FFF3D0','#FFFFFF','#FFE580'];
-    const rainbowColors = ['#FFD23F','#FF6B6B','#6BCBFF','#B79CFF','#6BFFB8','#FF9FC0'];
-    const colors = combo >= 5 ? rainbowColors : goldColors;
-    const count = Math.min(16 + (combo - 1) * 6, 42);
+    const gc=['#FFD23F','#FF8C42','#FFF3D0','#FFFFFF','#FFE580'];
+    const rc=['#FFD23F','#FF6B6B','#6BCBFF','#B79CFF','#6BFFB8','#FF9FC0'];
+    const colors = c>=5 ? rc : gc, count = Math.min(16+(c-1)*6, 42);
     for(let i=0;i<count;i++){
-      const p = document.createElement('div');
-      p.className = 'confetti-particle';
-      const angle = Math.random()*Math.PI*2;
-      const dist = 45 + Math.random()*85;
-      const dx = Math.cos(angle)*dist;
-      const dy = Math.sin(angle)*dist - 25;
-      p.style.setProperty('--dx', dx+'px');
-      p.style.setProperty('--dy', dy+'px');
-      p.style.left = x+'px';
-      p.style.top = y+'px';
-      const size = 4+Math.random()*7;
-      p.style.width = size+'px';
-      p.style.height = size+'px';
-      p.style.background = colors[Math.floor(Math.random()*colors.length)];
-      p.style.animationDuration = (0.55+Math.random()*0.35)+'s';
-      document.body.appendChild(p);
-      setTimeout(() => p.remove(), 1000);
+      const p = document.createElement('div'); p.className='confetti-particle';
+      const angle=Math.random()*Math.PI*2, dist=45+Math.random()*85;
+      p.style.setProperty('--dx', (Math.cos(angle)*dist)+'px');
+      p.style.setProperty('--dy', (Math.sin(angle)*dist-25)+'px');
+      p.style.left=x+'px'; p.style.top=y+'px';
+      const size=4+Math.random()*7; p.style.width=size+'px'; p.style.height=size+'px';
+      p.style.background=colors[Math.floor(Math.random()*colors.length)];
+      p.style.animationDuration=(0.55+Math.random()*.35)+'s';
+      document.body.appendChild(p); setTimeout(()=>p.remove(), 1000);
     }
   }
-  function spawnPlusTen(x, y, combo, speedMult){
+  function spawnPlusTen(x, y, c, sm){
     if(REDUCE_MOTION) return;
     const el = document.createElement('div');
-    el.className = 'plus-ten-float' + (combo >= 5 ? ' super' : '');
-    let label = '+10';
-    if(combo >= 2) label += ' ×' + combo;
-    if(speedMult > 1) label += ' 🚀×' + speedMult;
-    el.textContent = label;
-    el.style.left = x+'px';
-    el.style.top = y+'px';
-    document.body.appendChild(el);
-    setTimeout(() => el.remove(), 950);
+    el.className = 'plus-ten-float'+(c>=5?' super':'');
+    let label='+10'; if(c>=2) label+=' ×'+c; if(sm>1) label+=' 🚀×'+sm;
+    el.textContent=label; el.style.left=x+'px'; el.style.top=y+'px';
+    document.body.appendChild(el); setTimeout(()=>el.remove(), 950);
   }
-  function triggerBoardFlash(combo){
+  function triggerBoardFlash(c){
     if(REDUCE_MOTION) return;
-    els.boardFlash.classList.remove('active', 'active-super');
-    void els.boardFlash.offsetWidth; // restart animation
-    els.boardFlash.classList.add(combo >= 5 ? 'active-super' : 'active');
-    setTimeout(() => els.boardFlash.classList.remove('active', 'active-super'), 750);
+    els.boardFlash.classList.remove('active','active-super');
+    void els.boardFlash.offsetWidth;
+    els.boardFlash.classList.add(c>=5?'active-super':'active');
+    setTimeout(()=>els.boardFlash.classList.remove('active','active-super'), 750);
   }
-  function triggerShake(combo){
+  function triggerShake(c){
     if(REDUCE_MOTION) return;
-    els.appRoot.classList.remove('shake', 'shake-big');
+    els.appRoot.classList.remove('shake','shake-big');
     void els.appRoot.offsetWidth;
-    els.appRoot.classList.add(combo >= 3 ? 'shake-big' : 'shake');
-    setTimeout(() => els.appRoot.classList.remove('shake', 'shake-big'), 560);
+    els.appRoot.classList.add(c>=3?'shake-big':'shake');
+    setTimeout(()=>els.appRoot.classList.remove('shake','shake-big'), 560);
   }
-  function updateComboChip(combo){
-    if(combo >= 2){
-      els.comboChip.textContent = (combo >= 5 ? '🔥🔥 ' : '🔥 ') + combo + 'れんぞく！';
-      els.comboChip.hidden = false;
-      els.comboChip.classList.remove('breakaway', 'pop');
+  function updateComboChip(c){
+    if(c>=2){
+      els.comboChip.textContent=(c>=5?'🔥🔥 ':'🔥 ')+c+'れんぞく！';
+      els.comboChip.hidden=false;
+      els.comboChip.classList.remove('breakaway','pop');
       void els.comboChip.offsetWidth;
       els.comboChip.classList.add('pop');
     }
   }
   function resetCombo(){
-    const hadStreak = combo >= 2;
-    combo = 0;
-    if(hadStreak){
-      els.comboChip.classList.remove('pop');
-      els.comboChip.classList.add('breakaway');
-      setTimeout(() => {
-        els.comboChip.hidden = true;
-        els.comboChip.classList.remove('breakaway');
-      }, 320);
-    } else {
-      els.comboChip.hidden = true;
-    }
+    const had = combo>=2; combo=0;
+    if(had){
+      els.comboChip.classList.remove('pop'); els.comboChip.classList.add('breakaway');
+      setTimeout(()=>{ els.comboChip.hidden=true; els.comboChip.classList.remove('breakaway'); }, 320);
+    } else { els.comboChip.hidden=true; }
   }
-  function celebrateTen(bubbleEl, combo, speedMult){
-    playTenFanfare(combo);
-    triggerBoardFlash(combo);
-    triggerShake(combo);
+  function celebrateTen(bubbleEl, c, sm){
+    playTenFanfare(c); triggerBoardFlash(c); triggerShake(c);
     if(bubbleEl){
-      const rect = bubbleEl.getBoundingClientRect();
-      const cx = rect.left + rect.width/2;
-      const cy = rect.top + rect.height/2;
-      spawnConfetti(cx, cy, combo);
-      spawnPlusTen(cx, cy, combo, speedMult);
+      const rect=bubbleEl.getBoundingClientRect();
+      const cx=rect.left+rect.width/2, cy=rect.top+rect.height/2;
+      spawnConfetti(cx,cy,c); spawnPlusTen(cx,cy,c,sm);
     }
-    updateComboChip(combo);
+    updateComboChip(c);
   }
 
   function shuffle(arr){
-    for(let i=arr.length-1;i>0;i--){
-      const j = Math.floor(Math.random()*(i+1));
-      [arr[i],arr[j]]=[arr[j],arr[i]];
-    }
+    for(let i=arr.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [arr[i],arr[j]]=[arr[j],arr[i]]; }
     return arr;
   }
 
   function maxTens(values, target){
     const memo = new Map();
     function solve(remaining){
-      if(remaining.length === 0) return 0;
+      if(!remaining.length) return 0;
       const key = remaining.slice().sort((a,b)=>a-b).join(',');
       if(memo.has(key)) return memo.get(key);
       let best = solve(remaining.slice(1));
-      const first = remaining[0];
-      const rest = remaining.slice(1);
-      const n = rest.length;
-      for(let mask=1; mask < (1<<n); mask++){
-        let sum = first;
-        const chosen = [];
-        for(let b=0;b<n;b++){
-          if(mask & (1<<b)){ sum += rest[b]; chosen.push(b); }
-        }
-        if(sum === target){
-          const after = rest.filter((_,idx)=>!chosen.includes(idx));
-          const val = 1 + solve(after);
-          if(val > best) best = val;
+      const first=remaining[0], rest=remaining.slice(1), n=rest.length;
+      for(let mask=1;mask<(1<<n);mask++){
+        let sum=first; const chosen=[];
+        for(let b=0;b<n;b++){ if(mask&(1<<b)){ sum+=rest[b]; chosen.push(b); } }
+        if(sum===target){
+          const val=1+solve(rest.filter((_,idx)=>!chosen.includes(idx)));
+          if(val>best) best=val;
         }
       }
-      memo.set(key, best);
-      return best;
+      memo.set(key,best); return best;
     }
     return solve(values.slice());
   }
 
   // ---------- equation generation ----------
   const pairsPool10 = [[1,9],[2,8],[3,7],[4,6],[5,5]];
-  const triplesPool20 = [
-    [9,8,3],[9,7,4],[9,6,5],[8,7,5],[7,7,6],[9,9,2],[8,8,4],[8,6,6]
-  ];
+  const triplesPool20 = [[9,8,3],[9,7,4],[9,6,5],[8,7,5],[7,7,6],[9,9,2],[8,8,4],[8,6,6]];
 
-  // 常に6個固定。target=10: ペア×2+フィラー×2、target=20: トリプル×2
   function generateEquation(target){
-    let values = [];
-    if(target === 20){
-      // トリプル×2 = 6個でちょうど2つの20が保証される
-      const t1 = triplesPool20[randInt(0, triplesPool20.length-1)];
-      const t2 = triplesPool20[randInt(0, triplesPool20.length-1)];
-      values = [...t1, ...t2];
+    let values;
+    if(target===20){
+      const t1=triplesPool20[randInt(0,triplesPool20.length-1)];
+      const t2=triplesPool20[randInt(0,triplesPool20.length-1)];
+      values=[...t1,...t2];
     } else {
-      // ペア×2 = 4個でベース2つの10を保証、残り2個はフィラー
-      const p1 = pairsPool10[randInt(0, pairsPool10.length-1)];
-      const p2 = pairsPool10[randInt(0, pairsPool10.length-1)];
-      values = [p1[0], p1[1], p2[0], p2[1], randInt(1,9), randInt(1,9)];
+      const p1=pairsPool10[randInt(0,pairsPool10.length-1)];
+      const p2=pairsPool10[randInt(0,pairsPool10.length-1)];
+      values=[p1[0],p1[1],p2[0],p2[1],randInt(1,9),randInt(1,9)];
     }
     shuffle(values);
-    return values.map(v => ({ id: idCounter++, value: v }));
+    return values.map(v=>({id:idCounter++, value:v}));
   }
 
+  // ---------- game flow ----------
   function startGame(target){
-    currentTarget = target;
-    round = 1;
-    score = 0;
-    tensCount = 0;
-    goldCount = 0;
-    silverCount = 0;
-    bronzeCount = 0;
-    selectedId = null;
-    trail = [];
-    resultShown = false;
-    roundTens = 0;
-    combo = 0;
-    selectTime = null;
-    els.comboChip.hidden = true;
-    numbers = generateEquation(currentTarget);
-    maxPossibleTens = maxTens(numbers.map(n => n.value), currentTarget);
-    els.modeSelect.hidden = true;
-    els.gameScreen.hidden = false;
-    els.hint.textContent = '2つの すうじを タップしてね';
+    currentTarget=target; round=1; score=0; tensCount=0;
+    goldCount=0; silverCount=0; bronzeCount=0;
+    selectedId=null; trail=[]; resultShown=false; roundTens=0; combo=0; selectTime=null;
+    els.comboChip.hidden=true;
+    numbers=generateEquation(currentTarget);
+    maxPossibleTens=maxTens(numbers.map(n=>n.value), currentTarget);
+    els.modeSelect.hidden=true; els.finalScreen.hidden=true; els.gameScreen.hidden=false;
+    els.hint.textContent='2つの すうじを タップしてね';
     render();
+    bgmStart();
+    startRoundTimer();
   }
 
   function newRound(){
-    round += 1;
-    numbers = generateEquation(currentTarget);
-    trail = [];
-    selectedId = null;
-    resultShown = false;
-    roundTens = 0;
-    maxPossibleTens = maxTens(numbers.map(n => n.value), currentTarget);
-    els.hint.textContent = '2つの すうじを タップしてね';
+    round++;
+    numbers=generateEquation(currentTarget);
+    trail=[]; selectedId=null; resultShown=false; roundTens=0;
+    maxPossibleTens=maxTens(numbers.map(n=>n.value), currentTarget);
+    els.hint.textContent='2つの すうじを タップしてね';
     render();
+    startRoundTimer();
+  }
+
+  function showFinalResult(){
+    bgmStop(); clearRoundTimer();
+    const ctx=ensureAudio();
+    if(ctx){
+      const now=ctx.currentTime;
+      [523.25,659.25,783.99,1046.5,1318.5,1568.0].forEach((f,i)=>playTone(ctx,f,now+i*.1,.5,'triangle',.22));
+    }
+    els.gameScreen.hidden=true; els.finalScreen.hidden=false;
+    els.finalScoreVal.textContent=formatScoreDisplay(score);
+    els.finalMedalsRow.innerHTML='🥇 '+goldCount+'　🥈 '+silverCount+'　🥉 '+bronzeCount;
   }
 
   // ---------- rendering ----------
+  function renderRoundCounter(){
+    els.roundCurrent.textContent=round;
+    els.roundTotal.textContent=cfg.rounds;
+  }
   function render(){
-    renderGoal();
-    renderTrail();
-    renderEquation();
-    renderNecklace();
-    renderMedalTracker();
-    els.scoreValue.textContent = formatScoreDisplay(score);
+    renderGoal(); renderTrail(); renderEquation();
+    renderNecklace(); renderMedalTracker(); renderRoundCounter();
+    els.scoreValue.textContent=formatScoreDisplay(score);
   }
-
   function renderMedalTracker(){
-    els.medalTracker.innerHTML =
-      '<span class="medal-chip gold"><span class="icon">🥇</span>' + goldCount + '</span>' +
-      '<span class="medal-chip silver"><span class="icon">🥈</span>' + silverCount + '</span>' +
-      '<span class="medal-chip bronze"><span class="icon">🥉</span>' + bronzeCount + '</span>';
+    els.medalTracker.innerHTML=
+      '<span class="medal-chip gold"><span class="icon">🥇</span>'+goldCount+'</span>'+
+      '<span class="medal-chip silver"><span class="icon">🥈</span>'+silverCount+'</span>'+
+      '<span class="medal-chip bronze"><span class="icon">🥉</span>'+bronzeCount+'</span>';
   }
-
   function renderGoal(){
-    if(maxPossibleTens > 0){
-      els.goalChip.innerHTML = '🎯 「' + currentTarget + '」は さいだい <b>' + maxPossibleTens + '</b> かい つくれるよ';
-      els.goalChip.hidden = false;
-    } else {
-      els.goalChip.hidden = true;
-    }
+    if(maxPossibleTens>0){
+      els.goalChip.innerHTML='🎯 「'+currentTarget+'」は さいだい <b>'+maxPossibleTens+'</b> かい つくれるよ';
+      els.goalChip.hidden=false;
+    } else { els.goalChip.hidden=true; }
   }
-
   function renderTrail(){
-    els.trail.innerHTML = '';
-    trail.forEach((snapshot) => {
-      const row = document.createElement('div');
-      row.className = 'trail-row';
-      snapshot.forEach((v, idx) => {
-        if(idx>0){
-          const plus = document.createElement('span');
-          plus.className = 'mini-plus';
-          plus.textContent = '+';
-          row.appendChild(plus);
-        }
-        const mb = document.createElement('div');
-        mb.className = 'mini-bubble';
-        mb.textContent = v;
-        row.appendChild(mb);
+    els.trail.innerHTML='';
+    trail.forEach(snapshot=>{
+      const row=document.createElement('div'); row.className='trail-row';
+      snapshot.forEach((v,idx)=>{
+        if(idx>0){ const pl=document.createElement('span'); pl.className='mini-plus'; pl.textContent='+'; row.appendChild(pl); }
+        const mb=document.createElement('div'); mb.className='mini-bubble'; mb.textContent=v; row.appendChild(mb);
       });
       els.trail.appendChild(row);
-
-      const arrow = document.createElement('div');
-      arrow.className = 'trail-arrow';
-      arrow.textContent = '↓';
-      els.trail.appendChild(arrow);
+      const arr=document.createElement('div'); arr.className='trail-arrow'; arr.textContent='↓'; els.trail.appendChild(arr);
     });
-    els.trail.scrollTop = els.trail.scrollHeight;
+    els.trail.scrollTop=els.trail.scrollHeight;
   }
-
   function renderEquation(){
-    els.equation.innerHTML = '';
-    numbers.forEach((n, idx) => {
-      if(idx>0){
-        const plus = document.createElement('span');
-        plus.className = 'plus';
-        plus.textContent = '+';
-        els.equation.appendChild(plus);
-      }
-      const b = document.createElement('button');
-      b.type = 'button';
-      b.className = 'bubble';
-      b.textContent = n.value;
-      b.dataset.id = String(n.id);
-      if(n.id === selectedId) b.classList.add('selected');
+    els.equation.innerHTML='';
+    numbers.forEach((n,idx)=>{
+      if(idx>0){ const pl=document.createElement('span'); pl.className='plus'; pl.textContent='+'; els.equation.appendChild(pl); }
+      const b=document.createElement('button');
+      b.type='button'; b.className='bubble'; b.textContent=n.value; b.dataset.id=String(n.id);
+      if(n.id===selectedId) b.classList.add('selected');
       if(n.gold) b.classList.add('gold');
-      if(animatingIds.has(n.id)) b.classList.add(n.gold ? 'pulse-gold' : 'pulse-normal');
-      b.setAttribute('aria-label', 'すうじ ' + n.value);
-      b.addEventListener('click', () => onBubbleClick(n.id));
+      if(animatingIds.has(n.id)) b.classList.add(n.gold?'pulse-gold':'pulse-normal');
+      b.setAttribute('aria-label','すうじ '+n.value);
+      b.addEventListener('click',()=>onBubbleClick(n.id));
       els.equation.appendChild(b);
     });
-
-    if(numbers.length === 1 && !resultShown){
-      resultShown = true;
+    if(numbers.length===1 && !resultShown){
+      resultShown=true;
       setTimeout(showResult, 750);
     }
   }
-
   function renderNecklace(){
-    const filledInRod = tensCount % 10;
-    const completedRods = Math.floor(tensCount / 10);
-
-    els.rodBadges.innerHTML = '';
-    for(let i=0;i<completedRods;i++){
-      const badge = document.createElement('span');
-      badge.className = 'rod-badge';
-      badge.textContent = '×' + (i+1) + '0';
-      els.rodBadges.appendChild(badge);
+    const filled=tensCount%10, rods=Math.floor(tensCount/10);
+    els.rodBadges.innerHTML='';
+    for(let i=0;i<rods;i++){
+      const badge=document.createElement('span'); badge.className='rod-badge';
+      badge.textContent='×'+(i+1)+'0'; els.rodBadges.appendChild(badge);
     }
-
-    els.necklace.innerHTML = '';
+    els.necklace.innerHTML='';
     for(let i=0;i<10;i++){
-      const p = document.createElement('div');
-      p.className = 'pearl' + (i < filledInRod ? ' filled' : '');
-      els.necklace.appendChild(p);
+      const p=document.createElement('div');
+      p.className='pearl'+(i<filled?' filled':''); els.necklace.appendChild(p);
     }
   }
 
   function showResult(){
-    const isPerfect = maxPossibleTens > 0 && roundTens === maxPossibleTens;
+    clearRoundTimer();
+    const isPerfect = maxPossibleTens>0 && roundTens===maxPossibleTens;
     let medalIcon, medalLabel;
-    if(isPerfect){
-      goldCount++; medalIcon = '🥇'; medalLabel = 'コンプリート！';
-    } else if(roundTens >= 1){
-      silverCount++; medalIcon = '🥈'; medalLabel = roundTens + '/' + maxPossibleTens + ' みつけた！';
-    } else {
-      bronzeCount++; medalIcon = '🥉'; medalLabel = 'つぎがんばろう';
-    }
+    if(isPerfect){         goldCount++;   medalIcon='🥇'; medalLabel='コンプリート！'; }
+    else if(roundTens>=1){ silverCount++; medalIcon='🥈'; medalLabel=roundTens+'/'+maxPossibleTens+' みつけた！'; }
+    else {                 bronzeCount++; medalIcon='🥉'; medalLabel='つぎがんばろう'; }
     renderMedalTracker();
-
-    // てぃろりん＋バブル拡大＋星
     playFinalChime();
-    const bubbleEl = els.equation.querySelector('.bubble');
-    if(bubbleEl){
-      bubbleEl.classList.add('final-burst');
-      spawnStars(bubbleEl);
-    }
-
-    // goal-chip に1秒だけ結果を表示してから次の問題へ
-    els.goalChip.innerHTML = medalIcon + ' ' + medalLabel;
-    els.goalChip.hidden = false;
-    els.hint.textContent = '';
-
-    setTimeout(() => { newRound(); }, 1100);
+    const bubbleEl=els.equation.querySelector('.bubble');
+    if(bubbleEl){ bubbleEl.classList.add('final-burst'); spawnStars(bubbleEl); }
+    els.goalChip.innerHTML=medalIcon+' '+medalLabel;
+    els.goalChip.hidden=false; els.hint.textContent='';
+    setTimeout(()=>{ if(round>=cfg.rounds){ showFinalResult(); } else { newRound(); } }, 1100);
   }
 
   // ---------- interaction ----------
-
   function onBubbleClick(id){
     if(resultShown) return;
-    if(selectedId === null){
-      selectedId = id;
-      selectTime = performance.now();
-      render();
-      return;
-    }
-    if(selectedId === id){
-      selectedId = null;
-      render();
-      return;
-    }
-    doMerge(selectedId, id);
-    selectedId = null;
+    if(selectedId===null){ selectedId=id; selectTime=performance.now(); render(); return; }
+    if(selectedId===id){ selectedId=null; render(); return; }
+    doMerge(selectedId, id); selectedId=null;
   }
-
   function doMerge(idA, idB){
-    const idxA = numbers.findIndex(n => n.id === idA);
-    const idxB = numbers.findIndex(n => n.id === idB);
-    if(idxA === -1 || idxB === -1) return;
-
-    const a = numbers[idxA];
-    const b = numbers[idxB];
-    const sum = a.value + b.value;
-    const isGold = sum === currentTarget;
-
-    trail.push(numbers.map(n => n.value));
-
-    const insertAt = Math.min(idxA, idxB);
-    const newBubble = { id: idCounter++, value: sum, gold: isGold };
-
-    numbers = numbers.filter(n => n.id !== idA && n.id !== idB);
-    numbers.splice(insertAt, 0, newBubble);
-
-    const speedMult = isGold
-      ? computeSpeedMultiplier(selectTime !== null ? (performance.now() - selectTime) : 9999)
-      : 1;
-
+    const idxA=numbers.findIndex(n=>n.id===idA), idxB=numbers.findIndex(n=>n.id===idB);
+    if(idxA===-1||idxB===-1) return;
+    const a=numbers[idxA], b=numbers[idxB], sum=a.value+b.value;
+    const isGold=sum===currentTarget;
+    trail.push(numbers.map(n=>n.value));
+    const insertAt=Math.min(idxA,idxB);
+    const newBubble={id:idCounter++, value:sum, gold:isGold};
+    numbers=numbers.filter(n=>n.id!==idA&&n.id!==idB);
+    numbers.splice(insertAt,0,newBubble);
+    const sm=isGold ? computeSpeedMultiplier(selectTime!==null?(performance.now()-selectTime):9999) : 1;
     if(isGold){
-      combo += 1;
-      const comboBonus = Math.min((combo - 1) * 2, 20);
-      const gained = Math.round((10 + comboBonus) * speedMult);
-      score += gained;
-      tensCount += 1;
-      roundTens += 1;
-    } else {
-      score += 2;
-    }
-
-    animatingIds = new Set([newBubble.id]);
-    render();
-
-    if(isGold){
-      const bubbleEl = els.equation.querySelector('[data-id="' + newBubble.id + '"]');
-      celebrateTen(bubbleEl, combo, speedMult);
-    } else {
-      playMergeTick();
-      resetCombo();
-    }
-
-    setTimeout(() => {
-      animatingIds = new Set();
-      render();
-    }, 620);
+      combo++; const cb=Math.min((combo-1)*2,20); score+=Math.round((10+cb)*sm);
+      tensCount++; roundTens++;
+    } else { score+=2; }
+    animatingIds=new Set([newBubble.id]); render();
+    if(isGold){ celebrateTen(els.equation.querySelector('[data-id="'+newBubble.id+'"]'), combo, sm); }
+    else { playMergeTick(); resetCombo(); }
+    setTimeout(()=>{ animatingIds=new Set(); render(); }, 620);
   }
 
-  document.querySelectorAll('.mode-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      startGame(Number(btn.dataset.target));
+  // ---------- settings wiring ----------
+  function wireOptRow(containerId, cfgKey, asNumber){
+    const container=document.getElementById(containerId);
+    container.querySelectorAll('.opt-chip').forEach(btn=>{
+      btn.addEventListener('click',()=>{
+        container.querySelectorAll('.opt-chip').forEach(b=>b.classList.remove('active'));
+        btn.classList.add('active');
+        cfg[cfgKey]=asNumber ? Number(btn.dataset.val) : btn.dataset.val;
+      });
     });
+  }
+  wireOptRow('cfgRounds','rounds',true);
+  wireOptRow('cfgTime','timePerRound',true);
+  wireOptRow('cfgBgm','bgm',false);
+
+  // ---------- event handlers ----------
+  document.querySelectorAll('.mode-btn[data-target]').forEach(btn=>{
+    btn.addEventListener('click',()=>startGame(Number(btn.dataset.target)));
+  });
+  els.switchModeBtn.addEventListener('click',()=>{
+    bgmStop(); clearRoundTimer();
+    els.gameScreen.hidden=true; els.modeSelect.hidden=false;
+  });
+  els.retryBtn.addEventListener('click',()=>{ els.finalScreen.hidden=true; startGame(currentTarget); });
+  els.menuBackBtn.addEventListener('click',()=>{
+    bgmStop(); els.finalScreen.hidden=true; els.modeSelect.hidden=false;
   });
 
-  els.switchModeBtn.addEventListener('click', () => {
-    els.gameScreen.hidden = true;
-    els.modeSelect.hidden = false;
-  });
 })();
 </script>
 </body>
