@@ -2086,8 +2086,8 @@
 
   function buildIdleOverlay(){
     var lead = MODE === 'boss'
-      ? '1Pが固定でボス（HP'+BOSS_HP_MAX+'）、2P以降がパーティー（各HP'+PARTY_HP_MAX+'）。<br>合図の後、ボスより早く押すとボスにダメージ、ボスより遅いと自分がダメージを受けます。'
-      : '合図が出るまで待って、出た瞬間に自分のエリアを一番早くタップした人の勝ち。<br>フライング2回でそのエリアはお墓になり、以降は見学だけになります。<br>次の画面でキャラも選べます。';
+      ? '合図が出た瞬間に、一番早くタップしろ！フライングに気をつけろ！'
+      : '合図が出た瞬間に、一番早くタップしろ！フライングに気をつけろ！';
     var targetRow = MODE === 'boss'
       ? '<p class="hint">ボスHP '+BOSS_HP_MAX+' ／ パーティー各HP '+PARTY_HP_MAX+'</p>'
       : ('<div class="row"><div class="stepper"><span>勝ち抜き本数</span>' +
