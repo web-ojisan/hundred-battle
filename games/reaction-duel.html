@@ -664,6 +664,11 @@
     return PARTY_ATTACK_LINES[Math.floor(Math.random() * PARTY_ATTACK_LINES.length)];
   }
 
+  var WIN_LINES  = ['速っ！', 'ぶっとばした！', '完璧！', 'ドンピシャ！', '最速！'];
+  var LOSE_LINES = ['やられた…', '遅かった…', '次こそ！', 'くそっ！', '油断した…'];
+  function randomWinLine() { return WIN_LINES[Math.floor(Math.random()*WIN_LINES.length)]; }
+  function randomLoseLine(){ return LOSE_LINES[Math.floor(Math.random()*LOSE_LINES.length)]; }
+
   var BOSS_OPENING_LINES = ['大魔王が弱っている、、！', '苦しいのは奴も同じ、、！'];
   function randomBossOpeningLine(){
     return BOSS_OPENING_LINES[Math.floor(Math.random() * BOSS_OPENING_LINES.length)];
@@ -1587,16 +1592,8 @@
       players.forEach(function(pl){
         if (pl.eliminated) return;
         zoneEl(pl.id).classList.add('armed');
-        var subHint;
-        if (MODE === 'boss'){
-          subHint = pl.id === 1 ? '早すぎ注意' : 'ボスより早く!';
-        } else if (pl.fouls === 1){
-          subHint = '次、失敗したら…';
-          zoneEl(pl.id).classList.add('warned');
-        } else {
-          subHint = '早く触ると失格';
-        }
-        setStatus(pl.id, '隙を窺え…', subHint);
+        if (pl.fouls === 1) zoneEl(pl.id).classList.add('warned');
+        setStatus(pl.id, '隙を窺え…', '');
       });
       playStartSting();
       tickStartTimeoutId = setTimeout(startTicking, 480);
@@ -1687,10 +1684,10 @@
         var pp = pl.id;
         if (pp === p){
           zoneEl(pp).classList.add('foul');
-          setStatus(pp, '自爆!', justEliminated ? '2回目 退場' : '失格 (あと1回でお墓)');
+          setStatus(pp, '自爆!', '');
           setCharImg(pp, 'dim');
         } else {
-          setStatus(pp, 'おあずけ', '相手の失格');
+          setStatus(pp, 'おあずけ', '');
         }
       });
       beep(140, 0.25, 'sawtooth', 0.08);
@@ -1724,10 +1721,10 @@
         var pp = pl.id;
         if (pp === p){
           zoneEl(pp).classList.add('winner');
-          setStatus(pp, '勝ち!', reaction + ' ms');
+          setStatus(pp, randomWinLine(), reaction + ' ms');
           setCharImg(pp, 'atk');
         } else {
-          setStatus(pp, 'まけ', '');
+          setStatus(pp, randomLoseLine(), '');
           setCharImg(pp, 'dim');
           var lz = zoneEl(pp);
           lz.classList.remove('dmg-flash');
@@ -1758,7 +1755,7 @@
       var z = zoneEl(p);
       z.classList.remove('armed');
       z.classList.add('foul');
-      setStatus(p, '自爆!', 'このラウンドは不発');
+      setStatus(p, '自爆!', '');
       setCharImg(p, 'dim');
       playExplosion();
       spawnExplosion(p);
@@ -1811,7 +1808,7 @@
         setStatus(pl.id, '🎉', 'ボスが自滅！');
         setCharImg(pl.id, 'atk');
       });
-      setStatus(1, '即死…', '2回目の自爆');
+      setStatus(1, '即死…', '');
       renderScores();
       flashHpDamage(1, BOSS_HP_MAX, 0);
       spawnBigEffect('party');
@@ -1829,7 +1826,7 @@
       party.forEach(function(pl){
         setStatus(pl.id, '好機!', randomBossOpeningLine());
       });
-      setStatus(1, randomBossHitLine(), 'HP -' + damage + '（自爆ペナルティ）');
+      setStatus(1, randomBossHitLine(), '');
       renderScores();
       flashHpDamage(1, oldBossHp, boss.hp);
       playExplosion();
