@@ -1481,7 +1481,7 @@
       spawnZzz(pl.id);
     });
     playSleepWhistle();
-    setTimeout(function(){ if (state !== 'champion') nextRound(); }, 2200);
+    setTimeout(function(){ if (state !== 'champion') nextRound(); }, 4000);
   }
 
   function handleZoneTap(p){
@@ -1533,7 +1533,7 @@
       if (active.length <= 1){
         setTimeout(function(){ showChampion(active[0], '最後まで生き残った！'); }, 1600);
       } else {
-        setTimeout(function(){ if(state!=='champion') nextRound(); }, 1600);
+        setTimeout(function(){ if(state!=='champion') nextRound(); }, 4000);
       }
       return;
     }
@@ -1571,7 +1571,7 @@
       if (winner.score >= TARGET){
         setTimeout(function(){ showChampion(winner); }, 1600);
       } else {
-        setTimeout(function(){ if(state!=='champion') nextRound(); }, 1900);
+        setTimeout(function(){ if(state!=='champion') nextRound(); }, 4000);
       }
       return;
     }
@@ -1669,7 +1669,7 @@
         setTimeout(function(){ showBossPartyVictory(); }, 1700);
         return;
       }
-      setTimeout(function(){ if (state !== 'champion') nextRound(); }, 1800);
+      setTimeout(function(){ if (state !== 'champion') nextRound(); }, 4000);
     }
   }
 
@@ -1812,7 +1812,7 @@
       }, 1700);
       return;
     }
-    setTimeout(function(){ if (state !== 'champion') nextRound(); }, 2000);
+    setTimeout(function(){ if (state !== 'champion') nextRound(); }, 4000);
   }
 
   function showBossPartyVictory(){
