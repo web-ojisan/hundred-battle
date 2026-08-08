@@ -512,12 +512,33 @@
 
   /* ========================= 効果音（WebAudio、外部音源なし） ========================= */
   var actx = null;
+  var sfxBuffers = { sword: null, magic: null, fire: null };
+  var sfxRaw = {};
+  // ページ読み込み時にMP3をArrayBufferとして先行フェッチ
+  (function(){
+    var files = { sword:'img/swordattak.mp3', magic:'img/magckatack.mp3', fire:'img/fireatack.mp3' };
+    Object.keys(files).forEach(function(k){
+      fetch(files[k]).then(function(r){ return r.arrayBuffer(); }).then(function(ab){ sfxRaw[k] = ab; });
+    });
+  })();
   function audioCtx(){
     if (!actx){
       var AC = window.AudioContext || window.webkitAudioContext;
-      if (AC) actx = new AC();
+      if (AC){
+        actx = new AC();
+        // AudioContext生成時にフェッチ済みバッファをデコード
+        Object.keys(sfxRaw).forEach(function(k){
+          if (sfxRaw[k]) actx.decodeAudioData(sfxRaw[k], function(buf){ sfxBuffers[k] = buf; });
+        });
+      }
     }
     return actx;
+  }
+  function playSfxBuffer(buf){
+    var ctx = audioCtx(); if (!ctx || !buf) return;
+    if (ctx.state === 'suspended') ctx.resume();
+    var src = ctx.createBufferSource();
+    src.buffer = buf; src.connect(ctx.destination); src.start(0);
   }
   function beep(freq, dur, type, gain){
     var ctx = audioCtx(); if (!ctx) return;
@@ -962,7 +983,9 @@
 
   // CHARACTERS の並び順に対応（剣士/魔法使い/魔物）
   var WIN_SOUNDS = [
-    playSwordSlash, playFireMagic, playBigImpact
+    function(){ playSfxBuffer(sfxBuffers.sword); },
+    function(){ playSfxBuffer(sfxBuffers.magic); },
+    function(){ playSfxBuffer(sfxBuffers.fire);  }
   ];
 
   /* ========================= ゲームロジック ========================= */
