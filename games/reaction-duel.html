@@ -110,6 +110,12 @@
     100%{ box-shadow:0 0 0 60px transparent inset; }
   }
   .zone.foul{ background:#2A0F14; }
+  @keyframes dmgFlash{
+    0%  { background:rgba(210,20,50,.85); }
+    60% { background:rgba(160,12,30,.45); }
+    100%{ background:#10141F; }
+  }
+  .zone.dmg-flash{ animation:dmgFlash 1s ease-out forwards; }
   .zone.warned{ animation:warnPulse 1s ease-in-out infinite; }
   @keyframes warnPulse{
     0%,100%{ box-shadow:0 0 0 0 rgba(255,59,92,.55) inset; }
@@ -1444,6 +1450,10 @@
         } else {
           setStatus(pp, 'まけ', '');
           setCharImg(pp, 'dim');
+          var lz = zoneEl(pp);
+          lz.classList.remove('dmg-flash');
+          void lz.offsetWidth;
+          lz.classList.add('dmg-flash');
         }
       });
       renderScores();
