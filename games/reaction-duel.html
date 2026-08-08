@@ -864,10 +864,9 @@
     }, 360);
   }
 
-  // CHARACTERS の並び順に対応（剣士/戦士/侍/武闘家/魔法使い/魔物・怪力/魔物・ラスボス魔法）
+  // CHARACTERS の並び順に対応（剣士/魔法使い/魔物）
   var WIN_SOUNDS = [
-    playSwordSlash, playAxeChop, playIaido, playPunchCombo,
-    playFireMagic, playBigImpact, playEnergyBurst
+    playSwordSlash, playFireMagic, playBigImpact
   ];
 
   /* ========================= ゲームロジック ========================= */
@@ -894,12 +893,8 @@
 
   var CHARACTERS = [
     {name:'剣士', sub:'剣'},
-    {name:'戦士', sub:'斧'},
-    {name:'侍', sub:'刀'},
-    {name:'武闘家', sub:'拳'},
     {name:'魔法使い', sub:'杖で魔法'},
-    {name:'魔物', sub:'怪力'},
-    {name:'魔物', sub:'ラスボス魔法'}
+    {name:'魔物', sub:'怪力'}
   ];
 
   var NAME_POOL = [
