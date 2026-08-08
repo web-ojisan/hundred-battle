@@ -170,6 +170,49 @@
   .zone[data-p="4"].winner{ background:#3A220E; }
   .zone[data-p="5"].winner{ background:#241233; }
 
+  /* ── 背景テーマ ── */
+  @keyframes arenaBreath{
+    0%,100%{ opacity:1; } 50%{ opacity:.7; }
+  }
+  @keyframes bossAura{
+    0%,100%{ opacity:1; } 35%{ opacity:.65; } 70%{ opacity:.88; }
+  }
+
+  html, body{ transition: background .8s ease; }
+  #app{ transition: background .8s ease; }
+
+  body.arena-bg,
+  body.arena-bg #app {
+    background:
+      radial-gradient(ellipse 78% 58% at 50% 48%, rgba(255,115,8,.16) 0%, transparent 65%),
+      radial-gradient(ellipse 130% 52% at 0%   108%, rgba(180,52,0,.20) 0%, transparent 52%),
+      radial-gradient(ellipse 130% 52% at 100% 108%, rgba(180,52,0,.20) 0%, transparent 52%),
+      #0C0804;
+  }
+  body.arena-bg #app::before{
+    content:''; position:absolute; inset:0; pointer-events:none;
+    background: radial-gradient(ellipse 52% 38% at 50% 48%, rgba(255,80,0,.08), transparent 72%);
+    animation: arenaBreath 3.2s ease-in-out infinite;
+  }
+  body.arena-bg .zone{ background:#161009; border-color:rgba(130,70,15,.35); }
+  body.arena-bg .zone.armed{ border-color:var(--accent); }
+
+  body.boss-bg,
+  body.boss-bg #app {
+    background:
+      radial-gradient(ellipse 100% 56% at 50% 108%, rgba(108,0,218,.28) 0%, transparent 58%),
+      radial-gradient(ellipse  50% 34% at 50% 108%, rgba(0,155,108,.14) 0%, transparent 50%),
+      radial-gradient(ellipse  92% 66% at 50%  -5%, rgba(32,0,62,.60)   0%, transparent 62%),
+      #040010;
+  }
+  body.boss-bg #app::before{
+    content:''; position:absolute; inset:0; pointer-events:none;
+    background: radial-gradient(ellipse 62% 44% at 50% 105%, rgba(100,0,195,.16), transparent 66%);
+    animation: bossAura 4.5s ease-in-out infinite;
+  }
+  body.boss-bg .zone{ background:#0C0A18; border-color:rgba(75,18,135,.38); }
+  body.boss-bg .zone.armed{ border-color:var(--accent); }
+
   .zone-inner{ text-align:center; width:100%; padding:10px 14px; }
   .p-name{
     font-family:'Space Grotesk', 'Zen Kaku Gothic New', sans-serif;
@@ -1488,6 +1531,7 @@
 
   function goToSelect(){
     stopBgm();
+    document.body.classList.remove('arena-bg','boss-bg');
     showChampActions(false);
     adjustPlayersArray();
     buildBoard();
@@ -1506,6 +1550,8 @@
   function startMatch(){
     showChampActions(false);
     showFightButton(false);
+    document.body.classList.remove('arena-bg','boss-bg');
+    document.body.classList.add(MODE === 'boss' ? 'boss-bg' : 'arena-bg');
     if (MODE === 'boss') startBossBgm(); else startArenaBgm();
     buildBoard();
     players.forEach(function(pl){
