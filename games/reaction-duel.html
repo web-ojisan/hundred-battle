@@ -220,6 +220,33 @@
     50%{ box-shadow:0 8px 26px rgba(0,0,0,.55), 0 0 0 16px rgba(255,210,59,0); }
   }
 
+  #champActions{
+    position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
+    z-index:6; display:none; flex-direction:column; align-items:center; gap:14px;
+  }
+  #champActions.show{ display:flex; }
+  #retryBtn{
+    width:min(26vw,130px); height:min(26vw,130px);
+    border-radius:50%;
+    background:var(--gold); color:#0A0D14;
+    font-family:inherit; font-weight:900; font-size:clamp(16px,3vw,24px);
+    letter-spacing:.04em;
+    border:4px solid rgba(255,255,255,.3);
+    box-shadow:0 8px 26px rgba(0,0,0,.55);
+    display:flex; align-items:center; justify-content:center;
+    cursor:pointer; -webkit-appearance:none; appearance:none; outline:none;
+    -webkit-tap-highlight-color:transparent;
+    animation:fightPulse 1.8s ease-in-out infinite;
+  }
+  #modeBtn{
+    font-family:inherit; font-weight:700; font-size:clamp(13px,2vw,16px);
+    color:var(--ink); background:rgba(255,255,255,.06);
+    border:1.5px solid rgba(255,255,255,.22); border-radius:999px;
+    padding:10px 26px; letter-spacing:.04em;
+    cursor:pointer; -webkit-appearance:none; appearance:none; outline:none;
+    -webkit-tap-highlight-color:transparent;
+  }
+
   /* 中央のスラッシュ演出（合図の瞬間） */
   #slash{
     position:absolute; inset:0; pointer-events:none;
@@ -419,6 +446,10 @@
 
 <div id="app"></div>
 <button id="fightBtn" type="button">勝負！</button>
+<div id="champActions">
+  <button id="retryBtn" type="button">もう一回！</button>
+  <button id="modeBtn"  type="button">モードを選ぶ</button>
+</div>
 
 <div id="slash"><div class="bar"></div></div>
 <div id="bigFx"></div>
@@ -1241,6 +1272,10 @@
     document.getElementById('fightBtn').classList.toggle('show', !!show);
   }
 
+  function showChampActions(show){
+    document.getElementById('champActions').classList.toggle('show', !!show);
+  }
+
   function renderCharacterDisplay(p){
     var pl = players.find(function(x){ return x.id === p; });
     if (!pl) return;
@@ -1264,6 +1299,7 @@
   }
 
   function goToSelect(){
+    showChampActions(false);
     adjustPlayersArray();
     buildBoard();
     renderNames();
@@ -1279,6 +1315,7 @@
   }
 
   function startMatch(){
+    showChampActions(false);
     showFightButton(false);
     buildBoard();
     players.forEach(function(pl){
@@ -1766,9 +1803,7 @@
     }
     playPartyVictoryFanfare();
     vibrate([30,20,60,20,100]);
-    var fightBtn = document.getElementById('fightBtn');
-    fightBtn.textContent = 'もう一回！';
-    showFightButton(true);
+    showChampActions(true);
   }
 
   function spawnZoneConfetti(p){
@@ -1876,12 +1911,21 @@
   document.getElementById('fightBtn').addEventListener('pointerdown', function(e){
     e.preventDefault();
     e.stopPropagation();
-    if (state === 'champion' && MODE === 'ffa'){
-      document.getElementById('fightBtn').textContent = '勝負！';
-      goToSelect();
-    } else {
-      startMatch();
-    }
+    startMatch();
+  });
+
+  document.getElementById('retryBtn').addEventListener('pointerdown', function(e){
+    e.preventDefault();
+    e.stopPropagation();
+    goToSelect();
+  });
+
+  document.getElementById('modeBtn').addEventListener('pointerdown', function(e){
+    e.preventDefault();
+    e.stopPropagation();
+    showChampActions(false);
+    buildIdleOverlay();
+    showOverlay(true);
   });
 
   buildIdleOverlay();
