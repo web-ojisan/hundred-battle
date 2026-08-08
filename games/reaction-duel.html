@@ -354,6 +354,12 @@
     background:rgba(255,255,255,.08); margin:5px auto 0; overflow:hidden;
   }
   .hp-bar-fill{ height:100%; background:var(--accent); border-radius:5px; transition:width .35s ease; }
+  .char-img{
+    display:block; height:clamp(52px,9vmin,78px); width:auto;
+    margin:6px auto 2px; border-radius:6px;
+    image-rendering:pixelated; image-rendering:crisp-edges;
+    transition:filter .2s;
+  }
   .zone.tapped{ filter:brightness(.92); }
   .zone.sleep{ filter:grayscale(.6) brightness(.7); }
   .fx .zzz{
@@ -892,9 +898,9 @@
   };
 
   var CHARACTERS = [
-    {name:'剣士', sub:'剣'},
-    {name:'魔法使い', sub:'杖で魔法'},
-    {name:'魔物', sub:'怪力'}
+    {name:'剣士',   sub:'剣',       img:'img/fighter.png', imgAtk:'img/fighter_atack.png'},
+    {name:'魔法使い',sub:'杖で魔法', img:'img/magic.png',   imgAtk:'img/magic_atack.png'},
+    {name:'魔物',   sub:'怪力',     img:'img/dragon.png',  imgAtk:'img/dragon_atack.png'}
   ];
 
   var NAME_POOL = [
@@ -942,6 +948,7 @@
         '<div class="rotor">' +
           '<div class="zone-inner">' +
             '<div class="p-name" id="name'+cfg.id+'"><i class="dot"></i><span></span></div>' +
+            '<img class="char-img" id="charImg'+cfg.id+'" src="" alt="">' +
             '<div class="p-status" id="status'+cfg.id+'"></div>' +
             '<div class="p-sub" id="sub'+cfg.id+'"></div>' +
             '<div class="score" id="score'+cfg.id+'"></div>' +
@@ -1155,6 +1162,18 @@
     z.classList.remove('armed','go','flash','winner','foul');
     z.classList.add('grave');
     setStatus(p, '🪦', '見学中');
+    setCharImg(p, 'dim');
+  }
+
+  function setCharImg(p, state){
+    var img = document.getElementById('charImg'+p);
+    if (!img) return;
+    var pl = players.find(function(x){ return x.id === p; });
+    if (!pl) return;
+    var c = CHARACTERS[pl.charIndex];
+    if (!c || !c.img) return;
+    img.src = (state === 'atk') ? c.imgAtk : c.img;
+    img.style.filter = (state === 'dim') ? 'grayscale(1) brightness(.45)' : '';
   }
 
   function clearZoneClasses(){
@@ -1167,7 +1186,9 @@
 
   function resetRoundVisuals(){
     clearZoneClasses();
-    players.forEach(function(pl){ if (!pl.eliminated) setStatus(pl.id, '', ''); });
+    players.forEach(function(pl){
+      if (!pl.eliminated){ setStatus(pl.id, '', ''); setCharImg(pl.id, 'normal'); }
+    });
   }
 
   function showOverlay(show){
@@ -1184,6 +1205,7 @@
     if (!pl) return;
     var c = CHARACTERS[pl.charIndex];
     setStatus(p, c.name, c.sub + ' ・ タップで変更');
+    setCharImg(p, 'normal');
   }
 
   function cycleCharacter(p){
@@ -1340,6 +1362,7 @@
         if (pp === p){
           zoneEl(pp).classList.add('foul');
           setStatus(pp, '自爆!', justEliminated ? '2回目 退場' : '失格 (あと1回でお墓)');
+          setCharImg(pp, 'dim');
         } else {
           setStatus(pp, 'おあずけ', '相手の失格');
         }
@@ -1376,8 +1399,10 @@
         if (pp === p){
           zoneEl(pp).classList.add('winner');
           setStatus(pp, '勝ち!', reaction + ' ms');
+          setCharImg(pp, 'atk');
         } else {
           setStatus(pp, 'まけ', '');
+          setCharImg(pp, 'dim');
         }
       });
       renderScores();
@@ -1404,6 +1429,7 @@
       z.classList.remove('armed');
       z.classList.add('foul');
       setStatus(p, '自爆!', 'このラウンドは不発');
+      setCharImg(p, 'dim');
       playExplosion();
       spawnExplosion(p);
       vibrate([40,30,120]);
@@ -1504,9 +1530,11 @@
       results.forEach(function(r){
         zoneEl(r.pl.id).classList.add('winner');
         setStatus(r.pl.id, 'ヒット!', (r.t === Infinity ? '' : (r.t + ' ms')));
+        setCharImg(r.pl.id, 'atk');
       });
       boss.hp = Math.max(0, boss.hp - party.length);
       setStatus(1, randomBossHitLine(), '会心の一撃！');
+      setCharImg(1, 'dim');
       spawnBigEffect('party');
       playPartyTurnBurst();
     } else if (allMiss){
@@ -1516,9 +1544,11 @@
         pl.hp = Math.max(0, (pl.hp == null ? PARTY_HP_MAX : pl.hp) - 1);
         zoneEl(pl.id).classList.add('foul');
         setStatus(pl.id, randomPartyHitLine(), 'HP-1');
+        setCharImg(pl.id, 'dim');
         if (pl.hp <= 0){ pl.eliminated = true; newlyDefeated.push(pl); }
       });
       setStatus(1, '会心の一撃！', bossTime + ' ms');
+      setCharImg(1, 'atk');
       spawnBigEffect('boss');
       playBossTurnMagic();
     } else {
@@ -1532,20 +1562,24 @@
           bossHit = true;
           zp.classList.add('winner');
           setStatus(pl.id, 'ヒット!', (r.t === Infinity ? '' : (r.t + ' ms')));
+          setCharImg(pl.id, 'atk');
         } else {
           pl.hp = Math.max(0, (pl.hp == null ? PARTY_HP_MAX : pl.hp) - 1);
           zp.classList.add('foul');
           setStatus(pl.id, randomPartyHitLine(), 'HP-1');
+          setCharImg(pl.id, 'dim');
           if (pl.hp <= 0){ pl.eliminated = true; newlyDefeated.push(pl); }
         }
       });
       if (bossHit){
         setStatus(1, randomBossHitLine(), bossTime === Infinity ? '不覚…' : 'ダメージ！');
+        setCharImg(1, 'dim');
         playExplosion();
       } else if (bossTime === Infinity){
         setStatus(1, '隙あり…', '反応なし');
       } else {
         setStatus(1, '防御！', bossTime + ' ms');
+        setCharImg(1, 'atk');
       }
     }
 
