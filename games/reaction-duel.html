@@ -656,6 +656,36 @@
     setTimeout(function(){ beep(1568, 0.35, 'sine', 0.08); }, 480);
   }
 
+  function playEndingTheme(){
+    var ctx = audioCtx(); if (!ctx) return;
+    if (ctx.state === 'suspended') ctx.resume();
+    var now = ctx.currentTime;
+    // C メジャーの柔らかいパッド（C4 E4 G4 C5）
+    [261.63, 329.63, 392.00, 523.25].forEach(function(freq){
+      var osc = ctx.createOscillator(); osc.type = 'sine';
+      osc.frequency.value = freq;
+      var g = ctx.createGain();
+      g.gain.setValueAtTime(0.0001, now);
+      g.gain.exponentialRampToValueAtTime(0.055, now + 0.9);
+      g.gain.exponentialRampToValueAtTime(0.0001, now + 4.2);
+      osc.connect(g); g.connect(ctx.destination);
+      osc.start(now); osc.stop(now + 4.3);
+    });
+    // 穏やかな上昇メロディ
+    [{f:523.25,t:0.3,d:0.5},{f:587.33,t:0.9,d:0.4},{f:659.25,t:1.4,d:0.4},
+     {f:783.99,t:1.9,d:0.6},{f:698.46,t:2.6,d:0.4},{f:783.99,t:3.1,d:1.1}
+    ].forEach(function(n){
+      var osc = ctx.createOscillator(); osc.type = 'triangle';
+      osc.frequency.value = n.f;
+      var g = ctx.createGain();
+      g.gain.setValueAtTime(0.0001, now + n.t);
+      g.gain.exponentialRampToValueAtTime(0.09, now + n.t + 0.07);
+      g.gain.exponentialRampToValueAtTime(0.0001, now + n.t + n.d);
+      osc.connect(g); g.connect(ctx.destination);
+      osc.start(now + n.t); osc.stop(now + n.t + n.d + 0.05);
+    });
+  }
+
   function playTapAttack(){
     // タップした瞬間の通常攻撃音（短い斬撃寄りの「シュッ」）
     var ctx = audioCtx(); if (!ctx) return;
@@ -1587,7 +1617,7 @@
       vibrate([50,30,100,30,150]);
       setTimeout(function(){
         renderGrave(1);
-        showChampion(null, 'ボスが2回自爆！パーティーの勝利！', 'パーティーの勝利！');
+        showBossPartyVictory();
       }, 1700);
     } else {
       // 1回目自爆：パーティー人数分ダメージ
@@ -1606,9 +1636,7 @@
       if (boss.hp <= 0){
         spawnBigEffect('party');
         playPartyVictoryFanfare();
-        setTimeout(function(){
-          showChampion(null, 'ボスを倒した！パーティーの勝利！', 'パーティーの勝利！');
-        }, 1700);
+        setTimeout(function(){ showBossPartyVictory(); }, 1700);
         return;
       }
       setTimeout(function(){ if (state !== 'champion') nextRound(); }, 1800);
@@ -1742,9 +1770,7 @@
     if (boss.hp <= 0){
       spawnBigEffect('party');
       playPartyVictoryFanfare();
-      setTimeout(function(){
-        showChampion(null, 'ボスを倒した！パーティーの勝利！', 'パーティーの勝利！');
-      }, 1700);
+      setTimeout(function(){ showBossPartyVictory(); }, 1700);
       return;
     }
     var aliveParty = players.filter(function(pl){ return pl.id !== 1 && !pl.eliminated; });
@@ -1757,6 +1783,31 @@
       return;
     }
     setTimeout(function(){ if (state !== 'champion') nextRound(); }, 2000);
+  }
+
+  function showBossPartyVictory(){
+    state = 'champion';
+    var party = players.filter(function(pl){ return pl.id !== 1 && !pl.eliminated; });
+    party.forEach(function(pl){ spawnZoneConfetti(pl.id); });
+    setTimeout(function(){
+      playEndingTheme();
+      el.overlay.innerHTML =
+        '<div class="title">パーティーの勝利！<small>大魔王を倒した</small></div>' +
+        '<p class="lead" style="line-height:2.2;letter-spacing:.06em">' +
+          '大魔王が倒れ、<br>世界に平和が訪れた…<br><br>Fin.' +
+        '</p>' +
+        '<div class="row">' +
+          '<button class="btn" id="bossRetryBtn">もう一回！</button>' +
+          '<button class="btn ghost" id="bossModeBtn">モードを選ぶ</button>' +
+        '</div>';
+      showOverlay(true);
+      document.getElementById('bossRetryBtn').addEventListener('pointerdown', function(e){
+        e.preventDefault(); goToSelect();
+      });
+      document.getElementById('bossModeBtn').addEventListener('pointerdown', function(e){
+        e.preventDefault(); buildIdleOverlay(); showOverlay(true);
+      });
+    }, 1200);
   }
 
   function showChampion(forcedChamp, reason, customTitle){
