@@ -1288,7 +1288,7 @@
   var tickStartTimeoutId = null;
   var bossRoundDeadline = null;
   var noTapTimeout = null;
-  var NO_TAP_TIMEOUT_MS = 20000;
+  var NO_TAP_TIMEOUT_MS = 5000;
 
   function maxHpFor(pl){
     if (MODE !== 'boss') return null;
@@ -1478,7 +1478,7 @@
     players.forEach(function(pl){
       if (pl.eliminated) return;
       var z = zoneEl(pl.id);
-      z.classList.remove('armed','go','flash','winner','foul','warned');
+      z.classList.remove('armed','go','flash','winner','foul','warned','sleep');
     });
   }
 
