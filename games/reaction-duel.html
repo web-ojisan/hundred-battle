@@ -393,6 +393,16 @@
     100%{ opacity:0; transform:translate(-50%,-70px) scale(1.3); }
   }
   #champTitle{ font-size:clamp(28px,7vw,64px); }
+  .confetti-wrap{ position:absolute; inset:0; z-index:5; pointer-events:none; overflow:hidden; }
+  .confetti-piece{
+    position:absolute; top:-14px; border-radius:2px;
+    animation:confettiFall linear forwards;
+  }
+  @keyframes confettiFall{
+    0%  { transform:translateY(0) rotate(0deg); opacity:1; }
+    80% { opacity:1; }
+    100%{ transform:translateY(110%) rotate(720deg); opacity:0; }
+  }
   .hint{ font-size:12px; color:var(--ink-dim); max-width:420px; }
 
   /* 縦向き時のやんわりした案内（強制はしない） */
@@ -1713,8 +1723,12 @@
   }
 
   function showChampion(forcedChamp, reason, customTitle){
-    state = 'champion';
     var champ = forcedChamp || players.slice().sort(function(a,b){ return b.score-a.score; })[0];
+    if (MODE === 'ffa'){
+      showFFAChampion(champ, reason);
+      return;
+    }
+    state = 'champion';
     var title = customTitle || (champ ? champ.name : '');
     var lead = reason ? reason : ('スコア '+ (champ ? champ.score : 0) +' 本先取！お見事。');
     el.overlay.innerHTML =
@@ -1727,6 +1741,55 @@
       buildIdleOverlay();
       showOverlay(true);
     });
+  }
+
+  function showFFAChampion(champ, reason){
+    state = 'champion';
+    // 非優勝者をグレーアウト
+    players.forEach(function(pl){
+      if (!champ || pl.id === champ.id) return;
+      var z = zoneEl(pl.id);
+      z.classList.remove('armed','go','flash','winner','foul','warned','dmg-flash');
+      z.classList.add('grave');
+      setStatus(pl.id, '', '');
+      setCharImg(pl.id, 'dim');
+    });
+    // 優勝者ゾーン
+    if (champ){
+      var wz = zoneEl(champ.id);
+      wz.classList.remove('armed','go','flash','foul','warned','dmg-flash');
+      wz.classList.add('winner');
+      var sub = reason || (champ.score + '本先取');
+      setStatus(champ.id, '最強！', sub);
+      setCharImg(champ.id, 'atk');
+      spawnZoneConfetti(champ.id);
+    }
+    playPartyVictoryFanfare();
+    vibrate([30,20,60,20,100]);
+    var fightBtn = document.getElementById('fightBtn');
+    fightBtn.textContent = 'もう一回！';
+    showFightButton(true);
+  }
+
+  function spawnZoneConfetti(p){
+    var zone = zoneEl(p);
+    if (!zone) return;
+    var wrap = document.createElement('div');
+    wrap.className = 'confetti-wrap';
+    zone.appendChild(wrap);
+    var colors = ['#FFD23B','#FF3B5C','#2EC4FF','#C6FF3B','#FF7A3B','#B36BFF','#fff'];
+    for (var i = 0; i < 48; i++){
+      var piece = document.createElement('div');
+      piece.className = 'confetti-piece';
+      piece.style.left = (Math.random() * 100) + '%';
+      piece.style.animationDelay = (Math.random() * 1.8) + 's';
+      piece.style.animationDuration = (1.3 + Math.random() * 1.4) + 's';
+      piece.style.background = colors[i % colors.length];
+      piece.style.width = (4 + Math.random() * 5) + 'px';
+      piece.style.height = (8 + Math.random() * 9) + 'px';
+      piece.style.transform = 'rotate(' + (Math.random() * 360) + 'deg)';
+      wrap.appendChild(piece);
+    }
   }
 
   function buildIdleOverlay(){
@@ -1813,7 +1876,12 @@
   document.getElementById('fightBtn').addEventListener('pointerdown', function(e){
     e.preventDefault();
     e.stopPropagation();
-    startMatch();
+    if (state === 'champion' && MODE === 'ffa'){
+      document.getElementById('fightBtn').textContent = '勝負！';
+      goToSelect();
+    } else {
+      startMatch();
+    }
   });
 
   buildIdleOverlay();
