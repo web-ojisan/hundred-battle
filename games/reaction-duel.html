@@ -1512,7 +1512,7 @@
     var pl = players.find(function(x){ return x.id === p; });
     if (!pl) return;
     var c = CHARACTERS[pl.charIndex];
-    setStatus(p, '', c.name + '　' + c.sub + '　・　タップで変更');
+    setStatus(p, '', 'タップで変更');
     setCharImg(p, 'normal');
   }
 
