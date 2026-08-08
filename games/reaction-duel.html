@@ -347,6 +347,7 @@
     padding-bottom:calc(24px + env(safe-area-inset-bottom));
   }
   #overlay.hidden{ display:none; pointer-events:none; }
+  #overlay.flipped{ transform:rotate(180deg); }
   .title{
     font-weight:900; font-size:clamp(30px,6vw,54px);
     letter-spacing:.08em;
@@ -1295,6 +1296,7 @@
 
   function showOverlay(show){
     el.overlay.classList.toggle('hidden', !show);
+    if (!show) el.overlay.classList.remove('flipped');
     if (show) showFightButton(false);
   }
 
@@ -1801,6 +1803,7 @@
           '<button class="btn ghost" id="bossModeBtn">モードを選ぶ</button>' +
         '</div>';
       showOverlay(true);
+      el.overlay.classList.add('flipped');
       document.getElementById('bossRetryBtn').addEventListener('pointerdown', function(e){
         e.preventDefault(); goToSelect();
       });
