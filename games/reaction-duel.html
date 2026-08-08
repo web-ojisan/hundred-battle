@@ -620,6 +620,11 @@
     return PARTY_HIT_LINES[Math.floor(Math.random() * PARTY_HIT_LINES.length)];
   }
 
+  var PARTY_ATTACK_LINES = ['くらえっ！', 'ほろびろっ！', '闇に還れっ！', '覚悟ッ！', 'これで終わりだ！'];
+  function randomPartyAttackLine(){
+    return PARTY_ATTACK_LINES[Math.floor(Math.random() * PARTY_ATTACK_LINES.length)];
+  }
+
   var BOSS_OPENING_LINES = ['大魔王が弱っている、、！', '苦しいのは奴も同じ、、！'];
   function randomBossOpeningLine(){
     return BOSS_OPENING_LINES[Math.floor(Math.random() * BOSS_OPENING_LINES.length)];
@@ -1726,7 +1731,7 @@
       // パーティー全員がボスより速い：光の合体攻撃で一斉ダメージ
       results.forEach(function(r){
         zoneEl(r.pl.id).classList.add('winner');
-        setStatus(r.pl.id, 'ヒット!', (r.t === Infinity ? '' : (r.t + ' ms')));
+        setStatus(r.pl.id, randomPartyAttackLine(), (r.t === Infinity ? '' : (r.t + ' ms')));
         setCharImg(r.pl.id, 'atk');
       });
       boss.hp = Math.max(0, boss.hp - party.length);
