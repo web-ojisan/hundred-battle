@@ -349,11 +349,17 @@
     font-family:'Space Grotesk',sans-serif; font-weight:700;
     font-size:clamp(11px,1.8vw,14px); color:var(--ink-dim);
   }
-  .hp-bar{
-    width:100%; max-width:150px; height:9px; border-radius:5px;
-    background:rgba(255,255,255,.08); margin:5px auto 0; overflow:hidden;
+  .hp-grid{
+    display:flex; flex-wrap:wrap; gap:3px;
+    justify-content:center; max-width:160px;
+    margin:5px auto 0;
   }
-  .hp-bar-fill{ height:100%; background:var(--accent); border-radius:5px; transition:width .35s ease; }
+  .hp-cell{
+    width:13px; height:13px; border-radius:2px;
+    border:1.5px solid var(--accent); background:transparent;
+    transition:background .25s;
+  }
+  .hp-cell.on{ background:var(--accent); }
   .char-img{
     display:block; height:clamp(52px,9vmin,78px); width:auto;
     margin:6px auto 2px; border-radius:6px;
@@ -1137,11 +1143,13 @@
         label.className = 'hp-label';
         label.textContent = (pl.id === 1 ? 'BOSS ' : '') + 'HP ' + hp + '/' + max;
         box.appendChild(label);
-        var bar = document.createElement('div'); bar.className = 'hp-bar';
-        var fill = document.createElement('div'); fill.className = 'hp-bar-fill';
-        fill.style.width = (max ? (hp/max*100) : 0) + '%';
-        bar.appendChild(fill);
-        box.appendChild(bar);
+        var grid = document.createElement('div'); grid.className = 'hp-grid';
+        for (var j=0; j<max; j++){
+          var cell = document.createElement('div');
+          cell.className = 'hp-cell' + (j < hp ? ' on' : '');
+          grid.appendChild(cell);
+        }
+        box.appendChild(grid);
       } else {
         for (var i=0;i<TARGET;i++){
           var dot = document.createElement('i');
