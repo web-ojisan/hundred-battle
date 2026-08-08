@@ -1496,7 +1496,6 @@
   }
 
   function bossFalseStartEndTurn(){
-    // ボスが自爆した時点で、GOを待たずにダメージなしでそのターンを終了する
     if (roundBusy) return;
     roundBusy = true;
     clearTimeout(signalTimeout);
@@ -1505,13 +1504,58 @@
     stopTicking();
     stopLiveTimer();
     state = 'result';
+
+    var boss = players.filter(function(pl){ return pl.id === 1; })[0];
+    boss.fouls++;
+    var party = players.filter(function(pl){ return pl.id !== 1 && !pl.eliminated; });
+
     players.forEach(function(pl){
       if (pl.id === 1 || pl.eliminated) return;
       zoneEl(pl.id).classList.remove('armed');
-      setStatus(pl.id, '好機!', randomBossOpeningLine());
     });
-    vibrate(20);
-    setTimeout(function(){ if (state !== 'champion') nextRound(); }, 1600);
+
+    if (boss.fouls >= 2){
+      // 2回目自爆：即死でパーティーの勝利
+      boss.hp = 0;
+      boss.eliminated = true;
+      party.forEach(function(pl){
+        setStatus(pl.id, '🎉', 'ボスが自滅！');
+        setCharImg(pl.id, 'atk');
+      });
+      setStatus(1, '即死…', '2回目の自爆');
+      renderScores();
+      flashHpDamage(1, BOSS_HP_MAX, 0);
+      spawnBigEffect('party');
+      playPartyVictoryFanfare();
+      vibrate([50,30,100,30,150]);
+      setTimeout(function(){
+        renderGrave(1);
+        showChampion(null, 'ボスが2回自爆！パーティーの勝利！', 'パーティーの勝利！');
+      }, 1700);
+    } else {
+      // 1回目自爆：パーティー人数分ダメージ
+      var damage = party.length;
+      var oldBossHp = boss.hp != null ? boss.hp : BOSS_HP_MAX;
+      boss.hp = Math.max(0, oldBossHp - damage);
+      party.forEach(function(pl){
+        setStatus(pl.id, '好機!', randomBossOpeningLine());
+      });
+      setStatus(1, randomBossHitLine(), 'HP -' + damage + '（自爆ペナルティ）');
+      renderScores();
+      flashHpDamage(1, oldBossHp, boss.hp);
+      playExplosion();
+      vibrate([40,30,80]);
+
+      if (boss.hp <= 0){
+        spawnBigEffect('party');
+        playPartyVictoryFanfare();
+        setTimeout(function(){
+          showChampion(null, 'ボスを倒した！パーティーの勝利！', 'パーティーの勝利！');
+        }, 1700);
+        return;
+      }
+      setTimeout(function(){ if (state !== 'champion') nextRound(); }, 1800);
+    }
   }
 
   function maybeResolveBossRound(){
