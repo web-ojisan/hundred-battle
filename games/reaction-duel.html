@@ -360,6 +360,12 @@
     transition:background .25s;
   }
   .hp-cell.on{ background:var(--accent); }
+  @keyframes hpDamage{
+    0%  { background:#FF3B5C; border-color:#FF3B5C; transform:scale(1.35); box-shadow:0 0 8px #FF3B5C; }
+    55% { background:#FF3B5C; border-color:#FF3B5C; transform:scale(1.1);  box-shadow:0 0 4px #FF3B5C; }
+    100%{ background:transparent; border-color:var(--accent); transform:scale(1); box-shadow:none; }
+  }
+  .hp-cell.damaged{ animation:hpDamage .7s ease-out forwards; }
   .char-img{
     display:block; height:clamp(52px,9vmin,78px); width:auto;
     margin:6px auto 2px; border-radius:6px;
@@ -1160,6 +1166,15 @@
     });
   }
 
+  function flashHpDamage(p, oldHp, newHp){
+    var scoreEl = $('score'+p);
+    if (!scoreEl) return;
+    var cells = scoreEl.querySelectorAll('.hp-cell');
+    for (var i = newHp; i < oldHp && i < cells.length; i++){
+      cells[i].classList.add('damaged');
+    }
+  }
+
   function setStatus(p, text, sub){
     $('status'+p).textContent = text || '';
     $('sub'+p).textContent = sub || '';
@@ -1518,6 +1533,8 @@
     var bossTime = (boss.reactionMs === null || boss.reactionMs === undefined) ? Infinity : boss.reactionMs;
     var party = players.filter(function(pl){ return pl.id !== 1 && !pl.eliminated; });
     var newlyDefeated = [];
+    var oldHps = {};
+    players.forEach(function(pl){ oldHps[pl.id] = pl.hp != null ? pl.hp : maxHpFor(pl); });
 
     var results = party.map(function(pl){
       var t = (pl.reactionMs === null || pl.reactionMs === undefined) ? Infinity : pl.reactionMs;
@@ -1592,6 +1609,11 @@
     }
 
     renderScores();
+    players.forEach(function(pl){
+      if (oldHps[pl.id] != null && pl.hp != null && pl.hp < oldHps[pl.id]){
+        flashHpDamage(pl.id, oldHps[pl.id], pl.hp);
+      }
+    });
     vibrate(30);
 
     newlyDefeated.forEach(function(pl){
