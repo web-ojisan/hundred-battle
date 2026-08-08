@@ -1932,7 +1932,7 @@
           boss.hp = Math.max(0, boss.hp - 1);
           bossHit = true;
           zp.classList.add('winner');
-          setStatus(pl.id, 'ヒット!', (r.t === Infinity ? '' : (r.t + ' ms')));
+          setStatus(pl.id, randomPartyAttackLine(), (r.t === Infinity ? '' : (r.t + ' ms')));
           setCharImg(pl.id, 'atk');
         } else {
           pl.hp = Math.max(0, (pl.hp == null ? PARTY_HP_MAX : pl.hp) - 1);
