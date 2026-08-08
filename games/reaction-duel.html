@@ -1593,7 +1593,19 @@
         if (pl.eliminated) return;
         zoneEl(pl.id).classList.add('armed');
         if (pl.fouls === 1) zoneEl(pl.id).classList.add('warned');
-        setStatus(pl.id, '隙を窺え…', '');
+        var readyText;
+        if (MODE === 'boss'){
+          var hp = pl.hp != null ? pl.hp : maxHpFor(pl);
+          var half = maxHpFor(pl) / 2;
+          if (pl.id === 1){
+            readyText = hp <= 1 ? 'くっ…意地でも倒れん…！' : hp <= half ? '貴様らに負けぬ…！' : '来るぞ…！';
+          } else {
+            readyText = hp <= 1 ? 'ここで死んでたまるか…！' : hp <= half ? 'まだ負けない…！' : '来るぞ…！';
+          }
+        } else {
+          readyText = '来るぞ…！';
+        }
+        setStatus(pl.id, readyText, '');
       });
       playStartSting();
       tickStartTimeoutId = setTimeout(startTicking, 480);
