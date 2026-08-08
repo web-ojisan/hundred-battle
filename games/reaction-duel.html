@@ -1005,6 +1005,8 @@
   var BOSS_HP_MAX = 10;
   var PARTY_HP_MAX = 5;
   var state = 'idle';      // idle | select | ready | signal | result | champion
+  var inCooldown = false;
+  var cooldownTimer = null;
   var signalTimeout = null;
   var signalTime = 0;
   var roundBusy = false;
@@ -1272,35 +1274,50 @@
     nextRound();
   }
 
+  var COOLDOWN_MS = 1000;
+
   function nextRound(){
     if (state === 'champion') return;
     stopLiveTimer();
     stopTicking();
     clearTimeout(noTapTimeout);
+    clearTimeout(cooldownTimer);
     resetRoundVisuals();
     state = 'ready';
     roundBusy = false;
+    inCooldown = true;
     players.forEach(function(pl){ pl.reactionMs = null; pl.falseStart = false; });
     var hasGrave = players.some(function(pl){ return pl.eliminated; });
     if (hasGrave) playBellChime();
+
+    // クールダウン中：armed にせず「手をはなして」表示
     players.forEach(function(pl){
       if (pl.eliminated) return;
-      zoneEl(pl.id).classList.add('armed');
-      var subHint;
-      if (MODE === 'boss'){
-        subHint = pl.id === 1 ? '早すぎ注意' : 'ボスより早く!';
-      } else if (pl.fouls === 1){
-        subHint = '次、失敗したら…';
-        zoneEl(pl.id).classList.add('warned');
-      } else {
-        subHint = '早く触ると失格';
-      }
-      setStatus(pl.id, '隙を窺え…', subHint);
+      setStatus(pl.id, '🙌', '手をはなして…');
     });
-    playStartSting();
-    tickStartTimeoutId = setTimeout(startTicking, 480);
-    var delay = 4000 + Math.random()*4000;
-    signalTimeout = setTimeout(fireSignal, delay);
+
+    cooldownTimer = setTimeout(function(){
+      if (state !== 'ready') return;
+      inCooldown = false;
+      players.forEach(function(pl){
+        if (pl.eliminated) return;
+        zoneEl(pl.id).classList.add('armed');
+        var subHint;
+        if (MODE === 'boss'){
+          subHint = pl.id === 1 ? '早すぎ注意' : 'ボスより早く!';
+        } else if (pl.fouls === 1){
+          subHint = '次、失敗したら…';
+          zoneEl(pl.id).classList.add('warned');
+        } else {
+          subHint = '早く触ると失格';
+        }
+        setStatus(pl.id, '隙を窺え…', subHint);
+      });
+      playStartSting();
+      tickStartTimeoutId = setTimeout(startTicking, 480);
+      var delay = 4000 + Math.random()*4000;
+      signalTimeout = setTimeout(fireSignal, delay);
+    }, COOLDOWN_MS);
   }
 
   function fireSignal(){
@@ -1359,6 +1376,7 @@
       cycleCharacter(p);
       return;
     }
+    if (inCooldown) return;
     if (roundBusy) return;
     var actor = players.find(function(pl){ return pl.id === p; });
     if (!actor || actor.eliminated) return; // お墓のプレイヤーは見てるだけ
