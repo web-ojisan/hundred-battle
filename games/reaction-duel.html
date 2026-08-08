@@ -1,0 +1,1693 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<!--
+  ビューポート設定:
+  - maximum-scale=1, user-scalable=no … ピンチズーム/ダブルタップズームを抑止
+  - viewport-fit=cover … ノッチ/ホームバー領域まで背景を敷き、safe-area-inset で余白確保
+-->
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no, viewport-fit=cover">
+<!-- ホーム画面に追加してフルスクリーン起動した場合、Safari のクロームごと消えるため
+     エッジスワイプの「戻る/進む」ジェスチャーがそもそも発生しなくなる -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0A0D14">
+<title>ぶっとばす！ - 3〜5人リアクション対決</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@500;700;900&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0A0D14;
+    --line:#1C2333;
+    --ink:#F3F5FA;
+    --ink-dim:#7C8397;
+    --p1:#FF3B5C;   /* 下 プレイヤー1 */
+    --p2:#2EC4FF;   /* 上左 プレイヤー2 */
+    --p3:#C6FF3B;   /* 上右 プレイヤー3 */
+    --p4:#FF7A3B;   /* 左 プレイヤー4（5人時） */
+    --p5:#B36BFF;   /* 右 プレイヤー5（5人時） */
+    --gold:#FFD23B;
+  }
+
+  /* ============ 基本ロック ============
+     position:fixed + overflow:hidden で「そもそもスクロールできる要素を作らない」。
+     overscroll-behavior:none でオーバースクロール時の引っ張り(バウンス/Pull-to-Refresh)を抑止。
+     touch-action:none でブラウザ標準のパン/ズームジェスチャー処理を無効化し、
+     タップ判定は全て自前の touchstart ハンドラで行う。
+  ============================================= */
+  html,body{
+    position:fixed; inset:0; width:100%; height:100%;
+    margin:0; padding:0; overflow:hidden;
+    overscroll-behavior:none;
+    touch-action:none;
+    background:var(--bg);
+    -webkit-user-select:none; user-select:none;
+    -webkit-touch-callout:none;      /* 長押しメニュー抑止 */
+    -webkit-tap-highlight-color:transparent;
+  }
+  *{ box-sizing:border-box; }
+  body{
+    font-family:'Zen Kaku Gothic New', system-ui, sans-serif;
+    color:var(--ink);
+  }
+
+  #app{
+    position:absolute; inset:0;
+    padding-top:env(safe-area-inset-top);
+    padding-bottom:env(safe-area-inset-bottom);
+    padding-left:env(safe-area-inset-left);
+    padding-right:env(safe-area-inset-right);
+    display:grid;
+    gap:6px;
+    background:var(--bg);
+  }
+  /* 参加人数ごとのグリッド配置。z1〜z5 は各ゾーンの grid-area 名。
+     rotate角は各ゾーン要素に直接 style で指定する（JS側 LAYOUTS 参照）。 */
+  #app.layout-3{
+    grid-template-columns:1fr 1fr;
+    grid-template-rows:1fr 1.15fr;
+    grid-template-areas:"z2 z3" "z1 z1";
+  }
+  #app.layout-4{
+    grid-template-columns:1fr 1fr;
+    grid-template-rows:1fr 1fr;
+    grid-template-areas:"z2 z3" "z1 z4";
+  }
+  #app.layout-5{
+    grid-template-columns:1fr 1fr;
+    grid-template-rows:0.85fr 0.85fr 1.2fr;
+    grid-template-areas:"z2 z3" "z4 z5" "z1 z1";
+  }
+
+  .zone{
+    position:relative;
+    overflow:hidden;
+    border-radius:18px;
+    background:#10141F;
+    border:2px solid var(--line);
+    transition:background .12s ease, border-color .12s ease;
+  }
+  /* 回転ラッパー。90/-90度回転するプレイヤー(横に座る人)は、素の升目が
+     横長のままだと回転後に大きくはみ出す。JS側でこのラッパーの width/height を
+     升目の実測値から入れ替えて（縦横スワップ）から中央配置+回転することで、
+     どんな縦横比の升目でもはみ出さずに収まるようにしている。 */
+  .rotor{
+    position:absolute; top:50%; left:50%;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .zone[data-p="1"]{ --accent:var(--p1); }
+  .zone[data-p="2"]{ --accent:var(--p2); }
+  .zone[data-p="3"]{ --accent:var(--p3); }
+  .zone[data-p="4"]{ --accent:var(--p4); }
+  .zone[data-p="5"]{ --accent:var(--p5); }
+  .zone.armed{ border-color:var(--accent); }
+  .zone.flash{ animation:flashPulse .5s ease-out; }
+  @keyframes flashPulse{
+    0%{ box-shadow:0 0 0 0 rgba(255,255,255,.5) inset; }
+    100%{ box-shadow:0 0 0 60px transparent inset; }
+  }
+  .zone.foul{ background:#2A0F14; }
+  .zone.warned{ animation:warnPulse 1s ease-in-out infinite; }
+  @keyframes warnPulse{
+    0%,100%{ box-shadow:0 0 0 0 rgba(255,59,92,.55) inset; }
+    50%{ box-shadow:0 0 0 10px rgba(255,59,92,0) inset; }
+  }
+  .zone.grave{ filter:grayscale(1) brightness(.55); }
+  .zone.grave .p-name{ opacity:.45; }
+  .zone.grave .score{ opacity:.4; }
+  .zone.grave{
+    filter:grayscale(1) brightness(.5);
+    pointer-events:none;
+  }
+  .zone.grave .p-status{ font-size:clamp(30px,7vw,60px); }
+
+  /* ============ フライング爆発エフェクト ============ */
+  .fx{ position:absolute; inset:0; z-index:4; pointer-events:none; overflow:hidden; }
+  .fx .flash{
+    position:absolute; inset:0; opacity:0;
+    background:radial-gradient(circle at 50% 52%, rgba(255,255,255,.95), rgba(255,120,40,.65) 38%, rgba(255,60,40,.25) 60%, transparent 72%);
+    animation:boomFlash .6s ease-out forwards;
+  }
+  @keyframes boomFlash{
+    0%{ opacity:0; transform:scale(.25); }
+    18%{ opacity:1; transform:scale(1); }
+    100%{ opacity:0; transform:scale(1.5); }
+  }
+  .fx .particle{
+    position:absolute; left:50%; top:52%;
+    width:9px; height:9px; border-radius:2px;
+    transform:translate(0,0) rotate(0deg); opacity:1;
+    animation:particleBurst .75s cubic-bezier(.15,.8,.3,1) forwards;
+  }
+  @keyframes particleBurst{
+    0%{ transform:translate(0,0) rotate(0deg) scale(1); opacity:1; }
+    100%{ transform:translate(var(--dx),var(--dy)) rotate(var(--rot)) scale(.25); opacity:0; }
+  }
+  .zone-inner.shake{ animation:shakeZone .45s ease; }
+  @keyframes shakeZone{
+    10%,90%{ transform:translate3d(-1px,-1px,0); }
+    20%,80%{ transform:translate3d(3px,2px,0); }
+    30%,50%,70%{ transform:translate3d(-6px,3px,0); }
+    40%,60%{ transform:translate3d(6px,-3px,0); }
+  }
+  .zone[data-p="1"].go{ background:#7A0E22; }
+  .zone[data-p="2"].go{ background:#0E4F66; }
+  .zone[data-p="3"].go{ background:#5E6E14; }
+  .zone[data-p="4"].go{ background:#7A3A0E; }
+  .zone[data-p="5"].go{ background:#3A1A66; }
+  .zone[data-p="1"].winner{ background:#3A121C; }
+  .zone[data-p="2"].winner{ background:#123542; }
+  .zone[data-p="3"].winner{ background:#2E3712; }
+  .zone[data-p="4"].winner{ background:#3A220E; }
+  .zone[data-p="5"].winner{ background:#241233; }
+
+  .zone-inner{ text-align:center; width:100%; padding:10px 14px; }
+  .p-name{
+    font-family:'Space Grotesk', 'Zen Kaku Gothic New', sans-serif;
+    font-weight:700; font-size:clamp(13px,2.4vw,20px);
+    letter-spacing:.06em; color:var(--accent);
+    display:inline-flex; align-items:center; gap:8px;
+    padding:6px 12px; border-radius:999px; background:rgba(255,255,255,.04);
+  }
+  .p-name .dot{ width:8px;height:8px;border-radius:50%; background:var(--accent); }
+  .p-status{
+    margin-top:10px;
+    font-weight:900; font-size:clamp(22px,6vw,52px);
+    line-height:1.05; letter-spacing:.02em;
+    min-height:1.2em;
+  }
+  .p-sub{
+    margin-top:6px; color:var(--ink-dim);
+    font-family:'Space Grotesk',sans-serif;
+    font-size:clamp(11px,1.8vw,15px);
+  }
+  .score{
+    margin-top:10px; display:flex; gap:6px; justify-content:center;
+  }
+  .score i{
+    width:10px;height:10px;border-radius:50%;
+    border:1.5px solid var(--accent); background:transparent;
+  }
+  .score i.on{ background:var(--accent); }
+
+  /* 中央の「勝負！」ボタン（キャラ選択画面のみ表示） */
+  #fightBtn{
+    position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
+    z-index:6;
+    width:min(26vw,130px); height:min(26vw,130px);
+    border-radius:50%;
+    background:var(--gold); color:#0A0D14;
+    font-family:inherit; font-weight:900; font-size:clamp(16px,3vw,24px);
+    letter-spacing:.04em;
+    border:4px solid rgba(255,255,255,.3);
+    box-shadow:0 8px 26px rgba(0,0,0,.55);
+    display:none; align-items:center; justify-content:center;
+    cursor:pointer; -webkit-appearance:none; appearance:none; outline:none;
+    -webkit-tap-highlight-color:transparent;
+  }
+  #fightBtn.show{ display:flex; animation:fightPulse 1.8s ease-in-out infinite; }
+  @keyframes fightPulse{
+    0%,100%{ box-shadow:0 8px 26px rgba(0,0,0,.55), 0 0 0 0 rgba(255,210,59,.5); }
+    50%{ box-shadow:0 8px 26px rgba(0,0,0,.55), 0 0 0 16px rgba(255,210,59,0); }
+  }
+
+  /* 中央のスラッシュ演出（合図の瞬間） */
+  #slash{
+    position:absolute; inset:0; pointer-events:none;
+    display:flex; align-items:center; justify-content:center; z-index:5;
+  }
+  #slash .bar{
+    position:absolute; width:180%; height:6px;
+    background:linear-gradient(90deg, transparent, #fff, transparent);
+    transform:rotate(-18deg) scaleX(0); opacity:0;
+    box-shadow:0 0 24px 4px #fff;
+  }
+  #slash.show .bar{ animation:slashGo .32s ease-out forwards; }
+  @keyframes slashGo{
+    0%{ transform:rotate(-18deg) scaleX(0); opacity:1; }
+    60%{ transform:rotate(-18deg) scaleX(1); opacity:1; }
+    100%{ transform:rotate(-18deg) scaleX(1); opacity:0; }
+  }
+
+  /* ============ 勝敗の大技エフェクト（ボスの魔法攻撃／パーティーの光の合体攻撃） ============ */
+  #bigFx{
+    position:absolute; inset:0; z-index:20; pointer-events:none;
+    overflow:hidden; display:none;
+  }
+  #bigFx.show{ display:block; }
+
+  .bigfx-flash{ position:absolute; inset:0; opacity:0; }
+  .bigfx-flash.boss{
+    background:radial-gradient(circle at 50% 50%, rgba(150,20,210,.9), rgba(40,0,60,.88) 45%, rgba(0,0,0,.92) 78%);
+    animation:bigFlashBoss 1.5s ease-out forwards;
+  }
+  @keyframes bigFlashBoss{
+    0%{ opacity:0; } 10%{ opacity:1; } 70%{ opacity:.9; } 100%{ opacity:0; }
+  }
+  .bigfx-flash.party{
+    background:radial-gradient(circle at 50% 50%, #fff, #FFE9A8 35%, rgba(255,210,59,.45) 60%, transparent 80%);
+    animation:bigFlashParty 1.4s ease-out forwards;
+  }
+  @keyframes bigFlashParty{
+    0%{ opacity:0; } 12%{ opacity:1; } 70%{ opacity:.85; } 100%{ opacity:0; }
+  }
+
+  .bigfx-ray{
+    position:absolute; top:50%; left:50%;
+    width:6px; height:130vmax;
+    transform-origin:top center;
+    opacity:0;
+  }
+  .bigfx-ray.boss{
+    background:linear-gradient(to bottom, rgba(210,70,255,.95), rgba(120,0,180,0));
+    filter:blur(1px);
+    animation:rayBoss 1.15s ease-out forwards;
+  }
+  @keyframes rayBoss{
+    0%{ opacity:0; transform:translate(-50%,0) rotate(var(--ang)) scaleY(0); }
+    28%{ opacity:1; transform:translate(-50%,0) rotate(var(--ang)) scaleY(1); }
+    100%{ opacity:0; transform:translate(-50%,0) rotate(var(--ang)) scaleY(1); }
+  }
+  .bigfx-ray.party{
+    width:9px; filter:blur(.5px);
+    animation:rayParty 1.05s ease-out forwards;
+  }
+  @keyframes rayParty{
+    0%{ opacity:0; transform:translate(-50%,0) rotate(var(--ang)) scaleY(0); }
+    25%{ opacity:1; transform:translate(-50%,0) rotate(var(--ang)) scaleY(1); }
+    75%{ opacity:1; transform:translate(-50%,0) rotate(var(--ang)) scaleY(.55); }
+    100%{ opacity:0; transform:translate(-50%,0) rotate(var(--ang)) scaleY(.15); }
+  }
+
+  .bigfx-ring{
+    position:absolute; top:50%; left:50%; width:10px; height:10px;
+    transform:translate(-50%,-50%);
+    border:3px solid rgba(210,90,255,.85);
+    border-radius:50%;
+    box-shadow:0 0 30px 6px rgba(160,40,220,.6);
+    animation:ringGrow 1.35s ease-out forwards;
+  }
+  @keyframes ringGrow{
+    0%{ width:10px; height:10px; opacity:0; }
+    20%{ opacity:1; }
+    100%{ width:150vmax; height:150vmax; opacity:0; }
+  }
+
+  #app.bigshake{ animation:appShake .6s ease; }
+  @keyframes appShake{
+    10%,90%{ transform:translate3d(-3px,-2px,0); }
+    20%,80%{ transform:translate3d(6px,4px,0); }
+    30%,50%,70%{ transform:translate3d(-10px,6px,0); }
+    40%,60%{ transform:translate3d(10px,-6px,0); }
+  }
+
+  /* ===== オーバーレイ（開始画面・結果・優勝） ===== */
+  #overlay{
+    position:absolute; inset:0; z-index:10;
+    background:rgba(6,8,13,.86); backdrop-filter:blur(6px);
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    text-align:center; gap:18px; padding:24px;
+    padding-top:calc(24px + env(safe-area-inset-top));
+    padding-bottom:calc(24px + env(safe-area-inset-bottom));
+  }
+  #overlay.hidden{ display:none; pointer-events:none; }
+  .title{
+    font-weight:900; font-size:clamp(30px,6vw,54px);
+    letter-spacing:.08em;
+  }
+  .title small{ display:block; font-size:.36em; color:var(--ink-dim); font-weight:700; letter-spacing:.3em; margin-top:6px; }
+  .lead{ color:var(--ink-dim); font-size:clamp(13px,2vw,16px); max-width:480px; }
+  .btn{
+    font-family:inherit; font-weight:900; font-size:clamp(16px,2.6vw,22px);
+    color:#0A0D14; background:var(--gold);
+    border:none; border-radius:999px; padding:16px 40px;
+    letter-spacing:.06em; cursor:pointer;
+  }
+  .btn.ghost{
+    background:transparent; color:var(--ink); border:1.5px solid var(--line);
+    font-size:clamp(12px,1.8vw,15px); padding:10px 22px; font-weight:700;
+  }
+  .row{ display:flex; gap:12px; align-items:center; flex-wrap:wrap; justify-content:center; }
+  .stepper{ display:flex; align-items:center; gap:10px; color:var(--ink-dim); font-family:'Space Grotesk',sans-serif; }
+  .stepper button{
+    width:34px;height:34px;border-radius:50%;border:1.5px solid var(--line);
+    background:#10141F; color:var(--ink); font-size:18px; font-weight:700;
+  }
+  .stepper span{ min-width:2ch; text-align:center; color:var(--ink); font-weight:700; }
+  .mode-toggle{ display:flex; gap:8px; align-items:center; justify-content:center; }
+  .mode-btn{
+    font-family:inherit; font-weight:700; font-size:13px;
+    padding:9px 18px; border-radius:999px;
+    border:1.5px solid var(--line); background:#10141F; color:var(--ink-dim);
+    cursor:pointer; -webkit-appearance:none; appearance:none; outline:none;
+  }
+  .mode-btn.active{ background:var(--gold); color:#0A0D14; border-color:transparent; }
+  .hp-label{
+    font-family:'Space Grotesk',sans-serif; font-weight:700;
+    font-size:clamp(11px,1.8vw,14px); color:var(--ink-dim);
+  }
+  .hp-bar{
+    width:100%; max-width:150px; height:9px; border-radius:5px;
+    background:rgba(255,255,255,.08); margin:5px auto 0; overflow:hidden;
+  }
+  .hp-bar-fill{ height:100%; background:var(--accent); border-radius:5px; transition:width .35s ease; }
+  .zone.tapped{ filter:brightness(.92); }
+  .zone.sleep{ filter:grayscale(.6) brightness(.7); }
+  .fx .zzz{
+    position:absolute; bottom:42%; transform:translateX(-50%);
+    font-weight:900; color:#fff; opacity:0;
+    font-family:'Space Grotesk',sans-serif;
+    animation:zzzFloat 1.8s ease-out forwards;
+    text-shadow:0 2px 6px rgba(0,0,0,.4);
+  }
+  @keyframes zzzFloat{
+    0%{ opacity:0; transform:translate(-50%,0) scale(.6); }
+    15%{ opacity:.9; }
+    100%{ opacity:0; transform:translate(-50%,-70px) scale(1.3); }
+  }
+  #champTitle{ font-size:clamp(28px,7vw,64px); }
+  .hint{ font-size:12px; color:var(--ink-dim); max-width:420px; }
+
+  /* 縦向き時のやんわりした案内（強制はしない） */
+  #rotateHint{
+    position:absolute; top:calc(10px + env(safe-area-inset-top)); left:50%; transform:translateX(-50%);
+    z-index:20; font-size:12px; color:var(--ink-dim);
+    background:rgba(16,20,31,.9); border:1px solid var(--line);
+    padding:6px 14px; border-radius:999px; display:none;
+  }
+  @media (orientation:portrait){ #rotateHint{ display:block; } }
+</style>
+</head>
+<body>
+
+<div id="app"></div>
+<button id="fightBtn" type="button">勝負！</button>
+
+<div id="slash"><div class="bar"></div></div>
+<div id="bigFx"></div>
+<div id="rotateHint">横向きにするとプレイしやすくなります</div>
+
+<div id="overlay"></div>
+
+<script>
+(function(){
+  'use strict';
+
+  /* =========================================================
+     ここから「画面端ジェスチャー対策」まとめ実装
+     1) touchstart 時点で画面端(EDGE_PX)から始まったタッチは preventDefault
+        → Safari の「戻る/進む」エッジスワイプは、タッチ開始直後に
+          preventDefault されるとジェスチャー認識自体がキャンセルされる。
+     2) touchmove を passive:false で監視し、ゲーム外の要素で発生した
+        移動は常に preventDefault → オーバースクロール(引っ張り)を阻止。
+     3) gesturestart/gesturechange (Safari独自) を preventDefault
+        → ピンチズームを阻止。
+     4) CSS 側で overscroll-behavior:none / touch-action:none / 
+        position:fixed を併用し、そもそも「スクロール可能な文書」を
+        作らないことで Pull-to-Refresh の発生条件自体を無くす。
+     5) viewport の user-scalable=no + maximum-scale=1 でダブルタップ
+        ズームを抑止（保険としてCSSでも touch-action:none）。
+     ========================================================= */
+  var EDGE_PX = 24; // この幅より端に近いタッチ開始はナビゲーションジェスチャーとみなして潰す
+
+  document.addEventListener('touchstart', function(e){
+    for (var i=0;i<e.changedTouches.length;i++){
+      var t = e.changedTouches[i];
+      if (t.clientX <= EDGE_PX || t.clientX >= window.innerWidth - EDGE_PX){
+        e.preventDefault();
+        break;
+      }
+    }
+  }, {passive:false});
+
+  document.addEventListener('touchmove', function(e){
+    e.preventDefault();
+  }, {passive:false});
+
+  document.addEventListener('gesturestart', function(e){ e.preventDefault(); }, {passive:false});
+  document.addEventListener('gesturechange', function(e){ e.preventDefault(); }, {passive:false});
+  document.addEventListener('gestureend', function(e){ e.preventDefault(); }, {passive:false});
+
+  // 長押しコンテキストメニュー（右クリックメニュー含む）を明示的に抑止。
+  // -webkit-touch-callout:none は iOS Safari の長押しメニューには効くが、
+  // Android/デスクトップの contextmenu イベントは別途潰す必要がある。
+  document.addEventListener('contextmenu', function(e){ e.preventDefault(); });
+
+  // ダブルタップズームの保険（viewport の user-scalable=no + touch-action:none が主対策）
+  document.addEventListener('dblclick', function(e){ e.preventDefault(); });
+
+  // iOS Safari のピンチズーム(2本指)を touchmove の scale プロパティで追加検知
+  document.addEventListener('touchmove', function(e){
+    if (e.scale !== undefined && e.scale !== 1){ e.preventDefault(); }
+  }, {passive:false});
+
+  /* ========================= 効果音（WebAudio、外部音源なし） ========================= */
+  var actx = null;
+  function audioCtx(){
+    if (!actx){
+      var AC = window.AudioContext || window.webkitAudioContext;
+      if (AC) actx = new AC();
+    }
+    return actx;
+  }
+  function beep(freq, dur, type, gain){
+    var ctx = audioCtx(); if (!ctx) return;
+    if (ctx.state === 'suspended') ctx.resume();
+    var osc = ctx.createOscillator();
+    var g = ctx.createGain();
+    osc.type = type || 'square';
+    osc.frequency.value = freq;
+    g.gain.value = gain || 0.06;
+    osc.connect(g); g.connect(ctx.destination);
+    osc.start();
+    g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + dur);
+    osc.stop(ctx.currentTime + dur + 0.02);
+  }
+  function vibrate(ms){ if (navigator.vibrate) navigator.vibrate(ms); }
+
+  function playExplosion(){
+    var ctx = audioCtx(); if (!ctx) return;
+    if (ctx.state === 'suspended') ctx.resume();
+    var dur = 0.55;
+    var bufferSize = Math.floor(ctx.sampleRate * dur);
+    var buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+    var data = buffer.getChannelData(0);
+    for (var i=0;i<bufferSize;i++){
+      data[i] = (Math.random()*2-1) * Math.pow(1 - i/bufferSize, 2); // 減衰するホワイトノイズ
+    }
+    var noise = ctx.createBufferSource(); noise.buffer = buffer;
+    var filter = ctx.createBiquadFilter();
+    filter.type = 'lowpass';
+    filter.frequency.setValueAtTime(2200, ctx.currentTime);
+    filter.frequency.exponentialRampToValueAtTime(100, ctx.currentTime + dur);
+    var gain = ctx.createGain();
+    gain.gain.setValueAtTime(0.4, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + dur);
+    noise.connect(filter); filter.connect(gain); gain.connect(ctx.destination);
+    noise.start();
+    beep(65, 0.4, 'sine', 0.25); // 低音のドン
+  }
+
+  function playBellChime(){
+    // お墓がある対戦開始時に鳴らす「チーン」というおりん風のベル音
+    var ctx = audioCtx(); if (!ctx) return;
+    if (ctx.state === 'suspended') ctx.resume();
+    var now = ctx.currentTime;
+    [ [1760,0.20], [2640,0.09], [3520,0.05] ].forEach(function(pair){
+      var osc = ctx.createOscillator();
+      var g = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.value = pair[0];
+      g.gain.setValueAtTime(pair[1], now);
+      g.gain.exponentialRampToValueAtTime(0.0001, now + 1.8);
+      osc.connect(g); g.connect(ctx.destination);
+      osc.start(now);
+      osc.stop(now + 1.9);
+    });
+  }
+
+  function playOrin(){ playBellChime(); } // 互換用エイリアス
+
+  /* ========================= 勝利SE（キャラ別） ========================= */
+  function createNoiseBuffer(ctx, dur, decayPow){
+    var bufferSize = Math.floor(ctx.sampleRate * dur);
+    var buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+    var data = buffer.getChannelData(0);
+    var p = decayPow || 2;
+    for (var i=0;i<bufferSize;i++){
+      data[i] = (Math.random()*2-1) * Math.pow(1 - i/bufferSize, p);
+    }
+    return buffer;
+  }
+
+  var BOSS_HIT_LINES = ['ぐはっ！', 'ぐぬぅ！', 'うぐっ！', 'くっ…！', 'ばかな…！'];
+  function randomBossHitLine(){
+    return BOSS_HIT_LINES[Math.floor(Math.random() * BOSS_HIT_LINES.length)];
+  }
+
+  var PARTY_HIT_LINES = ['くっ…', 'くそっ！', 'まだだ！まだやれる！', 'このままでは…', 'なんの…！'];
+  function randomPartyHitLine(){
+    return PARTY_HIT_LINES[Math.floor(Math.random() * PARTY_HIT_LINES.length)];
+  }
+
+  var BOSS_OPENING_LINES = ['大魔王が弱っている、、！', '苦しいのは奴も同じ、、！'];
+  function randomBossOpeningLine(){
+    return BOSS_OPENING_LINES[Math.floor(Math.random() * BOSS_OPENING_LINES.length)];
+  }
+
+  function playBossVictoryTheme(){
+    // ボス勝利時の、おどろおどろしい短いBGM風スティング
+    var ctx = audioCtx(); if (!ctx) return;
+    if (ctx.state === 'suspended') ctx.resume();
+    var now = ctx.currentTime;
+
+    // 低いドローン（不穏な持続音）
+    var drone = ctx.createOscillator(); drone.type = 'sawtooth'; drone.frequency.value = 55;
+    var droneDetune = ctx.createOscillator(); droneDetune.type = 'sawtooth'; droneDetune.frequency.value = 55.6;
+    var dg = ctx.createGain();
+    dg.gain.setValueAtTime(0.0001, now);
+    dg.gain.exponentialRampToValueAtTime(0.09, now+0.35);
+    dg.gain.exponentialRampToValueAtTime(0.0001, now+3.2);
+    drone.connect(dg); droneDetune.connect(dg); dg.connect(ctx.destination);
+    drone.start(now); droneDetune.start(now);
+    drone.stop(now+3.3); droneDetune.stop(now+3.3);
+
+    // 不穏な下降フレーズ
+    var notes = [440, 392, 349.23, 311.13];
+    notes.forEach(function(freq, i){
+      var t = now + 0.15 + i*0.32;
+      var osc = ctx.createOscillator(); osc.type = 'sawtooth'; osc.frequency.value = freq;
+      var g = ctx.createGain();
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(0.11, t+0.05);
+      g.gain.exponentialRampToValueAtTime(0.0001, t+0.42);
+      osc.connect(g); g.connect(ctx.destination);
+      osc.start(t); osc.stop(t+0.46);
+    });
+
+    // 締めの低いゴング
+    setTimeout(function(){
+      beep(50, 0.9, 'sine', 0.3);
+      beep(75, 0.7, 'sine', 0.15);
+      var dur = 1.1;
+      var noiseSrc = ctx.createBufferSource(); noiseSrc.buffer = createNoiseBuffer(ctx, dur, 2);
+      var bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 1400; bp.Q.value = 1.5;
+      var ng = ctx.createGain();
+      ng.gain.setValueAtTime(0.12, ctx.currentTime);
+      ng.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime+dur);
+      noiseSrc.connect(bp); bp.connect(ng); ng.connect(ctx.destination); noiseSrc.start();
+    }, 1500);
+  }
+
+  function playPartyVictoryFanfare(){
+    // パーティー勝利時の明るい短いファンファーレ
+    var notes = [523.25, 659.25, 783.99, 1046.5];
+    notes.forEach(function(freq, i){
+      setTimeout(function(){ beep(freq, 0.22, 'triangle', 0.12); }, i*110);
+    });
+    setTimeout(function(){ beep(1568, 0.35, 'sine', 0.08); }, 480);
+  }
+
+  function playTapAttack(){
+    // タップした瞬間の通常攻撃音（短い斬撃寄りの「シュッ」）
+    var ctx = audioCtx(); if (!ctx) return;
+    if (ctx.state === 'suspended') ctx.resume();
+    var dur = 0.15;
+    var noise = ctx.createBufferSource(); noise.buffer = createNoiseBuffer(ctx, dur, 2.5);
+    var bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.Q.value = 1.1;
+    bp.frequency.setValueAtTime(4200, ctx.currentTime);
+    bp.frequency.exponentialRampToValueAtTime(1400, ctx.currentTime+dur);
+    var g = ctx.createGain();
+    g.gain.setValueAtTime(0.2, ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime+dur);
+    noise.connect(bp); bp.connect(g); g.connect(ctx.destination); noise.start();
+  }
+
+  function playBossTurnMagic(){
+    // ボスが全員より速かったターンの、ずしりとした魔法攻撃音（長め・低め）
+    var ctx = audioCtx(); if (!ctx) return;
+    if (ctx.state === 'suspended') ctx.resume();
+    var dur = 1.7;
+    var noise = ctx.createBufferSource(); noise.buffer = createNoiseBuffer(ctx, dur, 1.7);
+    var bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.Q.value = 0.7;
+    bp.frequency.setValueAtTime(650, ctx.currentTime);
+    bp.frequency.exponentialRampToValueAtTime(45, ctx.currentTime+dur);
+    var g = ctx.createGain();
+    g.gain.setValueAtTime(0.34, ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime+dur);
+    noise.connect(bp); bp.connect(g); g.connect(ctx.destination); noise.start();
+
+    var osc = ctx.createOscillator(); osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(220, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(32, ctx.currentTime+dur);
+    var og = ctx.createGain();
+    og.gain.setValueAtTime(0.0001, ctx.currentTime);
+    og.gain.exponentialRampToValueAtTime(0.22, ctx.currentTime+0.08);
+    og.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime+dur);
+    osc.connect(og); og.connect(ctx.destination);
+    osc.start(); osc.stop(ctx.currentTime+dur+0.05);
+
+    beep(30, 1.0, 'sine', 0.34);
+    setTimeout(function(){ beep(24, 0.8, 'sine', 0.18); }, 340); // 余韻の重低音
+  }
+
+  function playPartyTurnBurst(){
+    // パーティー全員がボスより速かったターンの、派手な光の合体攻撃音
+    var ctx = audioCtx(); if (!ctx) return;
+    if (ctx.state === 'suspended') ctx.resume();
+
+    // 立ち上がりの一撃
+    beep(180, 0.09, 'square', 0.17);
+
+    // シュワッというきらめきノイズ（広めにうねらせる）
+    var dur = 0.5;
+    var noise = ctx.createBufferSource(); noise.buffer = createNoiseBuffer(ctx, dur, 1.8);
+    var bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.Q.value = 0.5;
+    bp.frequency.setValueAtTime(1800, ctx.currentTime);
+    bp.frequency.exponentialRampToValueAtTime(7000, ctx.currentTime+dur*0.4);
+    bp.frequency.exponentialRampToValueAtTime(2500, ctx.currentTime+dur);
+    var ng = ctx.createGain();
+    ng.gain.setValueAtTime(0.0001, ctx.currentTime);
+    ng.gain.exponentialRampToValueAtTime(0.24, ctx.currentTime+0.06);
+    ng.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime+dur);
+    noise.connect(bp); bp.connect(ng); ng.connect(ctx.destination); noise.start();
+
+    // 一段目の和音
+    var chord1 = [523.25, 659.25, 783.99, 1046.5];
+    chord1.forEach(function(freq, i){
+      setTimeout(function(){ beep(freq, 0.22, 'triangle', 0.16); }, 40 + i*50);
+    });
+    // 二段目、少し高い和音で畳み掛け
+    var chord2 = [659.25, 830.61, 987.77, 1318.5];
+    chord2.forEach(function(freq, i){
+      setTimeout(function(){ beep(freq, 0.26, 'triangle', 0.15); }, 260 + i*45);
+    });
+
+    // 高音のキラキラ（増量）
+    var sparkles = [1568, 1976, 2349, 2637, 3136, 3729, 4186];
+    sparkles.forEach(function(freq, i){
+      setTimeout(function(){ beep(freq, 0.14, 'sine', 0.06); }, 300 + i*40);
+    });
+
+    // 締めの厚みのある一撃
+    setTimeout(function(){
+      beep(1046.5, 0.3, 'square', 0.13);
+      beep(523.25, 0.35, 'triangle', 0.11);
+    }, 520);
+  }
+
+  function spawnBigEffect(kind){
+    // kind: 'boss'（大魔王の魔法攻撃）| 'party'（パーティーの光の合体攻撃）
+    var fx = document.getElementById('bigFx');
+    if (!fx) return;
+    fx.innerHTML = '';
+    fx.classList.add('show');
+
+    var flash = document.createElement('div');
+    flash.className = 'bigfx-flash ' + kind;
+    fx.appendChild(flash);
+
+    var partyColors = [];
+    if (kind === 'party'){
+      players.forEach(function(pl){
+        if (pl.id === 1) return;
+        var z = zoneEl(pl.id);
+        var c = z ? getComputedStyle(z).getPropertyValue('--accent').trim() : '';
+        partyColors.push(c || '#FFD23B');
+      });
+      if (partyColors.length === 0) partyColors = ['#FFD23B'];
+    }
+
+    var rayCount = kind === 'boss' ? 16 : Math.max(10, partyColors.length * 4);
+    for (var i=0;i<rayCount;i++){
+      var ray = document.createElement('div');
+      ray.className = 'bigfx-ray ' + kind;
+      var ang = (360/rayCount)*i + (Math.random()*8-4);
+      ray.style.setProperty('--ang', ang+'deg');
+      ray.style.animationDelay = (Math.random()*140)+'ms';
+      if (kind === 'party'){
+        ray.style.background = 'linear-gradient(to bottom, '+partyColors[i % partyColors.length]+', rgba(255,255,255,0))';
+      }
+      fx.appendChild(ray);
+    }
+
+    if (kind === 'boss'){
+      var ring = document.createElement('div');
+      ring.className = 'bigfx-ring';
+      fx.appendChild(ring);
+    }
+
+    appEl.classList.remove('bigshake'); void appEl.offsetWidth; appEl.classList.add('bigshake');
+
+    setTimeout(function(){
+      fx.classList.remove('show');
+      fx.innerHTML = '';
+    }, 1600);
+  }
+
+
+  function playSwordSlash(){ // 剣士：鋭い一閃＋金属の「シャキン」
+    var ctx = audioCtx(); if (!ctx) return; if (ctx.state==='suspended') ctx.resume();
+    var dur = 0.42;
+    var noise = ctx.createBufferSource(); noise.buffer = createNoiseBuffer(ctx, dur, 2.4);
+    var bp = ctx.createBiquadFilter(); bp.type='bandpass'; bp.Q.value=1.3;
+    bp.frequency.setValueAtTime(5200, ctx.currentTime);
+    bp.frequency.exponentialRampToValueAtTime(1000, ctx.currentTime+dur);
+    var g = ctx.createGain();
+    g.gain.setValueAtTime(0.28, ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime+dur);
+    noise.connect(bp); bp.connect(g); g.connect(ctx.destination); noise.start();
+    beep(2600, 0.22, 'triangle', 0.07);
+    setTimeout(function(){ beep(3400, 0.35, 'sine', 0.05); }, 100);
+    setTimeout(function(){ beep(2100, 0.4, 'sine', 0.035); }, 180);
+  }
+
+  function playAxeChop(){ // 戦士：やや鈍い打撃感のある斬撃
+    var ctx = audioCtx(); if (!ctx) return; if (ctx.state==='suspended') ctx.resume();
+    var dur = 0.5;
+    var noise = ctx.createBufferSource(); noise.buffer = createNoiseBuffer(ctx, dur, 2);
+    var bp = ctx.createBiquadFilter(); bp.type='bandpass'; bp.Q.value=0.9;
+    bp.frequency.setValueAtTime(1700, ctx.currentTime);
+    bp.frequency.exponentialRampToValueAtTime(280, ctx.currentTime+dur);
+    var g = ctx.createGain();
+    g.gain.setValueAtTime(0.32, ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime+dur);
+    noise.connect(bp); bp.connect(g); g.connect(ctx.destination); noise.start();
+    beep(80, 0.42, 'sine', 0.26); // 打ち込みの芯
+    setTimeout(function(){ beep(60, 0.3, 'sine', 0.14); }, 90); // 余韻の重み
+  }
+
+  function playIaido(){ // 侍：居合斬りの風切り音＋納刀のキン
+    var ctx = audioCtx(); if (!ctx) return; if (ctx.state==='suspended') ctx.resume();
+    var dur = 0.3;
+    var noise = ctx.createBufferSource(); noise.buffer = createNoiseBuffer(ctx, dur, 3);
+    var bp = ctx.createBiquadFilter(); bp.type='bandpass'; bp.Q.value=1.8;
+    bp.frequency.setValueAtTime(7200, ctx.currentTime);
+    bp.frequency.exponentialRampToValueAtTime(700, ctx.currentTime+dur);
+    var g = ctx.createGain();
+    g.gain.setValueAtTime(0.3, ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime+dur);
+    noise.connect(bp); bp.connect(g); g.connect(ctx.destination); noise.start();
+    setTimeout(function(){
+      beep(3600, 0.14, 'sine', 0.06);
+      beep(2200, 0.22, 'sine', 0.04);
+    }, dur*1000 + 20);
+  }
+
+  function playPunchCombo(){ // 武闘家：拳の連打
+    var hits = [
+      {f:150, dur:0.08, g:0.14},
+      {f:172, dur:0.08, g:0.14},
+      {f:140, dur:0.08, g:0.15},
+      {f:190, dur:0.08, g:0.15},
+      {f:110, dur:0.22, g:0.24}  // 最後は少し長めの重い一撃
+    ];
+    var t = 0;
+    hits.forEach(function(hit, i){
+      setTimeout(function(){ beep(hit.f, hit.dur, 'square', hit.g); }, t);
+      t += (i === hits.length-2) ? 130 : 110;
+    });
+  }
+
+  function playFireMagic(){ // 魔法使い：炎の魔法（着火のうねり＋クラックル）
+    var ctx = audioCtx(); if (!ctx) return; if (ctx.state==='suspended') ctx.resume();
+    var dur = 0.9;
+    var noise = ctx.createBufferSource(); noise.buffer = createNoiseBuffer(ctx, dur, 1.5);
+    var bp = ctx.createBiquadFilter(); bp.type='bandpass'; bp.Q.value=0.7;
+    bp.frequency.setValueAtTime(300, ctx.currentTime);
+    bp.frequency.exponentialRampToValueAtTime(3200, ctx.currentTime+dur*0.6);
+    bp.frequency.exponentialRampToValueAtTime(900, ctx.currentTime+dur);
+    var g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.22, ctx.currentTime+0.08);
+    g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime+dur);
+    noise.connect(bp); bp.connect(g); g.connect(ctx.destination); noise.start();
+
+    var osc = ctx.createOscillator(); osc.type='sawtooth';
+    osc.frequency.setValueAtTime(220, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(520, ctx.currentTime+dur);
+    var lfo = ctx.createOscillator(); lfo.frequency.value = 14;
+    var lfoGain = ctx.createGain(); lfoGain.gain.value = 60;
+    lfo.connect(lfoGain); lfoGain.connect(osc.frequency);
+    var og = ctx.createGain();
+    og.gain.setValueAtTime(0.0001, ctx.currentTime);
+    og.gain.exponentialRampToValueAtTime(0.06, ctx.currentTime+0.1);
+    og.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime+dur);
+    osc.connect(og); og.connect(ctx.destination);
+    lfo.start(); osc.start();
+    lfo.stop(ctx.currentTime+dur+0.05); osc.stop(ctx.currentTime+dur+0.05);
+  }
+
+  function playBigImpact(){ // 魔物（怪力）：大きい打撃音
+    var ctx = audioCtx(); if (!ctx) return; if (ctx.state==='suspended') ctx.resume();
+    var dur = 1.0;
+    var noise = ctx.createBufferSource(); noise.buffer = createNoiseBuffer(ctx, dur, 2.2);
+    var lp = ctx.createBiquadFilter(); lp.type='lowpass';
+    lp.frequency.setValueAtTime(900, ctx.currentTime);
+    lp.frequency.exponentialRampToValueAtTime(70, ctx.currentTime+dur);
+    var g = ctx.createGain();
+    g.gain.setValueAtTime(0.38, ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime+dur);
+    noise.connect(lp); lp.connect(g); g.connect(ctx.destination); noise.start();
+    beep(46, 0.85, 'sine', 0.32);
+    setTimeout(function(){ beep(38, 0.5, 'sine', 0.16); }, 150); // 響きの余韻
+  }
+
+  function playEnergyBurst(){ // 魔物（ラスボス魔法）：チャージ→エネルギー爆発
+    var ctx = audioCtx(); if (!ctx) return; if (ctx.state==='suspended') ctx.resume();
+    var charge = ctx.createOscillator(); charge.type='sawtooth';
+    charge.frequency.setValueAtTime(150, ctx.currentTime);
+    charge.frequency.exponentialRampToValueAtTime(1800, ctx.currentTime+0.38);
+    var cg = ctx.createGain();
+    cg.gain.setValueAtTime(0.0001, ctx.currentTime);
+    cg.gain.exponentialRampToValueAtTime(0.14, ctx.currentTime+0.34);
+    cg.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime+0.4);
+    charge.connect(cg); cg.connect(ctx.destination);
+    charge.start(); charge.stop(ctx.currentTime+0.42);
+
+    setTimeout(function(){
+      var dur = 1.3;
+      var noise = ctx.createBufferSource(); noise.buffer = createNoiseBuffer(ctx, dur, 1.8);
+      var lp = ctx.createBiquadFilter(); lp.type='lowpass';
+      lp.frequency.setValueAtTime(3000, ctx.currentTime);
+      lp.frequency.exponentialRampToValueAtTime(70, ctx.currentTime+dur);
+      var g = ctx.createGain();
+      g.gain.setValueAtTime(0.44, ctx.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime+dur);
+      noise.connect(lp); lp.connect(g); g.connect(ctx.destination); noise.start();
+      beep(55, 0.9, 'sine', 0.34);
+      beep(32, 1.1, 'sine', 0.24);
+      setTimeout(function(){ beep(24, 0.6, 'sine', 0.12); }, 220); // 地響きの余韻
+    }, 360);
+  }
+
+  // CHARACTERS の並び順に対応（剣士/戦士/侍/武闘家/魔法使い/魔物・怪力/魔物・ラスボス魔法）
+  var WIN_SOUNDS = [
+    playSwordSlash, playAxeChop, playIaido, playPunchCombo,
+    playFireMagic, playBigImpact, playEnergyBurst
+  ];
+
+  /* ========================= ゲームロジック ========================= */
+  var LAYOUTS = {
+    3: { className:'layout-3', zones:[
+      {id:1, area:'z1', rot:0},
+      {id:2, area:'z2', rot:180},
+      {id:3, area:'z3', rot:180}
+    ]},
+    4: { className:'layout-4', zones:[
+      {id:1, area:'z1', rot:0},
+      {id:2, area:'z2', rot:180},
+      {id:3, area:'z3', rot:180},
+      {id:4, area:'z4', rot:0}
+    ]},
+    5: { className:'layout-5', zones:[
+      {id:1, area:'z1', rot:0},
+      {id:2, area:'z2', rot:180},
+      {id:3, area:'z3', rot:180},
+      {id:4, area:'z4', rot:90},
+      {id:5, area:'z5', rot:-90}
+    ]}
+  };
+
+  var CHARACTERS = [
+    {name:'剣士', sub:'剣'},
+    {name:'戦士', sub:'斧'},
+    {name:'侍', sub:'刀'},
+    {name:'武闘家', sub:'拳'},
+    {name:'魔法使い', sub:'杖で魔法'},
+    {name:'魔物', sub:'怪力'},
+    {name:'魔物', sub:'ラスボス魔法'}
+  ];
+
+  var NAME_POOL = [
+    // 外国人風
+    'ピエトロ','ジェフ','サム','マイク','トム','ジョン','アレックス','カルロス',
+    'ルーカス','ディエゴ','マルコ','ネイト','ライアン','ケビン','ダニー',
+    // 日本人名
+    'あきと','じゅんや','けいすけ','ようすけ','えいた','りょうた','しょうた',
+    'たくみ','かいと','はると','そうた','ゆうき','だいち','こうき','りく',
+    'たかひろ','こうせい','ゆうな'
+  ];
+
+  function randomName(excludeNames){
+    var exclude = excludeNames || [];
+    var pool = NAME_POOL.filter(function(n){ return exclude.indexOf(n) === -1; });
+    if (pool.length === 0) pool = NAME_POOL;
+    return pool[Math.floor(Math.random() * pool.length)];
+  }
+
+  var players = [];
+  var PLAYER_COUNT = 3;
+
+  function adjustPlayersArray(){
+    while (players.length < PLAYER_COUNT){
+      var id = players.length + 1;
+      var used = players.map(function(pl){ return pl.name; });
+      players.push({id:id, name:randomName(used), score:0, fouls:0, eliminated:false, charIndex:(id-1) % CHARACTERS.length, hp:null, reactionMs:null, falseStart:false});
+    }
+    players.length = PLAYER_COUNT;
+    players.forEach(function(pl){ pl.hp = maxHpFor(pl); });
+  }
+
+  var appEl = document.getElementById('app');
+  function buildBoard(){
+    var layout = LAYOUTS[PLAYER_COUNT];
+    appEl.className = layout.className;
+    appEl.innerHTML = '';
+    layout.zones.forEach(function(cfg){
+      var zone = document.createElement('div');
+      zone.className = 'zone';
+      zone.dataset.p = cfg.id;
+      zone.dataset.rot = cfg.rot;
+      zone.style.gridArea = cfg.area;
+      zone.innerHTML =
+        '<div class="rotor">' +
+          '<div class="zone-inner">' +
+            '<div class="p-name" id="name'+cfg.id+'"><i class="dot"></i><span></span></div>' +
+            '<div class="p-status" id="status'+cfg.id+'"></div>' +
+            '<div class="p-sub" id="sub'+cfg.id+'"></div>' +
+            '<div class="score" id="score'+cfg.id+'"></div>' +
+          '</div>' +
+        '</div>' +
+        '<div class="fx" id="fx'+cfg.id+'"></div>';
+      zone.addEventListener('pointerdown', function(e){
+        e.preventDefault();
+        handleZoneTap(cfg.id);
+      });
+      appEl.appendChild(zone);
+    });
+    fixAllRotors();
+  }
+
+  function fixAllRotors(){
+    var zones = appEl.querySelectorAll('.zone');
+    for (var i=0;i<zones.length;i++){
+      var zone = zones[i];
+      var rotor = zone.querySelector('.rotor');
+      if (!rotor) continue;
+      var rot = parseInt(zone.dataset.rot, 10) || 0;
+      var w = zone.clientWidth, h = zone.clientHeight;
+      var swapped = Math.abs(rot) === 90 || Math.abs(rot) === 270;
+      var rw = swapped ? h : w;
+      var rh = swapped ? w : h;
+      rotor.style.width = rw + 'px';
+      rotor.style.height = rh + 'px';
+      rotor.style.transform = 'translate(-50%,-50%) rotate(' + rot + 'deg)';
+    }
+  }
+  var rotorFixTimer = null;
+  function scheduleFixAllRotors(){
+    clearTimeout(rotorFixTimer);
+    rotorFixTimer = setTimeout(fixAllRotors, 120);
+  }
+  window.addEventListener('resize', scheduleFixAllRotors);
+  window.addEventListener('orientationchange', scheduleFixAllRotors);
+
+  var TARGET = 5;
+  var MODE = 'ffa';        // ffa | boss
+  var BOSS_HP_MAX = 10;
+  var PARTY_HP_MAX = 5;
+  var state = 'idle';      // idle | select | ready | signal | result | champion
+  var signalTimeout = null;
+  var signalTime = 0;
+  var roundBusy = false;
+  var rafId = null;
+  var tickIntervalId = null;
+  var tickStartTimeoutId = null;
+  var bossRoundDeadline = null;
+  var noTapTimeout = null;
+  var NO_TAP_TIMEOUT_MS = 20000;
+
+  function maxHpFor(pl){
+    if (MODE !== 'boss') return null;
+    return pl.id === 1 ? BOSS_HP_MAX : PARTY_HP_MAX;
+  }
+
+  function playStartSting(){
+    // 「ででーん」：低音を2発、少しずらして重ねる
+    beep(110, 0.22, 'sine', 0.16);
+    beep(220, 0.22, 'sine', 0.05);
+    setTimeout(function(){
+      beep(80, 0.35, 'sine', 0.20);
+      beep(160, 0.35, 'sine', 0.06);
+    }, 230);
+  }
+  function playHeartbeatTick(){
+    // 「ドッ・ドッ」の二拍（lub-dub）。低音のサイン波を短い減衰で二回重ねる
+    beep(58, 0.14, 'sine', 0.22);
+    setTimeout(function(){ beep(46, 0.16, 'sine', 0.17); }, 150);
+  }
+  function startTicking(){
+    stopTicking();
+    tickIntervalId = setInterval(playHeartbeatTick, 560);
+  }
+  function stopTicking(){
+    if (tickStartTimeoutId !== null){ clearTimeout(tickStartTimeoutId); tickStartTimeoutId = null; }
+    if (tickIntervalId !== null){ clearInterval(tickIntervalId); tickIntervalId = null; }
+  }
+
+  function startLiveTimer(){
+    function tick(){
+      if (state !== 'signal') return;
+      var elapsed = Math.round(performance.now() - signalTime);
+      players.forEach(function(pl){
+        if (pl.eliminated) return;
+        if (pl.reactionMs !== null && pl.reactionMs !== undefined) return; // 既にタップ済みの表示は上書きしない
+        $('sub'+pl.id).textContent = elapsed + ' ms';
+      });
+      if (MODE === 'boss') maybeEarlyResolveBossWin();
+      rafId = requestAnimationFrame(tick);
+    }
+    rafId = requestAnimationFrame(tick);
+  }
+  function stopLiveTimer(){
+    if (rafId !== null){ cancelAnimationFrame(rafId); rafId = null; }
+  }
+
+  var el = {
+    overlay: document.getElementById('overlay'),
+    slash: document.getElementById('slash')
+  };
+
+  function $(id){ return document.getElementById(id); }
+  function zoneEl(p){ return document.querySelector('.zone[data-p="'+p+'"]'); }
+
+  function spawnExplosion(p){
+    var fx = document.getElementById('fx'+p);
+    if (!fx) return;
+    fx.innerHTML = '';
+    var flash = document.createElement('div');
+    flash.className = 'flash';
+    fx.appendChild(flash);
+    var colors = ['#FFD23B','#FF7A3B','#FF3B5C','#FFFFFF'];
+    for (var i=0;i<20;i++){
+      var particle = document.createElement('div');
+      particle.className = 'particle';
+      var angle = Math.random()*Math.PI*2;
+      var dist = 55 + Math.random()*95;
+      particle.style.setProperty('--dx', (Math.cos(angle)*dist)+'px');
+      particle.style.setProperty('--dy', (Math.sin(angle)*dist)+'px');
+      particle.style.setProperty('--rot', (Math.random()*360-180)+'deg');
+      particle.style.background = colors[i % colors.length];
+      particle.style.width = particle.style.height = (5 + Math.random()*7)+'px';
+      particle.style.animationDelay = (Math.random()*35)+'ms';
+      fx.appendChild(particle);
+    }
+    var inner = zoneEl(p).querySelector('.zone-inner');
+    inner.classList.remove('shake'); void inner.offsetWidth; inner.classList.add('shake');
+    setTimeout(function(){ fx.innerHTML = ''; }, 850);
+  }
+
+  function spawnZzz(p){
+    var fx = document.getElementById('fx'+p);
+    if (!fx) return;
+    fx.innerHTML = '';
+    var sizes = [16, 22, 28];
+    for (var i=0;i<3;i++){
+      var z = document.createElement('div');
+      z.className = 'zzz';
+      z.textContent = 'Z';
+      z.style.fontSize = sizes[i] + 'px';
+      z.style.left = (44 + i*10) + '%';
+      z.style.animationDelay = (i*220) + 'ms';
+      fx.appendChild(z);
+    }
+    setTimeout(function(){ fx.innerHTML = ''; }, 2100);
+  }
+
+  function playSleepWhistle(){
+    // スライドホイッスル風の脱力下降音＋少し遅れて軽いいびき
+    var ctx = audioCtx(); if (!ctx) return;
+    if (ctx.state === 'suspended') ctx.resume();
+    var osc = ctx.createOscillator(); osc.type = 'sine';
+    osc.frequency.setValueAtTime(1200, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(220, ctx.currentTime+0.9);
+    var g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.13, ctx.currentTime+0.06);
+    g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime+0.95);
+    osc.connect(g); g.connect(ctx.destination);
+    osc.start(); osc.stop(ctx.currentTime+1.0);
+    setTimeout(function(){
+      beep(90, 0.35, 'sine', 0.12);
+      setTimeout(function(){ beep(70, 0.4, 'sine', 0.1); }, 260);
+    }, 950);
+  }
+
+  function renderNames(){
+    players.forEach(function(pl){
+      var label = pl.name + (MODE === 'boss' && pl.id === 1 ? '大魔王' : '');
+      $('name'+pl.id).querySelector('span').textContent = label;
+    });
+  }
+
+  function renderScores(){
+    players.forEach(function(pl){
+      var box = $('score'+pl.id);
+      box.innerHTML = '';
+      if (MODE === 'boss'){
+        var max = maxHpFor(pl);
+        var hp = Math.max(0, pl.hp == null ? max : pl.hp);
+        var label = document.createElement('div');
+        label.className = 'hp-label';
+        label.textContent = (pl.id === 1 ? 'BOSS ' : '') + 'HP ' + hp + '/' + max;
+        box.appendChild(label);
+        var bar = document.createElement('div'); bar.className = 'hp-bar';
+        var fill = document.createElement('div'); fill.className = 'hp-bar-fill';
+        fill.style.width = (max ? (hp/max*100) : 0) + '%';
+        bar.appendChild(fill);
+        box.appendChild(bar);
+      } else {
+        for (var i=0;i<TARGET;i++){
+          var dot = document.createElement('i');
+          if (i < pl.score) dot.className = 'on';
+          box.appendChild(dot);
+        }
+      }
+    });
+  }
+
+  function setStatus(p, text, sub){
+    $('status'+p).textContent = text || '';
+    $('sub'+p).textContent = sub || '';
+  }
+
+  function renderGrave(p){
+    var z = zoneEl(p);
+    z.classList.remove('armed','go','flash','winner','foul');
+    z.classList.add('grave');
+    setStatus(p, '🪦', '見学中');
+  }
+
+  function clearZoneClasses(){
+    players.forEach(function(pl){
+      if (pl.eliminated) return;
+      var z = zoneEl(pl.id);
+      z.classList.remove('armed','go','flash','winner','foul','warned');
+    });
+  }
+
+  function resetRoundVisuals(){
+    clearZoneClasses();
+    players.forEach(function(pl){ if (!pl.eliminated) setStatus(pl.id, '', ''); });
+  }
+
+  function showOverlay(show){
+    el.overlay.classList.toggle('hidden', !show);
+    if (show) showFightButton(false);
+  }
+
+  function showFightButton(show){
+    document.getElementById('fightBtn').classList.toggle('show', !!show);
+  }
+
+  function renderCharacterDisplay(p){
+    var pl = players.find(function(x){ return x.id === p; });
+    if (!pl) return;
+    var c = CHARACTERS[pl.charIndex];
+    setStatus(p, c.name, c.sub + ' ・ タップで変更');
+  }
+
+  function cycleCharacter(p){
+    var pl = players.find(function(x){ return x.id === p; });
+    if (!pl) return;
+    pl.charIndex = (pl.charIndex + 1) % CHARACTERS.length;
+    var others = players.filter(function(x){ return x.id !== p; }).map(function(x){ return x.name; });
+    pl.name = randomName(others);
+    renderNames();
+    renderCharacterDisplay(p);
+    var z = zoneEl(p);
+    z.classList.remove('flash'); void z.offsetWidth; z.classList.add('flash');
+    beep(520, 0.05, 'square', 0.05);
+    vibrate(15);
+  }
+
+  function goToSelect(){
+    adjustPlayersArray();
+    buildBoard();
+    renderNames();
+    renderScores();
+    state = 'select';
+    roundBusy = false;
+    players.forEach(function(pl){
+      zoneEl(pl.id).classList.add('armed');
+      renderCharacterDisplay(pl.id);
+    });
+    showOverlay(false);
+    showFightButton(true);
+  }
+
+  function startMatch(){
+    showFightButton(false);
+    buildBoard();
+    players.forEach(function(pl){
+      pl.score = 0; pl.fouls = 0; pl.eliminated = false;
+      pl.hp = maxHpFor(pl); pl.reactionMs = null; pl.falseStart = false;
+    });
+    renderNames();
+    renderScores();
+    nextRound();
+  }
+
+  function nextRound(){
+    if (state === 'champion') return;
+    stopLiveTimer();
+    stopTicking();
+    clearTimeout(noTapTimeout);
+    resetRoundVisuals();
+    state = 'ready';
+    roundBusy = false;
+    players.forEach(function(pl){ pl.reactionMs = null; pl.falseStart = false; });
+    var hasGrave = players.some(function(pl){ return pl.eliminated; });
+    if (hasGrave) playBellChime();
+    players.forEach(function(pl){
+      if (pl.eliminated) return;
+      zoneEl(pl.id).classList.add('armed');
+      var subHint;
+      if (MODE === 'boss'){
+        subHint = pl.id === 1 ? '早すぎ注意' : 'ボスより早く!';
+      } else if (pl.fouls === 1){
+        subHint = '次、失敗したら…';
+        zoneEl(pl.id).classList.add('warned');
+      } else {
+        subHint = '早く触ると失格';
+      }
+      setStatus(pl.id, '隙を窺え…', subHint);
+    });
+    playStartSting();
+    tickStartTimeoutId = setTimeout(startTicking, 480);
+    var delay = 4000 + Math.random()*4000;
+    signalTimeout = setTimeout(fireSignal, delay);
+  }
+
+  function fireSignal(){
+    state = 'signal';
+    stopTicking();
+    signalTime = performance.now();
+    players.forEach(function(pl){
+      if (pl.eliminated) return;
+      var z = zoneEl(pl.id);
+      z.classList.remove('armed');
+      z.classList.add('go','flash');
+      setStatus(pl.id, 'いまだ！', 'タップ！');
+    });
+    el.slash.classList.remove('show'); void el.slash.offsetWidth; el.slash.classList.add('show');
+    beep(880, 0.12, 'square', 0.08);
+    startLiveTimer();
+    if (MODE === 'boss'){
+      bossRoundDeadline = setTimeout(resolveBossRound, 2600);
+    }
+    noTapTimeout = setTimeout(handleNoTapTimeout, NO_TAP_TIMEOUT_MS);
+  }
+
+  function handleNoTapTimeout(){
+    if (state !== 'signal') return;   // 既に何らかの形で決着済み
+    if (roundBusy) return;
+    var anyReacted = players.some(function(pl){
+      return !pl.eliminated && pl.reactionMs !== null && pl.reactionMs !== undefined;
+    });
+    if (anyReacted) return; // 誰か1人でも反応していれば、通常の決着ロジックに任せる
+    triggerSleepTimeout();
+  }
+
+  function triggerSleepTimeout(){
+    // 20秒間まったく反応がなかった場合の「居眠りタイムアウト」演出
+    roundBusy = true;
+    clearTimeout(signalTimeout);
+    clearTimeout(bossRoundDeadline);
+    clearTimeout(noTapTimeout);
+    stopTicking();
+    stopLiveTimer();
+    state = 'result';
+    clearZoneClasses();
+    var alive = players.filter(function(pl){ return !pl.eliminated; });
+    alive.forEach(function(pl){
+      var z = zoneEl(pl.id);
+      z.classList.add('sleep');
+      setStatus(pl.id, '😴', 'ZZZ…');
+      spawnZzz(pl.id);
+    });
+    playSleepWhistle();
+    setTimeout(function(){ if (state !== 'champion') nextRound(); }, 2200);
+  }
+
+  function handleZoneTap(p){
+    if (state === 'select'){
+      cycleCharacter(p);
+      return;
+    }
+    if (roundBusy) return;
+    var actor = players.find(function(pl){ return pl.id === p; });
+    if (!actor || actor.eliminated) return; // お墓のプレイヤーは見てるだけ
+
+    if (MODE === 'boss'){
+      handleBossTap(actor, p);
+      return;
+    }
+
+    if (state === 'ready'){
+      // フライング：即座にそのプレイヤーの失格でラウンド終了
+      roundBusy = true;
+      clearTimeout(signalTimeout);
+      stopLiveTimer();
+      stopTicking();
+      state = 'result';
+      actor.fouls++;
+      var justEliminated = actor.fouls >= 2;
+      clearZoneClasses(); // まだ actor.eliminated=true にする前に呼ぶことで、この場面のクラスは確実にクリアされる
+      if (justEliminated) actor.eliminated = true;
+      players.forEach(function(pl){
+        if (pl.eliminated && pl.id !== p) return; // 既にお墓の人はそのまま
+        var pp = pl.id;
+        if (pp === p){
+          zoneEl(pp).classList.add('foul');
+          setStatus(pp, '自爆!', justEliminated ? '2回目 退場' : '失格 (あと1回でお墓)');
+        } else {
+          setStatus(pp, 'おあずけ', '相手の失格');
+        }
+      });
+      beep(140, 0.25, 'sawtooth', 0.08);
+      playExplosion();
+      spawnExplosion(p);
+      vibrate([40,30,120]);
+      if (justEliminated){
+        setTimeout(function(){ renderGrave(p); }, 900);
+      }
+
+      var active = players.filter(function(pl){ return !pl.eliminated; });
+      if (active.length <= 1){
+        setTimeout(function(){ showChampion(active[0], '最後まで生き残った！'); }, 1600);
+      } else {
+        setTimeout(function(){ if(state!=='champion') nextRound(); }, 1600);
+      }
+      return;
+    }
+
+    if (state === 'signal'){
+      roundBusy = true;
+      stopLiveTimer();
+      clearTimeout(noTapTimeout);
+      var reaction = Math.round(performance.now() - signalTime);
+      var winner = actor;
+      winner.score++;
+      state = 'result';
+      clearZoneClasses();
+      players.forEach(function(pl){
+        if (pl.eliminated) return;
+        var pp = pl.id;
+        if (pp === p){
+          zoneEl(pp).classList.add('winner');
+          setStatus(pp, '勝ち!', reaction + ' ms');
+        } else {
+          setStatus(pp, 'まけ', '');
+        }
+      });
+      renderScores();
+      var sfx = WIN_SOUNDS[winner.charIndex];
+      if (sfx) sfx(); else beep(1200, 0.15, 'square', 0.09);
+      vibrate(30);
+
+      if (winner.score >= TARGET){
+        setTimeout(function(){ showChampion(winner); }, 1600);
+      } else {
+        setTimeout(function(){ if(state!=='champion') nextRound(); }, 1900);
+      }
+      return;
+    }
+    // idle / result 中のタップは無視
+  }
+
+  function handleBossTap(actor, p){
+    if (state === 'ready'){
+      if (actor.falseStart) return; // 既に自爆済み
+      actor.falseStart = true;
+      actor.reactionMs = Infinity;
+      var z = zoneEl(p);
+      z.classList.remove('armed');
+      z.classList.add('foul');
+      setStatus(p, '自爆!', 'このラウンドは不発');
+      playExplosion();
+      spawnExplosion(p);
+      vibrate([40,30,120]);
+      if (p === 1){
+        bossFalseStartEndTurn();
+      } else {
+        maybeResolveBossRound();
+      }
+      return;
+    }
+    if (state === 'signal'){
+      if (actor.reactionMs !== null && actor.reactionMs !== undefined) return; // 既にタップ済み
+      actor.reactionMs = Math.round(performance.now() - signalTime);
+      var z2 = zoneEl(p);
+      z2.classList.remove('go','flash');
+      z2.classList.add('tapped');
+      setStatus(p, '入力!', actor.reactionMs + ' ms');
+      playTapAttack();
+      maybeResolveBossRound();
+      return;
+    }
+    // ready/signal 以外でのタップは無視
+  }
+
+  function bossFalseStartEndTurn(){
+    // ボスが自爆した時点で、GOを待たずにダメージなしでそのターンを終了する
+    if (roundBusy) return;
+    roundBusy = true;
+    clearTimeout(signalTimeout);
+    clearTimeout(bossRoundDeadline);
+    clearTimeout(noTapTimeout);
+    stopTicking();
+    stopLiveTimer();
+    state = 'result';
+    players.forEach(function(pl){
+      if (pl.id === 1 || pl.eliminated) return;
+      zoneEl(pl.id).classList.remove('armed');
+      setStatus(pl.id, '好機!', randomBossOpeningLine());
+    });
+    vibrate(20);
+    setTimeout(function(){ if (state !== 'champion') nextRound(); }, 1600);
+  }
+
+  function maybeResolveBossRound(){
+    if (roundBusy) return;
+    var alive = players.filter(function(pl){ return !pl.eliminated; });
+    var allIn = alive.every(function(pl){ return pl.reactionMs !== null && pl.reactionMs !== undefined; });
+    if (allIn) resolveBossRound();
+  }
+
+  function maybeEarlyResolveBossWin(){
+    // ボスが誰よりも速いことが確定した瞬間（残りの人を待たず）に即ターン終了させる
+    if (roundBusy) return;
+    var boss = players.filter(function(pl){ return pl.id === 1; })[0];
+    if (!boss || boss.reactionMs === null || boss.reactionMs === undefined || boss.reactionMs === Infinity) return;
+    var elapsed = performance.now() - signalTime;
+    if (elapsed <= boss.reactionMs) return; // まだボスの反応時間に全員が追いつける余地がある
+    var party = players.filter(function(pl){ return pl.id !== 1 && !pl.eliminated; });
+    if (party.length === 0) return;
+    var anyBeat = party.some(function(pl){
+      return pl.reactionMs !== null && pl.reactionMs !== undefined && pl.reactionMs < boss.reactionMs;
+    });
+    if (anyBeat) return; // 既に誰かがボスより速い ⇒ 通常の決着待ちに任せる
+    resolveBossRound(); // 残り全員は今後どうタップしてもボスより遅くなることが確定
+  }
+
+  function resolveBossRound(){
+    if (roundBusy) return;
+    roundBusy = true;
+    clearTimeout(signalTimeout);
+    clearTimeout(bossRoundDeadline);
+    clearTimeout(noTapTimeout);
+    stopTicking();
+    stopLiveTimer();
+    state = 'result';
+
+    var boss = players.filter(function(pl){ return pl.id === 1; })[0];
+    var bossTime = (boss.reactionMs === null || boss.reactionMs === undefined) ? Infinity : boss.reactionMs;
+    var party = players.filter(function(pl){ return pl.id !== 1 && !pl.eliminated; });
+    var newlyDefeated = [];
+
+    var results = party.map(function(pl){
+      var t = (pl.reactionMs === null || pl.reactionMs === undefined) ? Infinity : pl.reactionMs;
+      return { pl: pl, t: t, hit: t < bossTime };
+    });
+
+    var allHit = party.length > 0 && results.every(function(r){ return r.hit; });
+    var allMiss = party.length > 0 && bossTime !== Infinity && results.every(function(r){ return !r.hit; });
+
+    var bossZone = zoneEl(1);
+    results.forEach(function(r){
+      zoneEl(r.pl.id).classList.remove('go','flash','tapped','armed','foul','winner');
+    });
+    bossZone.classList.remove('go','flash','tapped','armed');
+
+    if (allHit){
+      // パーティー全員がボスより速い：光の合体攻撃で一斉ダメージ
+      results.forEach(function(r){
+        zoneEl(r.pl.id).classList.add('winner');
+        setStatus(r.pl.id, 'ヒット!', (r.t === Infinity ? '' : (r.t + ' ms')));
+      });
+      boss.hp = Math.max(0, boss.hp - party.length);
+      setStatus(1, randomBossHitLine(), '会心の一撃！');
+      spawnBigEffect('party');
+      playPartyTurnBurst();
+    } else if (allMiss){
+      // ボスが全員より速い：魔王の魔法攻撃で全体ダメージ
+      results.forEach(function(r){
+        var pl = r.pl;
+        pl.hp = Math.max(0, (pl.hp == null ? PARTY_HP_MAX : pl.hp) - 1);
+        zoneEl(pl.id).classList.add('foul');
+        setStatus(pl.id, randomPartyHitLine(), 'HP-1');
+        if (pl.hp <= 0){ pl.eliminated = true; newlyDefeated.push(pl); }
+      });
+      setStatus(1, '会心の一撃！', bossTime + ' ms');
+      spawnBigEffect('boss');
+      playBossTurnMagic();
+    } else {
+      // 勝敗が割れた場合：これまで通り個別判定
+      var bossHit = false;
+      results.forEach(function(r){
+        var pl = r.pl;
+        var zp = zoneEl(pl.id);
+        if (r.hit){
+          boss.hp = Math.max(0, boss.hp - 1);
+          bossHit = true;
+          zp.classList.add('winner');
+          setStatus(pl.id, 'ヒット!', (r.t === Infinity ? '' : (r.t + ' ms')));
+        } else {
+          pl.hp = Math.max(0, (pl.hp == null ? PARTY_HP_MAX : pl.hp) - 1);
+          zp.classList.add('foul');
+          setStatus(pl.id, randomPartyHitLine(), 'HP-1');
+          if (pl.hp <= 0){ pl.eliminated = true; newlyDefeated.push(pl); }
+        }
+      });
+      if (bossHit){
+        setStatus(1, randomBossHitLine(), bossTime === Infinity ? '不覚…' : 'ダメージ！');
+        playExplosion();
+      } else if (bossTime === Infinity){
+        setStatus(1, '隙あり…', '反応なし');
+      } else {
+        setStatus(1, '防御！', bossTime + ' ms');
+      }
+    }
+
+    renderScores();
+    vibrate(30);
+
+    newlyDefeated.forEach(function(pl){
+      setTimeout(function(){ renderGrave(pl.id); }, 900);
+    });
+
+    if (boss.hp <= 0){
+      spawnBigEffect('party');
+      playPartyVictoryFanfare();
+      setTimeout(function(){
+        showChampion(null, 'ボスを倒した！パーティーの勝利！', 'パーティーの勝利！');
+      }, 1700);
+      return;
+    }
+    var aliveParty = players.filter(function(pl){ return pl.id !== 1 && !pl.eliminated; });
+    if (aliveParty.length === 0){
+      spawnBigEffect('boss');
+      playBossVictoryTheme();
+      setTimeout(function(){
+        showChampion(boss, 'パーティーは全滅した…ボスの勝利！', boss.name + '大魔王の勝利！');
+      }, 1700);
+      return;
+    }
+    setTimeout(function(){ if (state !== 'champion') nextRound(); }, 2000);
+  }
+
+  function showChampion(forcedChamp, reason, customTitle){
+    state = 'champion';
+    var champ = forcedChamp || players.slice().sort(function(a,b){ return b.score-a.score; })[0];
+    var title = customTitle || (champ ? champ.name : '');
+    var lead = reason ? reason : ('スコア '+ (champ ? champ.score : 0) +' 本先取！お見事。');
+    el.overlay.innerHTML =
+      '<div class="title" id="champTitle">'+title+'<small>優勝</small></div>' +
+      '<p class="lead">'+lead+'</p>' +
+      '<button class="btn" id="restartBtn">もう一度対戦する</button>';
+    showOverlay(true);
+    document.getElementById('restartBtn').addEventListener('pointerdown', function(e){
+      e.preventDefault();
+      buildIdleOverlay();
+      showOverlay(true);
+    });
+  }
+
+  function buildIdleOverlay(){
+    var lead = MODE === 'boss'
+      ? '1Pが固定でボス（HP'+BOSS_HP_MAX+'）、2P以降がパーティー（各HP'+PARTY_HP_MAX+'）。<br>合図の後、ボスより早く押すとボスにダメージ、ボスより遅いと自分がダメージを受けます。'
+      : '合図が出るまで待って、出た瞬間に自分のエリアを一番早くタップした人の勝ち。<br>フライング2回でそのエリアはお墓になり、以降は見学だけになります。<br>次の画面でキャラも選べます。';
+    var targetRow = MODE === 'boss'
+      ? '<p class="hint">ボスHP '+BOSS_HP_MAX+' ／ パーティー各HP '+PARTY_HP_MAX+'</p>'
+      : ('<div class="row"><div class="stepper"><span>勝ち抜き本数</span>' +
+         '<button id="decTarget">−</button><span id="targetVal">'+TARGET+'</span><button id="incTarget">+</button></div></div>');
+    el.overlay.innerHTML =
+      '<div class="title">ぶっとばす！<small>3〜5人 リアクション対決</small></div>' +
+      '<p class="lead">'+lead+'</p>' +
+      '<div class="row"><div class="mode-toggle">' +
+        '<button class="mode-btn'+(MODE==='ffa'?' active':'')+'" id="modeFFA">通常対戦</button>' +
+        '<button class="mode-btn'+(MODE==='boss'?' active':'')+'" id="modeBoss">ボス戦</button>' +
+      '</div></div>' +
+      '<div class="row"><div class="stepper"><span>参加人数</span>' +
+      '<button id="decPlayers">−</button><span id="playersVal">'+PLAYER_COUNT+'</span><button id="incPlayers">+</button></div></div>' +
+      targetRow +
+      '<button class="btn" id="startBtn">キャラを選ぶ →</button>' +
+      '<p class="hint" id="overlayHint"></p>' +
+      '<a href="../index.html" class="btn ghost">← ゲームせんたくにもどる</a>';
+    updateOverlayHint();
+    bindOverlayControls();
+    adjustPlayersArray();
+    buildBoard();
+    renderNames();
+    renderScores();
+  }
+
+  function updateOverlayHint(){
+    var hint = document.getElementById('overlayHint');
+    if (!hint) return;
+    hint.textContent = 'タブレットを' + PLAYER_COUNT + '人でぐるっと囲んで座ってください。上・左右の人の画面は自分から見て正しい向きに自動で回転しています。';
+  }
+
+  function bindOverlayControls(){
+    document.getElementById('modeFFA').addEventListener('pointerdown', function(e){
+      e.preventDefault();
+      if (MODE !== 'ffa'){ MODE = 'ffa'; buildIdleOverlay(); }
+    });
+    document.getElementById('modeBoss').addEventListener('pointerdown', function(e){
+      e.preventDefault();
+      if (MODE !== 'boss'){ MODE = 'boss'; buildIdleOverlay(); }
+    });
+    document.getElementById('decPlayers').addEventListener('pointerdown', function(e){
+      e.preventDefault();
+      PLAYER_COUNT = Math.max(3, PLAYER_COUNT-1);
+      document.getElementById('playersVal').textContent = PLAYER_COUNT;
+      updateOverlayHint();
+      adjustPlayersArray();
+      buildBoard();
+      renderNames();
+      renderScores();
+    });
+    document.getElementById('incPlayers').addEventListener('pointerdown', function(e){
+      e.preventDefault();
+      PLAYER_COUNT = Math.min(5, PLAYER_COUNT+1);
+      document.getElementById('playersVal').textContent = PLAYER_COUNT;
+      updateOverlayHint();
+      adjustPlayersArray();
+      buildBoard();
+      renderNames();
+      renderScores();
+    });
+    var decTarget = document.getElementById('decTarget');
+    var incTarget = document.getElementById('incTarget');
+    if (decTarget){
+      decTarget.addEventListener('pointerdown', function(e){
+        e.preventDefault(); TARGET = Math.max(3, TARGET-1); document.getElementById('targetVal').textContent = TARGET; renderScores();
+      });
+    }
+    if (incTarget){
+      incTarget.addEventListener('pointerdown', function(e){
+        e.preventDefault(); TARGET = Math.min(10, TARGET+1); document.getElementById('targetVal').textContent = TARGET; renderScores();
+      });
+    }
+    document.getElementById('startBtn').addEventListener('pointerdown', function(e){
+      e.preventDefault(); goToSelect();
+    });
+  }
+
+  document.getElementById('fightBtn').addEventListener('pointerdown', function(e){
+    e.preventDefault();
+    e.stopPropagation();
+    startMatch();
+  });
+
+  buildIdleOverlay();
+  showOverlay(true);
+})();
+</script>
+</body>
+</html>
