@@ -99,7 +99,7 @@
   @keyframes shake{0%,100%{transform:translateX(0);}25%{transform:translateX(-3px);}75%{transform:translateX(3px);}}
 
   /* ===== サイドパネル ===== */
-  .zone-side{width:100px;display:flex;flex-direction:column;gap:5px;flex-shrink:0;}
+  .zone-side{width:120px;display:flex;flex-direction:column;gap:5px;flex-shrink:0;}
   .zone-readout{
     height:36px;border-radius:var(--radius);
     display:flex;align-items:center;justify-content:center;
@@ -112,9 +112,10 @@
   .zone-pad{flex:1;display:grid;grid-template-columns:repeat(3,1fr);gap:4px;align-content:stretch;}
   .zone-pad button{
     border:none;border-radius:8px;font-family:inherit;font-weight:800;
-    font-size:clamp(13px,2.5vh,22px);cursor:pointer;min-height:0;
+    font-size:clamp(14px,2.8vh,24px);cursor:pointer;min-height:0;
     color:#fff;box-shadow:0 3px 0 rgba(0,0,0,.3);
   }
+  .zone-pad .pad-del{grid-column:span 2;}
   .zone-pad button:active{transform:translateY(2px);box-shadow:0 1px 0 rgba(0,0,0,.3);}
   .zone[data-p="0"] .zone-pad button{background:#553018;border:1.5px solid rgba(255,138,61,.3);}
   .zone[data-p="0"] .zone-pad button.fn{background:var(--c0);}
@@ -512,7 +513,6 @@
   // ===== 入力 =====
   function press(p, key) {
     if (!running||p.sel<0) return;
-    if (key==='C'){ p.input=''; renderIO(p); return; }
     if (key==='⌫'){ p.input=p.input.slice(0,-1); renderIO(p); return; }
     p.input += key;
     const cell = p.cells[p.sel];
@@ -546,11 +546,13 @@
     pad.innerHTML='';
     let digits=['7','8','9','4','5','6','1','2','3','0'];
     if (randomize) digits=shuffle(digits.slice());
-    const keys=[...digits.slice(0,9),'C',digits[9],'⌫'];
-    keys.forEach(k=>{
+    // 7 8 9 / 4 5 6 / 1 2 3 / [⌫ span2] 0
+    const top9 = digits.slice(0,9);
+    const zero = digits[9];
+    [...top9, '⌫', zero].forEach(k=>{
       const b=document.createElement('button');
       b.textContent=k;
-      if(k==='C'||k==='⌫') b.classList.add('fn');
+      if(k==='⌫'){ b.classList.add('fn','pad-del'); }
       b.addEventListener('pointerdown',e=>{ e.preventDefault(); press(p,k); });
       pad.appendChild(b);
     });
