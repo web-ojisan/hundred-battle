@@ -206,7 +206,7 @@
 <!-- 設定 -->
 <div class="overlay" id="setupOverlay">
   <div class="panel">
-    <h1>友だち100マスバトル<small>みんなで同時にスタート！</small></h1>
+    <h1>友だち49マスバトル<small>7×7マス みんなで同時にスタート！</small></h1>
 
     <div class="optGroup">
       <div class="label">👥 人数</div>
@@ -217,14 +217,6 @@
       </div>
     </div>
 
-    <div class="optGroup">
-      <div class="label">🔲 マス数（全員同じ）</div>
-      <div class="optRow" data-set="rows">
-        <button class="opt" data-v="3">30マス<small>はじめて</small></button>
-        <button class="opt on" data-v="5">50マス<small>ちょうどいい</small></button>
-        <button class="opt" data-v="10">100マス<small>ガチ</small></button>
-      </div>
-    </div>
 
     <div class="optGroup">
       <div class="label">➕ 計算（全員同じ）</div>
@@ -301,7 +293,8 @@
 <script>
 (() => {
   // ===== 設定 =====
-  const cfg = { playerCount:4, rows:5, op:'+', timeLimit:180, bgm:'race', random:false, attack:false };
+  const GRID = 7; // 7×7固定
+  const cfg = { playerCount:4, op:'+', timeLimit:180, bgm:'race', random:false, attack:false };
 
   const PLAYER_CFG = [
     { name:'P1', color:'var(--c0)', half:'bottom' },
@@ -400,7 +393,7 @@
   function makePlayer(idx) {
     return {
       idx, ...PLAYER_CFG[idx],
-      rows: cfg.rows, cols: 10, op: cfg.op,
+      rows: GRID, cols: GRID, op: cfg.op,
       rowH:[], colH:[], cells:[],
       sel:-1, forced:-1,
       input:'', score:0, miss:0, charges:0,
@@ -462,7 +455,7 @@
   // ===== グリッド =====
   function buildGrid(p) {
     p.rowH = shuffle([...Array(10).keys()].map(n=>n+1)).slice(0, p.rows);
-    p.colH = shuffle([...Array(10).keys()].map(n=>n+1));
+    p.colH = shuffle([...Array(10).keys()].map(n=>n+1)).slice(0, p.cols);
     p.cells=[]; p.sel=-1; p.forced=-1; p.input=''; p.score=0; p.miss=0; p.charges=0;
     const g = p.gridEl;
     g.innerHTML = '';
@@ -616,7 +609,7 @@
 
     const opName = cfg.op==='+' ? 'たし算' : 'かけ算';
     players.forEach(p=>{
-      document.getElementById('tag-'+p.idx).textContent=`${p.name}・${opName}${cfg.rows*10}マス`;
+      document.getElementById('tag-'+p.idx).textContent=`${p.name}・${opName}7×7`;
       buildGrid(p);
       buildPad(p, false);
       updateAttackBtn(p);
