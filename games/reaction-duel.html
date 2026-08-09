@@ -669,6 +669,9 @@
   function randomWinLine() { return WIN_LINES[Math.floor(Math.random()*WIN_LINES.length)]; }
   function randomLoseLine(){ return LOSE_LINES[Math.floor(Math.random()*LOSE_LINES.length)]; }
 
+  var FOUL_WATCH_LINES = ['ふふふ、ばかめ', 'あわてんぽさん🎵', 'しめしめ…', '早まったな…', 'ざまあ！', 'もらった！'];
+  function randomFoulWatchLine(){ return FOUL_WATCH_LINES[Math.floor(Math.random()*FOUL_WATCH_LINES.length)]; }
+
   var BOSS_OPENING_LINES = ['大魔王が弱っている、、！', '苦しいのは奴も同じ、、！'];
   function randomBossOpeningLine(){
     return BOSS_OPENING_LINES[Math.floor(Math.random() * BOSS_OPENING_LINES.length)];
@@ -1701,7 +1704,7 @@
           setStatus(pp, '自爆!', '');
           setCharImg(pp, 'dim');
         } else {
-          setStatus(pp, 'おあずけ', '');
+          setStatus(pp, randomFoulWatchLine(), '');
         }
       });
       beep(140, 0.25, 'sawtooth', 0.08);
