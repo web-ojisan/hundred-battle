@@ -1034,7 +1034,8 @@
   var WIN_SOUNDS = [
     function(){ playSfxBuffer(sfxBuffers.sword); },
     function(){ playSfxBuffer(sfxBuffers.magic); },
-    function(){ playSfxBuffer(sfxBuffers.fire);  }
+    function(){ playSfxBuffer(sfxBuffers.fire);  },
+    function(){ playSfxBuffer(sfxBuffers.sword); }  // 戦士は剣士と同じ剣SFX
   ];
 
   /* ========================= BGM ========================= */
@@ -1188,9 +1189,10 @@
   };
 
   var CHARACTERS = [
-    {name:'剣士',   sub:'剣',       img:'img/fighter.png', imgAtk:'img/fighter_atack.png'},
-    {name:'魔法使い',sub:'杖で魔法', img:'img/magic.png',   imgAtk:'img/magic_atack.png'},
-    {name:'魔物',   sub:'怪力',     img:'img/dragon.png',  imgAtk:'img/dragon_atack.png'}
+    {name:'剣士',   sub:'剣',       img:'img/fighter.png',  imgAtk:'img/fighter_atack.png'},
+    {name:'魔法使い',sub:'杖で魔法', img:'img/magic.png',    imgAtk:'img/magic_atack.png'},
+    {name:'魔物',   sub:'怪力',     img:'img/dragon.png',   imgAtk:'img/dragon_atack.png'},
+    {name:'戦士',   sub:'大剣',     img:'img/warrior.png',  imgAtk:'img/warrior_atack.png'}
   ];
 
   var NAME_POOL = [
