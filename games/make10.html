@@ -278,6 +278,19 @@
   .opt-chip.active{ background:var(--gold); border-color:var(--gold-deep); color:var(--gold-text); }
   .opt-chip:focus-visible{ outline:2px solid var(--gold); outline-offset:2px; }
 
+  .start-btn{
+    display:block; margin:22px auto 0; width:min(240px,80%);
+    background:linear-gradient(160deg,#FFE580,var(--gold)); border:3px solid var(--gold-deep);
+    color:var(--gold-text); box-shadow:0 4px 0 #b35a1c;
+    font-family:'M PLUS Rounded 1c',sans-serif; font-weight:900; font-size:1.2rem;
+    padding:16px 24px; border-radius:16px; cursor:pointer;
+    transition:transform .15s ease, box-shadow .15s ease;
+    letter-spacing:.04em;
+  }
+  .start-btn:hover{ transform:translateY(-3px); }
+  .start-btn:active{ transform:translateY(2px); box-shadow:0 1px 0 #b35a1c; }
+  .start-btn:focus-visible{ outline:3px solid var(--gold); outline-offset:3px; }
+
   .switch-mode-link{
     display:block; margin:14px auto 0; background:none; border:none;
     color:var(--ink-soft); font-family:'M PLUS Rounded 1c', sans-serif;
@@ -333,17 +346,6 @@
     <!-- MODE SELECT -->
     <div class="mode-select" id="modeSelect">
       <h1 class="game-title">Make 10! Speed Link</h1>
-      <p class="mode-select-sub">どっちで あそぶ？</p>
-      <div class="mode-buttons">
-        <button class="mode-btn mode-btn-10" data-target="10" type="button">
-          <span class="mode-btn-num">10</span>
-          <span class="mode-btn-label">10をつくる</span>
-        </button>
-        <button class="mode-btn mode-btn-20" data-target="20" type="button">
-          <span class="mode-btn-num">20</span>
-          <span class="mode-btn-label">20をつくる</span>
-        </button>
-      </div>
       <div class="opt-section">
         <div class="opt-row-wrap">
           <span class="opt-label">なんもん？</span>
@@ -370,6 +372,7 @@
           </div>
         </div>
       </div>
+      <button class="start-btn" id="startBtn" type="button">ゲームを始める！</button>
       <a href="../index.html" class="back-link">← ゲームせんたくにもどる</a>
     </div>
 
@@ -884,6 +887,7 @@
   wireOptRow('cfgBgm','bgm',false);
 
   // ---------- event handlers ----------
+  document.getElementById('startBtn').addEventListener('click',()=>startGame(10));
   document.querySelectorAll('.mode-btn[data-target]').forEach(btn=>{
     btn.addEventListener('click',()=>startGame(Number(btn.dataset.target)));
   });
