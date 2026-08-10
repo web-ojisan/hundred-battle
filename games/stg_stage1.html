@@ -172,7 +172,7 @@ document.addEventListener('gestureend', e => e.preventDefault());
   const BOSS_SHOT_SPEED = 1.5;
   const BOSS_EXPLODE_FRAMES = 90;
   const PRESALVO_WARN = 45;    // 発射N フレーム前に警告アラートを出す
-  const RAGE_DIST = 30;        // 合体バリア判定距離 (px)
+  const RAGE_DIST = 100;       // 合体バリア判定距離 (px)
   const RAGE_DURATION = 210;   // rage継続フレーム
   const RAGE_FIRE_INTERVAL = 18;
 
@@ -554,6 +554,13 @@ document.addEventListener('gestureend', e => e.preventDefault());
 
   function triggerLaunch(t){
     if (t.state !== 'idle') return;
+    // チュートリアル rage 中は強制的に中央へ向かう角度にオーバーライド
+    if (bossRageActive){
+      const center = arenaCenter();
+      const dx = center.x - t.home.x;
+      const dy = center.y - t.home.y;
+      t.angle = Math.atan2(dx, -dy) * 180 / Math.PI;
+    }
     t.outSpeed = SPEED + t.charge * 6;
     t.charge = 0;
     t.charging = false;
