@@ -1,0 +1,1210 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<title>3色STG ステージ1</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    width: 100%; height: 100%; overflow: hidden;
+    background: #06060c;
+    touch-action: none;
+    overscroll-behavior: none;
+    font-family: -apple-system, "Hiragino Kaku Gothic ProN", sans-serif;
+  }
+  #game { display: block; width: 100vw; height: 100vh; background: #06060c; }
+  #hud {
+    position: fixed; top: 0; left: 0; width: 100%;
+    padding: 10px 14px;
+    display: flex; justify-content: space-between; align-items: flex-start;
+    pointer-events: none;
+    font-size: 12px; color: rgba(255,255,255,0.75);
+    z-index: 10;
+    letter-spacing: 1px;
+  }
+  #fusionCount { font-size: 13px; font-weight: bold; color: #fff; }
+  #msg {
+    position: fixed; bottom: 14px; left: 0; width: 100%;
+    text-align: center; color: rgba(255,255,255,0.65); font-size: 12px;
+    pointer-events: none; z-index: 10; line-height: 1.7;
+    padding: 0 12px;
+  }
+  #rotateOverlay {
+    display: none;
+    position: fixed; inset: 0; z-index: 9999;
+    background: #06060c;
+    flex-direction: column; align-items: center; justify-content: center; gap: 18px;
+    color: #fff; font-size: 18px; text-align: center; line-height: 1.6;
+  }
+  #rotateOverlay .icon { font-size: 52px; animation: spin 1.4s ease-in-out infinite alternate; }
+  @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(-90deg); } }
+  @media (orientation: landscape) and (pointer: coarse) { #rotateOverlay { display: flex; } }
+</style>
+</head>
+<body>
+
+<div id="rotateOverlay">
+  <div class="icon">📱</div>
+  <div>タブレットを<strong>縦向き</strong>にしてください</div>
+</div>
+
+<div id="hud">
+  <div>🔴LEFT / 🔵RIGHT / 🟢CENTER</div>
+  <div id="fusionCount">FUSION: 0</div>
+</div>
+<div id="msg">ステージ1 — チュートリアル</div>
+<canvas id="game"></canvas>
+
+<script>
+if (screen.orientation && screen.orientation.lock) {
+  screen.orientation.lock('portrait').catch(() => {});
+}
+document.addEventListener('touchstart', e => e.preventDefault(), { passive: false });
+document.addEventListener('touchmove',  e => e.preventDefault(), { passive: false });
+document.addEventListener('touchend',   e => e.preventDefault(), { passive: false });
+document.addEventListener('contextmenu', e => e.preventDefault());
+document.addEventListener('gesturestart', e => e.preventDefault());
+document.addEventListener('gesturechange', e => e.preventDefault());
+document.addEventListener('gestureend', e => e.preventDefault());
+
+(function(){
+  const canvas = document.getElementById('game');
+  const ctx = canvas.getContext('2d');
+  let W, H;
+  function resize(){
+    W = window.innerWidth;
+    H = window.innerHeight;
+    canvas.width = W * devicePixelRatio;
+    canvas.height = H * devicePixelRatio;
+    canvas.style.width = W + 'px';
+    canvas.style.height = H + 'px';
+    ctx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0);
+    layoutTurrets();
+    layoutBoss();
+  }
+
+  const COLORS = {
+    red:   { hex: '#ff4d5e', glow: 'rgba(255,77,94,0.6)' },
+    blue:  { hex: '#4da3ff', glow: 'rgba(77,163,255,0.6)' },
+    green: { hex: '#4dff88', glow: 'rgba(77,255,136,0.6)' }
+  };
+
+  const turrets = {
+    left:   { color: 'red',   angleMin: -10, angleMax: 60,  angle: 30,  shape: '✊' },
+    right:  { color: 'blue',  angleMin: -60, angleMax: 10,  angle: -30, shape: '✋' },
+    center: { color: 'green', angleMin: -60, angleMax: 60,  angle: 0,   shape: '✌️' }
+  };
+
+  function layoutTurrets(){
+    turrets.left.home   = { x: W*0.12, y: H*0.74 };
+    turrets.right.home  = { x: W*0.88, y: H*0.74 };
+    turrets.center.home = { x: W*0.50, y: H*0.78 };
+    turrets.left.pad    = { x: W*0.12, y: H*0.90, r: 58 };
+    turrets.right.pad   = { x: W*0.88, y: H*0.90, r: 58 };
+    turrets.center.pad  = { x: W*0.50, y: H*0.95, r: 58 };
+    for (const key in turrets){
+      const t = turrets[key];
+      if (!t.state){
+        t.state = 'idle';
+        t.charge = 0;
+        t.charging = false;
+        t.activePointerId = null;
+        t.downPos = null;
+        t.dragStarted = false;
+        t.lastTapTime = 0;
+        t.pos = { x: t.home.x, y: t.home.y };
+        t.hp = 5;
+        t.maxHp = 5;
+        t.hitFlash = 0;
+        t.fireCooldown = 0;
+      } else if (t.state === 'idle'){
+        t.pos = { x: t.home.x, y: t.home.y };
+      }
+    }
+  }
+  window.addEventListener('resize', resize);
+
+  const TURRET_R = 18;
+  const SHIP_R = 15;
+  const SPEED = 7.2;
+  const FUSION_DIST = 34;
+  const TAP_MOVE_THRESHOLD = 9;
+  const DOUBLE_TAP_MS = 380;
+  const CHARGE_TIME_FRAMES = 255;
+  const BULLET_R = 9;
+  const HOME_HIT_R = TURRET_R + BULLET_R;
+  const SHIP_INTERCEPT_R = SHIP_R + BULLET_R + 2;
+  const EXPLODE_FRAMES = 100;
+  const PLAYER_BULLET_R = 4;
+  const PLAYER_BULLET_SPEED = 9;
+  const PLAYER_FIRE_COOLDOWN = 8;
+  // グー(red) > チョキ(green) > パー(blue) > グー(red)
+  const BEATS = { red: 'green', green: 'blue', blue: 'red' };
+  const ALERT_FRAMES = 120;
+
+  // ---- Stage 1 定数 ----
+  const colorKeys = ['red','blue','green'];
+  const STAGE1_MOB_COLOR = colorKeys[Math.floor(Math.random()*3)];
+
+  // ボス弾幕フェーズ: 各砲台に向けて発射する弾の色
+  //   あいこ: 砲台と同色 → 砲台に当たっても吸収（無害）
+  //   負け:   砲台色に勝つ色 → プレイヤー弾が負ける → 仲間が助ける
+  //   勝ち:   砲台色に負ける色 → プレイヤー弾が勝てる → 貫通攻撃可
+  const PHASE_BULLET = {
+    aiko:  { left: 'red',   center: 'green', right: 'blue'  },
+    make:  { left: 'blue',  center: 'red',   right: 'green' },
+    kachi: { left: 'green', center: 'blue',  right: 'red'   }
+  };
+  const PHASE_BOSS_COLOR = { aiko: 'red', make: 'green', kachi: 'blue' };
+  const PHASE_LABEL_TEXT = { aiko: 'あいこ', make: '負け', kachi: '勝ち！' };
+  const PHASE_MSGS = {
+    aiko:  '【あいこ】ボスが各砲台の同色弾を発射 — 砲台に当たっても安全！同色弾で打ち消せる',
+    make:  '【負け】自分の弾が負ける色が来る！仲間の色で仲間のレーンを守ろう（フォーメーション）',
+    kachi: '【勝ち】自分の弾が勝てる色が来る！そのまま打ち返してボスへ貫通攻撃！'
+  };
+
+  const BOSS_MAX_HP = 60;
+  const BOSS_SALVO_INTERVAL = 130;
+  const FORMATION_SHOT_DELAY = 15;
+  const BOSS_SHOT_SPEED = 1.5;
+  const BOSS_EXPLODE_FRAMES = 90;
+  const PRESALVO_WARN = 45;    // 発射N フレーム前に警告アラートを出す
+  const RAGE_DIST = 30;        // 合体バリア判定距離 (px)
+  const RAGE_DURATION = 210;   // rage継続フレーム
+  const RAGE_FIRE_INTERVAL = 18;
+
+  let bossPhase = 'aiko';
+  let bossSalvoTimer = 80;
+  let bossSalvoQueue = [];
+  let salvoAlerted = false;
+  let centerAlerts = [];       // { text, glow, life, maxLife, size }
+  let bossRageActive = false;
+  let bossRageTimer = 0;
+  let bossRageFireTimer = 0;
+
+  let fusionCount = 0;
+  let particles = [];
+  let shockwaves = [];
+  let enemyBullets = [];
+  let playerBullets = [];
+  let enemies = [];
+  let alerts = [];
+  let enemySpawnTimer = 0;
+  let elapsed = 0;
+
+  const ENEMY_SIZES = {
+    small:  { r: 10, speedMult: 0.675, hp: 2 },
+    medium: { r: 14, speedMult: 0.5,   hp: 4 },
+    large:  { r: 20, speedMult: 0.3,   hp: 7 }
+  };
+
+  let boss = null;
+
+  function layoutBoss(){
+    const x = W*0.5, y = H*0.15;
+    if (!boss){
+      boss = {
+        x, y, r: 32,
+        hp: BOSS_MAX_HP, maxHp: BOSS_MAX_HP,
+        color: PHASE_BOSS_COLOR.aiko,
+        state: 'active',
+        pattern: 'aiko',
+        hitFlash: 0,
+        explodeTimer: 0
+      };
+    } else {
+      boss.x = x; boss.y = y;
+    }
+  }
+
+  function arenaCenter(){
+    return { x: W*0.5, y: H*0.62 };
+  }
+
+  function burst(x, y, hex, n){
+    for (let i=0;i<n;i++){
+      const a = Math.random()*Math.PI*2;
+      const sp = 1.5 + Math.random()*4;
+      particles.push({ x, y, vx: Math.cos(a)*sp, vy: Math.sin(a)*sp, life: 30, maxLife: 30, hex });
+    }
+  }
+  function addShockwave(x, y, hex){
+    shockwaves.push({ x, y, r: 6, maxR: 90, life: 26, maxLife: 26, hex });
+  }
+
+  function triggerExplosion(t){
+    t.state = 'destroyed';
+    t.explodeTimer = EXPLODE_FRAMES;
+    t.pos = { x: t.home.x, y: t.home.y };
+    addShockwave(t.home.x, t.home.y, '#ffffff');
+    addShockwave(t.home.x, t.home.y, COLORS[t.color].hex);
+    burst(t.home.x, t.home.y, COLORS[t.color].hex, 26);
+    burst(t.home.x, t.home.y, '#ffffff', 18);
+  }
+
+  function updatePhaseMsg(){
+    document.getElementById('msg').textContent = PHASE_MSGS[bossPhase];
+  }
+
+  // ---- 中央アラート ----
+  function addCenterAlert(text, glow, life, size){
+    centerAlerts.push({ text, glow: glow || '#ffffff', life, maxLife: life, size: size || 40 });
+  }
+
+  function drawCenterAlerts(){
+    const cx = W * 0.5, cy = H * 0.44;
+    centerAlerts.forEach(a => {
+      a.life--;
+      const t = a.life / a.maxLife;
+      let alpha = t > 0.88 ? (1 - t) / 0.12 : t < 0.18 ? t / 0.18 : 1;
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      ctx.font = `bold ${a.size}px sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.shadowColor = a.glow;
+      ctx.shadowBlur = 32;
+      ctx.fillStyle = '#ffffff';
+      ctx.fillText(a.text, cx, cy);
+      ctx.restore();
+    });
+    centerAlerts = centerAlerts.filter(a => a.life > 0);
+  }
+
+  // ---- ラストスパート（rage） ----
+  function triggerBossRage(){
+    boss.state = 'rage';
+    bossRageActive = true;
+    bossRageTimer = RAGE_DURATION;
+    bossRageFireTimer = 0;
+    bossSalvoQueue = [];
+    addCenterAlert('合体バリアだ！', '#ffffff', 160, 42);
+    addShockwave(boss.x, boss.y, '#ffffff');
+    colorKeys.forEach(c => {
+      addShockwave(boss.x, boss.y, COLORS[c].hex);
+      burst(boss.x, boss.y, COLORS[c].hex, 12);
+    });
+    burst(boss.x, boss.y, '#ffffff', 24);
+  }
+
+  function fireRageBullets(){
+    const count = 8;
+    const speed = 1.8;
+    for (let i = 0; i < count; i++){
+      const ang = (Math.PI * 2 / count) * i + (Math.random() * 0.25);
+      enemyBullets.push({
+        x: boss.x, y: boss.y,
+        vx: Math.cos(ang) * speed,
+        vy: Math.sin(ang) * speed,
+        color: colorKeys[Math.floor(Math.random() * 3)]
+      });
+    }
+  }
+
+  function checkRageFusion(){
+    const outKeys = Object.keys(turrets).filter(k => turrets[k].state === 'outbound');
+    if (outKeys.length < 3) return;
+    const ships = outKeys.map(k => turrets[k]);
+    // 全ペアの距離が RAGE_DIST 未満なら合体バリア成立
+    for (let i = 0; i < ships.length; i++){
+      for (let j = i + 1; j < ships.length; j++){
+        if (Math.hypot(ships[i].pos.x - ships[j].pos.x, ships[i].pos.y - ships[j].pos.y) >= RAGE_DIST) return;
+      }
+    }
+    const cx = (ships[0].pos.x + ships[1].pos.x + ships[2].pos.x) / 3;
+    const cy = (ships[0].pos.y + ships[1].pos.y + ships[2].pos.y) / 3;
+    outKeys.forEach(k => {
+      const t = turrets[k];
+      t.state = 'idle'; t.charge = 0; t.pos = { x: t.home.x, y: t.home.y };
+    });
+    colorKeys.forEach(c => { addShockwave(cx, cy, COLORS[c].hex); burst(cx, cy, COLORS[c].hex, 22); });
+    addShockwave(cx, cy, '#ffffff');
+    burst(cx, cy, '#ffffff', 50);
+    fusionCount += 3;
+    document.getElementById('fusionCount').textContent = 'FUSION: ' + fusionCount;
+    addCenterAlert('トリプルフュージョン！', '#ffffff', 130, 34);
+    bossRageActive = false;
+    bossRageTimer = 0;
+    triggerBossExplosion();
+  }
+
+  function drawRageGuidance(){
+    if (!bossRageActive) return;
+    const center = arenaCenter();
+    const pulse = 0.5 + 0.4 * Math.sin(elapsed * 0.18);
+    ctx.save();
+    ctx.globalAlpha = pulse;
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 2.5;
+    for (const key in turrets){
+      const t = turrets[key];
+      if (t.state !== 'idle') continue;
+      const dx = center.x - t.home.x;
+      const dy = center.y - t.home.y;
+      const d = Math.hypot(dx, dy) || 1;
+      const ux = dx / d, uy = dy / d;
+      const sx = t.home.x + ux * (TURRET_R + 12);
+      const sy = t.home.y + uy * (TURRET_R + 12);
+      const ex = t.home.x + ux * (d - 48);
+      const ey = t.home.y + uy * (d - 48);
+      ctx.setLineDash([10, 10]);
+      ctx.dashOffset = -(elapsed * 2);
+      ctx.beginPath();
+      ctx.moveTo(sx, sy);
+      ctx.lineTo(ex, ey);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      const ang = Math.atan2(dy, dx);
+      ctx.beginPath();
+      ctx.moveTo(ex, ey);
+      ctx.lineTo(ex - Math.cos(ang - 0.45) * 14, ey - Math.sin(ang - 0.45) * 14);
+      ctx.moveTo(ex, ey);
+      ctx.lineTo(ex - Math.cos(ang + 0.45) * 14, ey - Math.sin(ang + 0.45) * 14);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  // ---- Stage 1 ボスフェーズ判定 ----
+  function getBossPhase(){
+    if (!boss || boss.hp > 40) return 'aiko';
+    if (boss.hp > 20) return 'make';
+    return 'kachi';
+  }
+
+  // 3機への照準弾幕をキューに積む
+  function scheduleFormationSalvo(){
+    const cols = PHASE_BULLET[bossPhase];
+    const order = [
+      { delay: 0,                         color: cols.left,   key: 'left'   },
+      { delay: FORMATION_SHOT_DELAY,      color: cols.center, key: 'center' },
+      { delay: FORMATION_SHOT_DELAY * 2,  color: cols.right,  key: 'right'  }
+    ];
+    order.forEach(e => {
+      bossSalvoQueue.push({ fireAt: elapsed + e.delay, color: e.color, targetKey: e.key });
+    });
+  }
+
+  function fireTargetedShot(color, targetKey){
+    const t = turrets[targetKey];
+    const dx = t.home.x - boss.x;
+    const dy = t.home.y - boss.y;
+    const d = Math.hypot(dx, dy) || 1;
+    enemyBullets.push({
+      x: boss.x, y: boss.y + boss.r,
+      vx: dx/d * BOSS_SHOT_SPEED,
+      vy: dy/d * BOSS_SHOT_SPEED,
+      color
+    });
+  }
+
+  function triggerBossExplosion(){
+    boss.state = 'destroyed';
+    boss.explodeTimer = BOSS_EXPLODE_FRAMES;
+    addShockwave(boss.x, boss.y, '#ffffff');
+    addShockwave(boss.x, boss.y, COLORS[boss.color].hex);
+    burst(boss.x, boss.y, COLORS[boss.color].hex, 34);
+    burst(boss.x, boss.y, '#ffffff', 22);
+  }
+
+  function updateBoss(){
+    if (!boss) return;
+    if (boss.hitFlash > 0) boss.hitFlash--;
+
+    if (boss.state === 'destroyed'){
+      boss.explodeTimer--;
+      if (boss.explodeTimer <= 0){
+        boss.hp = BOSS_MAX_HP;
+        boss.state = 'active';
+        bossPhase = 'aiko';
+        boss.color = PHASE_BOSS_COLOR.aiko;
+        boss.pattern = 'aiko';
+        bossSalvoTimer = 0;
+        bossSalvoQueue = [];
+        salvoAlerted = false;
+        bossRageActive = false;
+        addShockwave(boss.x, boss.y, COLORS[boss.color].hex);
+        burst(boss.x, boss.y, '#ffffff', 18);
+        updatePhaseMsg();
+      }
+      return;
+    }
+
+    if (boss.state === 'rage'){
+      boss.hitFlash = 2;  // rage中は常にフラッシュ
+      bossRageTimer--;
+      bossRageFireTimer++;
+      if (bossRageFireTimer >= RAGE_FIRE_INTERVAL){
+        bossRageFireTimer = 0;
+        fireRageBullets();
+      }
+      if (bossRageTimer <= 0){
+        // 時間切れ: 合体できなかった場合もボスは死ぬ
+        bossRageActive = false;
+        triggerBossExplosion();
+      }
+      return;
+    }
+
+    // フェーズ変化チェック（通常時のみ）
+    const newPhase = getBossPhase();
+    if (newPhase !== bossPhase){
+      bossPhase = newPhase;
+      boss.color = PHASE_BOSS_COLOR[bossPhase];
+      boss.pattern = bossPhase;
+      bossSalvoTimer = 0;
+      bossSalvoQueue = [];
+      salvoAlerted = false;
+      addShockwave(boss.x, boss.y, '#ffffff');
+      addShockwave(boss.x, boss.y, COLORS[boss.color].hex);
+      burst(boss.x, boss.y, COLORS[boss.color].hex, 28);
+      burst(boss.x, boss.y, '#ffffff', 16);
+      updatePhaseMsg();
+    }
+
+    // 弾幕サイクル
+    bossSalvoTimer++;
+
+    // 発射前警告アラート（1サイクルに1回）
+    if (!salvoAlerted && bossSalvoTimer >= BOSS_SALVO_INTERVAL - PRESALVO_WARN){
+      salvoAlerted = true;
+      const warnData = {
+        aiko:  { text: '打ち消せ！',   glow: COLORS[PHASE_BOSS_COLOR.aiko].hex  },
+        make:  { text: '仲間を守れ！',  glow: '#ff8800'                           },
+        kachi: { text: 'いまだ！',      glow: COLORS[PHASE_BOSS_COLOR.kachi].hex }
+      };
+      const w = warnData[bossPhase];
+      addCenterAlert(w.text, w.glow, PRESALVO_WARN + 30, 44);
+    }
+
+    if (bossSalvoTimer >= BOSS_SALVO_INTERVAL){
+      bossSalvoTimer = 0;
+      salvoAlerted = false;
+      scheduleFormationSalvo();
+    }
+
+    // キュー処理
+    bossSalvoQueue = bossSalvoQueue.filter(entry => {
+      if (elapsed >= entry.fireAt){
+        fireTargetedShot(entry.color, entry.targetKey);
+        return false;
+      }
+      return true;
+    });
+  }
+
+  // ---- Stage 1 雑魚スポーン: 1色・同時1体 ----
+  function updateEnemySpawning(){
+    const hasAlive = enemies.some(e => !e.dead);
+    const hasAlert = alerts.length > 0;
+
+    alerts.forEach(a => a.life--);
+    alerts.filter(a => a.life <= 0).forEach(a => {
+      enemies.push({
+        type: 'straight', color: a.color, size: 'small',
+        x: a.x, y: -24,
+        vy: 1.3, vx: 0,
+        r: ENEMY_SIZES.small.r,
+        hp: ENEMY_SIZES.small.hp, maxHp: ENEMY_SIZES.small.hp,
+        fireTimer: 70 + Math.floor(Math.random() * 40)
+      });
+    });
+    alerts = alerts.filter(a => a.life > 0);
+
+    if (hasAlive || hasAlert) return;
+
+    enemySpawnTimer++;
+    if (enemySpawnTimer > 120){
+      enemySpawnTimer = 0;
+      const margin = 60;
+      const x = margin + Math.random() * (W - margin * 2);
+      alerts.push({
+        x, color: STAGE1_MOB_COLOR, type: 'straight', size: 'small',
+        life: ALERT_FRAMES, maxLife: ALERT_FRAMES
+      });
+    }
+  }
+
+  // ---- Pointer handling ----
+  const PAD_CAPTURE_MARGIN = 40;
+
+  function nearestIdlePad(x, y){
+    let best = null, bestDist = Infinity;
+    for (const key in turrets){
+      const t = turrets[key];
+      if (t.state !== 'idle' || t.activePointerId !== null) continue;
+      const d = Math.hypot(t.pad.x - x, t.pad.y - y);
+      if (d <= t.pad.r + PAD_CAPTURE_MARGIN && d < bestDist){ bestDist = d; best = key; }
+    }
+    return best;
+  }
+
+  function angleFromPad(t, x, y){
+    const dx = x - t.pad.x;
+    const dy = y - t.pad.y;
+    let ang = Math.atan2(dx, -dy) * 180 / Math.PI;
+    return Math.max(t.angleMin, Math.min(t.angleMax, ang));
+  }
+
+  function triggerLaunch(t){
+    if (t.state !== 'idle') return;
+    t.outSpeed = SPEED + t.charge * 6;
+    t.charge = 0;
+    t.charging = false;
+    t.state = 'outbound';
+    t.pos = { x: t.home.x, y: t.home.y };
+  }
+
+  function findTurretByPointer(pointerId){
+    for (const key in turrets){
+      if (turrets[key].activePointerId === pointerId) return turrets[key];
+    }
+    return null;
+  }
+
+  canvas.addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    const key = nearestIdlePad(e.clientX, e.clientY);
+    if (!key) return;
+    const t = turrets[key];
+    t.activePointerId = e.pointerId;
+    t.downPos = { x: e.clientX, y: e.clientY };
+    t.dragStarted = false;
+  });
+
+  canvas.addEventListener('pointermove', (e) => {
+    const t = findTurretByPointer(e.pointerId);
+    if (!t) return;
+    const d = Math.hypot(e.clientX - t.downPos.x, e.clientY - t.downPos.y);
+    if (d > TAP_MOVE_THRESHOLD) t.dragStarted = true;
+    if (t.dragStarted){
+      t.angle = angleFromPad(t, e.clientX, e.clientY);
+      t.charging = false;
+      t.charge = 0;
+    }
+  });
+
+  function releasePointer(e){
+    const t = findTurretByPointer(e.pointerId);
+    if (!t) return;
+    const now = performance.now();
+    if (!t.dragStarted){
+      if (now - t.lastTapTime < DOUBLE_TAP_MS){
+        triggerLaunch(t);
+        t.lastTapTime = 0;
+      } else {
+        t.lastTapTime = now;
+      }
+    } else {
+      t.charging = true;
+      t.lastTapTime = 0;
+    }
+    t.activePointerId = null;
+    t.downPos = null;
+    t.dragStarted = false;
+  }
+  canvas.addEventListener('pointerup', releasePointer);
+  canvas.addEventListener('pointercancel', releasePointer);
+
+  // ---- Drawing helpers ----
+  function dirFromAngle(angleDeg){
+    const r = angleDeg * Math.PI/180;
+    return { x: Math.sin(r), y: -Math.cos(r) };
+  }
+
+  function drawArcGuide(t){
+    const c = COLORS[t.color];
+    ctx.save();
+    ctx.strokeStyle = c.hex;
+    ctx.globalAlpha = 0.16;
+    ctx.lineWidth = 2;
+    [t.angleMin, t.angleMax].forEach(a => {
+      const d = dirFromAngle(a);
+      ctx.beginPath();
+      ctx.moveTo(t.home.x, t.home.y);
+      ctx.lineTo(t.home.x + d.x*130, t.home.y + d.y*130);
+      ctx.stroke();
+    });
+    ctx.restore();
+  }
+
+  function drawAimLine(t){
+    const c = COLORS[t.color];
+    const d = dirFromAngle(t.angle);
+    ctx.save();
+    ctx.strokeStyle = c.hex;
+    ctx.globalAlpha = t.activePointerId !== null ? 0.9 : 0.4;
+    ctx.lineWidth = t.activePointerId !== null ? 3 : 2;
+    ctx.setLineDash(t.activePointerId !== null ? [] : [6,6]);
+    ctx.beginPath();
+    ctx.moveTo(t.home.x, t.home.y);
+    ctx.lineTo(t.home.x + d.x*110, t.home.y + d.y*110);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawChargeRing(t){
+    if (t.charge <= 0) return;
+    const c = COLORS[t.color];
+    ctx.save();
+    ctx.strokeStyle = c.hex;
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.arc(t.home.x, t.home.y, TURRET_R + 8, -Math.PI/2, -Math.PI/2 + t.charge*Math.PI*2);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawPad(t){
+    const c = COLORS[t.color];
+    const usable = t.state === 'idle';
+    ctx.save();
+    ctx.fillStyle = c.hex;
+    ctx.globalAlpha = !usable ? 0.04 : (t.activePointerId !== null ? 0.16 : 0.08);
+    ctx.beginPath();
+    ctx.arc(t.pad.x, t.pad.y, t.pad.r, 0, Math.PI*2);
+    ctx.fill();
+    ctx.globalAlpha = usable ? 0.5 : 0.15;
+    ctx.strokeStyle = c.hex;
+    ctx.lineWidth = 2;
+    ctx.setLineDash([5,5]);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    if (usable){
+      const d = dirFromAngle(t.angle);
+      ctx.globalAlpha = 0.85;
+      ctx.beginPath();
+      ctx.arc(t.pad.x + d.x*(t.pad.r*0.6), t.pad.y + d.y*(t.pad.r*0.6), 6, 0, Math.PI*2);
+      ctx.fillStyle = c.hex;
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  function drawShapeGlyph(x, y, shape, r){
+    ctx.save();
+    ctx.font = Math.round(r*1.35) + 'px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(shape, x, y + r*0.06);
+    ctx.restore();
+  }
+
+  function drawTurretBase(t){
+    const c = COLORS[t.color];
+    if (t.hitFlash > 0) t.hitFlash--;
+    ctx.save();
+    if (t.state === 'idle'){
+      ctx.shadowColor = c.glow;
+      ctx.shadowBlur = t.activePointerId !== null ? 26 : 14;
+      ctx.fillStyle = t.hitFlash > 0 ? '#ffffff' : c.hex;
+      ctx.beginPath();
+      ctx.arc(t.home.x, t.home.y, TURRET_R, 0, Math.PI*2);
+      ctx.fill();
+      ctx.shadowBlur = 0;
+      drawShapeGlyph(t.home.x, t.home.y, t.shape, TURRET_R);
+    } else if (t.state === 'destroyed'){
+      const progress = 1 - (t.explodeTimer / EXPLODE_FRAMES);
+      ctx.strokeStyle = 'rgba(255,255,255,0.25)';
+      ctx.lineWidth = 2;
+      ctx.setLineDash([3,4]);
+      ctx.beginPath();
+      ctx.arc(t.home.x, t.home.y, TURRET_R, 0, Math.PI*2);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.strokeStyle = c.hex;
+      ctx.globalAlpha = 0.9;
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.arc(t.home.x, t.home.y, TURRET_R + 8, -Math.PI/2, -Math.PI/2 + progress*Math.PI*2);
+      ctx.stroke();
+      ctx.globalAlpha = 0.85;
+      ctx.fillStyle = 'rgba(255,255,255,0.6)';
+      ctx.font = '9px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('REPAIR', t.home.x, t.home.y + 3);
+    } else {
+      ctx.strokeStyle = t.hitFlash > 0 ? '#ffffff' : c.hex;
+      ctx.globalAlpha = t.hitFlash > 0 ? 0.9 : 0.35;
+      ctx.lineWidth = 2;
+      ctx.setLineDash([4,4]);
+      ctx.beginPath();
+      ctx.arc(t.home.x, t.home.y, TURRET_R, 0, Math.PI*2);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.globalAlpha = 0.9;
+      ctx.fillStyle = 'rgba(255,255,255,0.75)';
+      ctx.font = '10px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('EMPTY', t.home.x, t.home.y + 3);
+    }
+    ctx.restore();
+  }
+
+  function drawShip(t){
+    if (t.state === 'idle' || t.state === 'destroyed') return;
+    const c = COLORS[t.color];
+    ctx.save();
+    ctx.shadowColor = c.glow;
+    ctx.shadowBlur = 22;
+    ctx.fillStyle = c.hex;
+    ctx.beginPath();
+    ctx.arc(t.pos.x, t.pos.y, SHIP_R, 0, Math.PI*2);
+    ctx.fill();
+    ctx.shadowBlur = 0;
+    drawShapeGlyph(t.pos.x, t.pos.y, t.shape, SHIP_R);
+    ctx.restore();
+    particles.push({ x: t.pos.x, y: t.pos.y, vx:(Math.random()-0.5)*0.5, vy:(Math.random()-0.5)*0.5, life: 12, maxLife: 12, hex: c.hex });
+  }
+
+  function updateTurret(t){
+    if (t.state === 'destroyed'){
+      t.explodeTimer--;
+      if (t.explodeTimer <= 0){
+        t.hp = t.maxHp;
+        t.state = 'idle';
+        t.pos = { x: t.home.x, y: t.home.y };
+        addShockwave(t.home.x, t.home.y, COLORS[t.color].hex);
+        burst(t.home.x, t.home.y, '#ffffff', 16);
+      }
+      return;
+    }
+    if (t.charging && t.state === 'idle'){
+      t.charge = Math.min(1, t.charge + 1/CHARGE_TIME_FRAMES);
+    }
+    if (t.state === 'outbound'){
+      const d = dirFromAngle(t.angle);
+      t.pos.x += d.x * t.outSpeed;
+      t.pos.y += d.y * t.outSpeed;
+      const margin = SHIP_R + 4;
+      if (t.pos.x <= margin || t.pos.x >= W - margin || t.pos.y <= margin || t.pos.y >= H - margin){
+        t.pos.x = Math.max(margin, Math.min(W - margin, t.pos.x));
+        t.pos.y = Math.max(margin, Math.min(H - margin, t.pos.y));
+        t.state = 'return';
+      }
+    } else if (t.state === 'return'){
+      const dx = t.home.x - t.pos.x, dy = t.home.y - t.pos.y;
+      const dist = Math.hypot(dx, dy);
+      if (dist < SPEED){
+        t.pos.x = t.home.x; t.pos.y = t.home.y;
+        t.state = 'idle';
+        t.charge = 0;
+      } else {
+        t.pos.x += dx/dist*SPEED;
+        t.pos.y += dy/dist*SPEED;
+      }
+    }
+  }
+
+  function drawAlerts(){
+    alerts.forEach(a => {
+      const pulse = 0.5 + 0.5*Math.sin(a.life*0.55);
+      const c = COLORS[a.color];
+      const y = 26;
+      ctx.save();
+      ctx.shadowColor = c.glow;
+      ctx.shadowBlur = 14;
+      ctx.globalAlpha = 0.55 + 0.35*pulse;
+      ctx.fillStyle = c.hex;
+      ctx.beginPath();
+      ctx.moveTo(a.x, y+12);
+      ctx.lineTo(a.x-10, y-8);
+      ctx.lineTo(a.x+10, y-8);
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+    });
+  }
+
+  function fireEnemyBullets(e){
+    const speed = 1.1;
+    enemyBullets.push({ x: e.x, y: e.y+12, vx: 0, vy: speed, color: e.color });
+  }
+
+  function updateEnemies(){
+    enemies.forEach(e => {
+      e.y += e.vy;
+      e.fireTimer--;
+      if (e.fireTimer <= 0 && e.y > 0){
+        fireEnemyBullets(e);
+        e.fireTimer = 70 + Math.floor(Math.random() * 30);
+      }
+    });
+    enemies = enemies.filter(e => e.y < H + 40 && !e.dead);
+  }
+
+  function drawEnemies(){
+    enemies.forEach(e => {
+      const c = COLORS[e.color];
+      ctx.save();
+      ctx.shadowColor = c.glow;
+      ctx.shadowBlur = 16;
+      ctx.fillStyle = c.hex;
+      ctx.beginPath();
+      ctx.arc(e.x, e.y, e.r, 0, Math.PI*2);
+      ctx.fill();
+      ctx.globalAlpha = 0.9;
+      ctx.fillStyle = 'rgba(255,255,255,0.9)';
+      ctx.font = Math.round(e.r*0.8) + 'px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('↓', e.x, e.y+3);
+      ctx.restore();
+      if (e.maxHp > 1){
+        const barW = e.r*1.8;
+        const bx = e.x - barW/2;
+        const by = e.y - e.r - 9;
+        ctx.save();
+        ctx.fillStyle = 'rgba(255,255,255,0.15)';
+        ctx.fillRect(bx, by, barW, 3);
+        ctx.fillStyle = c.hex;
+        ctx.fillRect(bx, by, barW * (e.hp/e.maxHp), 3);
+        ctx.restore();
+      }
+    });
+  }
+
+  function drawBoss(){
+    if (!boss) return;
+    const c = COLORS[boss.color];
+    ctx.save();
+    if (boss.state === 'active' || boss.state === 'rage'){
+      const rageFlash = boss.state === 'rage' && Math.floor(elapsed / 4) % 2 === 0;
+      ctx.shadowColor = boss.state === 'rage' ? '#ff2200' : c.glow;
+      ctx.shadowBlur = boss.state === 'rage' ? 44 : 24;
+      ctx.fillStyle = rageFlash ? '#ffffff' : (boss.hitFlash > 0 ? '#ffffff' : c.hex);
+      ctx.beginPath();
+      ctx.arc(boss.x, boss.y, boss.r, 0, Math.PI*2);
+      ctx.fill();
+      ctx.shadowBlur = 0;
+
+      // フェーズラベル
+      ctx.fillStyle = 'rgba(255,255,255,0.9)';
+      ctx.font = 'bold 12px sans-serif';
+      ctx.textAlign = 'center';
+      const label = boss.state === 'rage' ? '！！！' : (PHASE_LABEL_TEXT[bossPhase] || '');
+      ctx.fillText(label, boss.x, boss.y + boss.r + 16);
+
+      // HPバー（rage中は残り時間バー）
+      const barW = boss.r*2.8;
+      const bx = boss.x - barW/2, by = boss.y - boss.r - 16;
+      ctx.fillStyle = 'rgba(255,255,255,0.12)';
+      ctx.fillRect(bx, by, barW, 6);
+      if (boss.state === 'rage'){
+        ctx.fillStyle = '#ff3333';
+        ctx.fillRect(bx, by, barW * (bossRageTimer / RAGE_DURATION), 6);
+      } else {
+        ctx.fillStyle = c.hex;
+        ctx.fillRect(bx, by, barW*(boss.hp/boss.maxHp), 6);
+        // フェーズ区切り線
+        ctx.fillStyle = 'rgba(255,255,255,0.55)';
+        const m1 = bx + barW*(40/BOSS_MAX_HP);
+        const m2 = bx + barW*(20/BOSS_MAX_HP);
+        ctx.fillRect(m1-1, by-1, 2, 8);
+        ctx.fillRect(m2-1, by-1, 2, 8);
+      }
+    } else {
+      const progress = 1 - (boss.explodeTimer / BOSS_EXPLODE_FRAMES);
+      ctx.strokeStyle = 'rgba(255,255,255,0.25)';
+      ctx.lineWidth = 2;
+      ctx.setLineDash([3,4]);
+      ctx.beginPath();
+      ctx.arc(boss.x, boss.y, boss.r, 0, Math.PI*2);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.strokeStyle = c.hex;
+      ctx.lineWidth = 5;
+      ctx.beginPath();
+      ctx.arc(boss.x, boss.y, boss.r+10, -Math.PI/2, -Math.PI/2 + progress*Math.PI*2);
+      ctx.stroke();
+      ctx.fillStyle = 'rgba(255,255,255,0.6)';
+      ctx.font = '10px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('REPAIR', boss.x, boss.y + 4);
+    }
+    ctx.restore();
+  }
+
+  function drawHpPips(t){
+    const c = COLORS[t.color];
+    const total = t.maxHp;
+    const spacing = 10;
+    const startX = t.home.x - (total-1)*spacing/2;
+    const y = t.home.y - TURRET_R - 14;
+    ctx.save();
+    for (let i=0;i<total;i++){
+      ctx.beginPath();
+      ctx.arc(startX + i*spacing, y, 3.2, 0, Math.PI*2);
+      ctx.fillStyle = i < t.hp ? c.hex : 'rgba(255,255,255,0.15)';
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  function updateEnemyBullets(){
+    enemyBullets.forEach(b => {
+      b.x += (b.vx || 0);
+      b.y += b.vy;
+      if (b.dead) return;
+
+      // 飛翔中の機体に当たったら消滅
+      for (const key in turrets){
+        const t = turrets[key];
+        if (t.state !== 'outbound' && t.state !== 'return') continue;
+        if (Math.hypot(t.pos.x-b.x, t.pos.y-b.y) < SHIP_INTERCEPT_R){
+          b.dead = true;
+          burst(b.x, b.y, COLORS[t.color].hex, 8);
+          burst(b.x, b.y, '#ffffff', 4);
+          return;
+        }
+      }
+      if (b.dead) return;
+
+      // 砲台への到達
+      for (const key in turrets){
+        const t = turrets[key];
+        if (t.state === 'destroyed') continue;
+        if (Math.hypot(t.home.x-b.x, t.home.y-b.y) < HOME_HIT_R){
+          b.dead = true;
+          if (t.state === 'idle' && t.color === b.color){
+            // 同色は無害吸収
+            burst(b.x, b.y, '#ffffff', 6);
+          } else {
+            t.hp = Math.max(0, t.hp - 1);
+            t.hitFlash = 14;
+            burst(b.x, b.y, COLORS[b.color].hex, 14);
+            if (t.hp <= 0){ triggerExplosion(t); }
+          }
+          return;
+        }
+      }
+    });
+    enemyBullets = enemyBullets.filter(b => !b.dead && b.x > -600 && b.x < W+600 && b.y > -600 && b.y < H+600);
+  }
+
+  function drawEnemyBullets(){
+    enemyBullets.forEach(b => {
+      ctx.save();
+      ctx.shadowColor = COLORS[b.color].glow;
+      ctx.shadowBlur = 12;
+      ctx.fillStyle = COLORS[b.color].hex;
+      ctx.beginPath();
+      ctx.arc(b.x, b.y, BULLET_R, 0, Math.PI*2);
+      ctx.fill();
+      ctx.restore();
+    });
+  }
+
+  function updatePlayerFiring(t){
+    if (t.dragStarted && t.state === 'idle'){
+      t.fireCooldown--;
+      if (t.fireCooldown <= 0){
+        const d = dirFromAngle(t.angle);
+        playerBullets.push({
+          x: t.home.x + d.x*(TURRET_R+6),
+          y: t.home.y + d.y*(TURRET_R+6),
+          vx: d.x*PLAYER_BULLET_SPEED,
+          vy: d.y*PLAYER_BULLET_SPEED,
+          color: t.color
+        });
+        t.fireCooldown = PLAYER_FIRE_COOLDOWN;
+      }
+    } else {
+      t.fireCooldown = Math.min(t.fireCooldown, 2);
+    }
+  }
+
+  function resolveEnemyHit(pb, en){
+    if (BEATS[pb.color] === en.color){
+      en.hp -= 2;
+      burst(pb.x, pb.y, COLORS[pb.color].hex, 6);
+    } else if (pb.color === en.color){
+      en.hp -= 1;
+      pb.dead = true;
+      burst(pb.x, pb.y, '#ffffff', 8);
+    } else {
+      pb.dead = true;
+      burst(pb.x, pb.y, COLORS[en.color].hex, 8);
+    }
+    if (en.hp <= 0 && !en.dead){
+      en.dead = true;
+      addShockwave(en.x, en.y, COLORS[en.color].hex);
+      addShockwave(en.x, en.y, '#ffffff');
+      burst(en.x, en.y, COLORS[en.color].hex, 22);
+    }
+  }
+
+  function resolveBossHit(pb){
+    if (boss.state === 'rage'){
+      // rage中は合体バリアでしか倒せない
+      pb.dead = true;
+      burst(pb.x, pb.y, '#ffffff', 4);
+      return;
+    }
+    if (BEATS[pb.color] === boss.color){
+      boss.hp -= 2;
+      boss.hitFlash = 8;
+      burst(pb.x, pb.y, COLORS[pb.color].hex, 6);
+    } else if (pb.color === boss.color){
+      boss.hp -= 1;
+      boss.hitFlash = 8;
+      pb.dead = true;
+      burst(pb.x, pb.y, '#ffffff', 8);
+    } else {
+      pb.dead = true;
+      burst(pb.x, pb.y, COLORS[boss.color].hex, 8);
+    }
+    if (boss.hp <= 0 && boss.state === 'active'){
+      boss.hp = 0;
+      triggerBossRage();
+    }
+  }
+
+  function updatePlayerBullets(){
+    playerBullets.forEach(pb => {
+      pb.x += pb.vx; pb.y += pb.vy;
+      if (pb.dead) return;
+      for (const eb of enemyBullets){
+        if (eb.dead) continue;
+        if (Math.hypot(pb.x-eb.x, pb.y-eb.y) < PLAYER_BULLET_R + BULLET_R){
+          if (pb.color === eb.color){
+            pb.dead = true; eb.dead = true;
+            burst((pb.x+eb.x)/2, (pb.y+eb.y)/2, '#ffffff', 8);
+          } else if (BEATS[pb.color] === eb.color){
+            eb.dead = true;
+            burst(eb.x, eb.y, COLORS[pb.color].hex, 8);
+          } else {
+            pb.dead = true;
+            burst(pb.x, pb.y, COLORS[eb.color].hex, 8);
+          }
+          break;
+        }
+      }
+      if (pb.dead) return;
+      for (const en of enemies){
+        if (en.dead) continue;
+        if (Math.hypot(pb.x-en.x, pb.y-en.y) < en.r + PLAYER_BULLET_R){
+          resolveEnemyHit(pb, en);
+          if (pb.dead) break;
+        }
+      }
+      if (pb.dead) return;
+      if (boss && boss.state === 'active' && Math.hypot(pb.x-boss.x, pb.y-boss.y) < boss.r + PLAYER_BULLET_R){
+        resolveBossHit(pb);
+      }
+    });
+    playerBullets = playerBullets.filter(pb => !pb.dead && pb.x > -20 && pb.x < W+20 && pb.y > -20 && pb.y < H+20);
+    enemies = enemies.filter(en => !en.dead);
+  }
+
+  function drawPlayerBullets(){
+    playerBullets.forEach(pb => {
+      ctx.save();
+      ctx.shadowColor = COLORS[pb.color].glow;
+      ctx.shadowBlur = 8;
+      ctx.fillStyle = COLORS[pb.color].hex;
+      ctx.beginPath();
+      ctx.arc(pb.x, pb.y, PLAYER_BULLET_R, 0, Math.PI*2);
+      ctx.fill();
+      ctx.restore();
+    });
+  }
+
+  function checkFusions(){
+    if (bossRageActive){
+      checkRageFusion();
+      return;
+    }
+    const keys = Object.keys(turrets).filter(k => turrets[k].state === 'outbound');
+    for (let i=0;i<keys.length;i++){
+      for (let j=i+1;j<keys.length;j++){
+        const a = turrets[keys[i]], b = turrets[keys[j]];
+        if (Math.hypot(a.pos.x-b.pos.x, a.pos.y-b.pos.y) < FUSION_DIST){
+          const mx = (a.pos.x+b.pos.x)/2, my = (a.pos.y+b.pos.y)/2;
+          addShockwave(mx, my, '#ffffff');
+          burst(mx, my, COLORS[a.color].hex, 10);
+          burst(mx, my, COLORS[b.color].hex, 10);
+          a.state = 'idle'; a.charge = 0; a.pos = {x:a.home.x,y:a.home.y};
+          b.state = 'idle'; b.charge = 0; b.pos = {x:b.home.x,y:b.home.y};
+          fusionCount++;
+          document.getElementById('fusionCount').textContent = 'FUSION: ' + fusionCount;
+        }
+      }
+    }
+  }
+
+  function loop(){
+    elapsed++;
+    ctx.fillStyle = 'rgba(6,6,12,0.4)';
+    ctx.fillRect(0,0,W,H);
+
+    for (const key in turrets){
+      const t = turrets[key];
+      drawPad(t);
+      drawArcGuide(t);
+      if (t.state === 'idle'){
+        drawAimLine(t);
+        drawChargeRing(t);
+      }
+      updateTurret(t);
+      updatePlayerFiring(t);
+      drawTurretBase(t);
+      drawHpPips(t);
+      drawShip(t);
+    }
+    checkFusions();
+
+    updateBoss();
+    drawBoss();
+
+    updateEnemySpawning();
+    drawAlerts();
+    updateEnemies();
+    drawEnemies();
+    updateEnemyBullets();
+    updatePlayerBullets();
+    enemyBullets = enemyBullets.filter(b => !b.dead);
+    drawEnemyBullets();
+    drawPlayerBullets();
+
+    shockwaves.forEach(s => {
+      s.r += (s.maxR - s.r) * 0.18;
+      s.life--;
+      ctx.save();
+      ctx.globalAlpha = Math.max(0, s.life / s.maxLife) * 0.8;
+      ctx.strokeStyle = s.hex;
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.arc(s.x, s.y, s.r, 0, Math.PI*2);
+      ctx.stroke();
+      ctx.restore();
+    });
+    shockwaves = shockwaves.filter(s => s.life > 0);
+
+    particles.forEach(p => {
+      p.x += p.vx; p.y += p.vy; p.life--;
+      ctx.save();
+      ctx.globalAlpha = Math.max(0, p.life / p.maxLife) * 0.8;
+      ctx.fillStyle = p.hex;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, 2.5, 0, Math.PI*2);
+      ctx.fill();
+      ctx.restore();
+    });
+    particles = particles.filter(p => p.life > 0);
+
+    drawRageGuidance();
+    drawCenterAlerts();
+
+    requestAnimationFrame(loop);
+  }
+
+  resize();
+  updatePhaseMsg();
+  loop();
+})();
+</script>
+</body>
+</html>
