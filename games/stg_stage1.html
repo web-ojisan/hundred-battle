@@ -179,6 +179,7 @@ document.addEventListener('gestureend', e => e.preventDefault());
   let bossPhase = 'aiko';
   let bossSalvoTimer = 80;
   let bossSalvoQueue = [];
+  let bossSalvoIndex = 0;  // 0=left, 1=center, 2=right の順に1発ずつ
   let salvoAlerted = false;
   let centerAlerts = [];       // { text, glow, life, maxLife, size }
   let bossRageActive = false;
@@ -378,14 +379,14 @@ document.addEventListener('gestureend', e => e.preventDefault());
   // 3機への照準弾幕をキューに積む
   function scheduleFormationSalvo(){
     const cols = PHASE_BULLET[bossPhase];
-    const order = [
-      { delay: 0,                         color: cols.left,   key: 'left'   },
-      { delay: FORMATION_SHOT_DELAY,      color: cols.center, key: 'center' },
-      { delay: FORMATION_SHOT_DELAY * 2,  color: cols.right,  key: 'right'  }
+    const targets = [
+      { color: cols.left,   key: 'left'   },
+      { color: cols.center, key: 'center' },
+      { color: cols.right,  key: 'right'  }
     ];
-    order.forEach(e => {
-      bossSalvoQueue.push({ fireAt: elapsed + e.delay, color: e.color, targetKey: e.key });
-    });
+    const t = targets[bossSalvoIndex];
+    bossSalvoQueue.push({ fireAt: elapsed, color: t.color, targetKey: t.key });
+    bossSalvoIndex = (bossSalvoIndex + 1) % 3;
   }
 
   function fireTargetedShot(color, targetKey){
@@ -424,6 +425,7 @@ document.addEventListener('gestureend', e => e.preventDefault());
         boss.pattern = 'aiko';
         bossSalvoTimer = 0;
         bossSalvoQueue = [];
+        bossSalvoIndex = 0;
         salvoAlerted = false;
         bossRageActive = false;
         addShockwave(boss.x, boss.y, COLORS[boss.color].hex);
@@ -457,6 +459,7 @@ document.addEventListener('gestureend', e => e.preventDefault());
       boss.pattern = bossPhase;
       bossSalvoTimer = 0;
       bossSalvoQueue = [];
+      bossSalvoIndex = 0;
       salvoAlerted = false;
       addShockwave(boss.x, boss.y, '#ffffff');
       addShockwave(boss.x, boss.y, COLORS[boss.color].hex);
