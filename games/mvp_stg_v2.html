@@ -40,7 +40,7 @@
   }
   #rotateOverlay .icon { font-size: 52px; animation: spin 1.4s ease-in-out infinite alternate; }
   @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(-90deg); } }
-  @media (orientation: landscape) { #rotateOverlay { display: flex; } }
+  @media (orientation: landscape) and (pointer: coarse) { #rotateOverlay { display: flex; } }
 </style>
 </head>
 <body>
