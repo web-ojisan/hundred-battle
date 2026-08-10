@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<title>友だち100マスバトル</title>
+<title>ナナナナ＋1</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DotGothic16&family=M+PLUS+Rounded+1c:wght@500;700;800&display=swap" rel="stylesheet">
 <style>
@@ -56,7 +56,7 @@
   .zone[data-p="2"]{background:var(--c2-bg);}
   .zone[data-p="3"]{background:var(--c3-bg);}
 
-  .zone-board{flex:1;min-width:0;display:flex;flex-direction:column;gap:4px;}
+  .zone-board{flex:1;min-width:0;display:flex;flex-direction:column;gap:4px;position:relative;}
   .zone-tag{
     font-family:"DotGothic16";font-size:10px;letter-spacing:.1em;
     padding:3px 6px;border-radius:5px;text-align:center;color:#fff;flex-shrink:0;
@@ -196,6 +196,18 @@
   #fxText{font-family:"DotGothic16";color:var(--gold);font-size:64px;letter-spacing:.05em;text-shadow:4px 4px 0 #000,-2px -2px 0 #000;animation:fxzoom .45s cubic-bezier(.2,2.2,.4,1);}
   @keyframes fxzoom{0%{scale:.2;opacity:0;}70%{scale:1.15;}100%{scale:1;opacity:1;}}
 
+  /* ===== ボス問題 ===== */
+  .boss-overlay{
+    position:absolute;inset:0;border-radius:var(--radius);
+    background:rgba(8,5,25,.93);
+    display:none;flex-direction:column;align-items:center;justify-content:center;gap:10px;z-index:10;
+  }
+  .boss-overlay.show{display:flex;animation:bossIn .35s cubic-bezier(.2,2.2,.4,1);}
+  @keyframes bossIn{from{scale:.4;opacity:0;}to{scale:1;opacity:1;}}
+  .boss-label{font-family:"DotGothic16";font-size:clamp(16px,3vmin,26px);color:var(--bad);letter-spacing:.08em;text-shadow:0 0 14px rgba(229,72,77,.9);}
+  .boss-eq{font-family:"DotGothic16";font-size:clamp(20px,4vmin,36px);color:#fff;letter-spacing:.05em;}
+  .boss-eq.wrongflash{animation:shake .3s;color:var(--bad);}
+
   /* 紙吹雪 */
   .confetti{position:absolute;top:-20px;width:10px;height:16px;border-radius:2px;opacity:.9;animation-name:cfall;animation-timing-function:linear;animation-fill-mode:forwards;}
   @keyframes cfall{to{transform:translateY(115vh) rotate(720deg);}}
@@ -206,7 +218,7 @@
 <!-- 設定 -->
 <div class="overlay" id="setupOverlay">
   <div class="panel">
-    <h1>友だち49マスバトル<small>7×7マス みんなで同時にスタート！</small></h1>
+    <h1>ナナナナ＋1<small>7×7マス＋ボス１問！みんなで同時にスタート！</small></h1>
 
     <div class="optGroup">
       <div class="label">👥 人数</div>
@@ -339,6 +351,11 @@
     const hit=(f,dur,d)=>{ tone(f,dur,d,'sawtooth',.14); tone(f*1.189,dur,d,'sawtooth',.09); };
     hit(196,.18,0); hit(196,.18,.22); hit(155.6,.8,.44);
   }
+  function sfxBoss() {
+    [[220,.08,0,'sawtooth'],[196,.08,.1,'sawtooth'],[164.8,.08,.2,'sawtooth'],
+     [130.8,.3,.32,'square'],[196,.18,.72,'square'],[261.6,.32,.96,'square']]
+      .forEach(([f,d,dl,t])=>tone(f,d,dl,t,.11));
+  }
   function sfxFinish(byTime) {
     if (byTime) { tone(2093,.12,0,'square',.11); tone(2093,.4,.18,'square',.11); }
     else        { tone(1568,.15,0,'square',.1); tone(1568,.15,.2,'square',.1); }
@@ -397,6 +414,7 @@
       rowH:[], colH:[], cells:[],
       sel:-1, forced:-1,
       input:'', score:0, miss:0, charges:0,
+      bossMode:false, bossAns:null, bossN:null,
       get gridEl(){ return document.getElementById('grid-'+idx); },
       get readoutEl(){ return document.getElementById('readout-'+idx); },
       get attackEl(){ return document.getElementById('attack-'+idx); },
@@ -442,6 +460,10 @@
       <div class="zone-board">
         <div class="zone-tag" id="tag-${p.idx}">${p.name}</div>
         <div class="zone-grid" id="grid-${p.idx}"></div>
+        <div class="boss-overlay" id="boss-${p.idx}">
+          <div class="boss-label">⚡ BOSS !!</div>
+          <div class="boss-eq" id="boss-eq-${p.idx}"></div>
+        </div>
       </div>
       <div class="zone-side">
         <div class="zone-readout" id="readout-${p.idx}">&nbsp;</div>
@@ -457,6 +479,8 @@
     p.rowH = shuffle([...Array(10).keys()].map(n=>n+1)).slice(0, p.rows);
     p.colH = shuffle([3,4,5,6,7,8,9]);
     p.cells=[]; p.sel=-1; p.forced=-1; p.input=''; p.score=0; p.miss=0; p.charges=0;
+    p.bossMode=false; p.bossAns=null; p.bossN=null;
+    const bossEl=document.getElementById('boss-'+p.idx); if(bossEl)bossEl.classList.remove('show');
     const g = p.gridEl;
     g.innerHTML = '';
     g.style.gridTemplateColumns = `repeat(${p.cols+1},1fr)`;
@@ -505,8 +529,16 @@
 
   // ===== 入力 =====
   function press(p, key) {
-    if (!running||p.sel<0) return;
+    if (!running) return;
     if (key==='⌫'){ p.input=p.input.slice(0,-1); renderIO(p); return; }
+    if (p.bossMode) {
+      p.input += key;
+      if (p.input===p.bossAns){ bossCorrect(p); }
+      else if (p.input.length>=p.bossAns.length){ bossWrong(p); }
+      else renderIO(p);
+      return;
+    }
+    if (p.sel<0) return;
     p.input += key;
     const cell = p.cells[p.sel];
     if (p.input===cell.ans){ correct(p,cell); }
@@ -522,7 +554,7 @@
     if (cfg.attack && p.score%5===0 && p.charges<3){ p.charges++; updateAttackBtn(p); }
     updateScoreChip(p);
     if (cfg.random) buildPad(p,true);
-    if (p.cells.every(c=>c.done)){ finish(p); return; }
+    if (p.cells.every(c=>c.done)){ enterBossMode(p); return; }
     nextCell(p);
   }
 
@@ -530,6 +562,32 @@
     sfxWrong(); p.miss++; p.input='';
     cell.el.classList.add('wrongflash');
     setTimeout(()=>cell.el.classList.remove('wrongflash'),320);
+    renderIO(p);
+  }
+
+  // ===== ボス問題 =====
+  function enterBossMode(p) {
+    const odds=[5,7,9,11,13];
+    p.bossN=odds[Math.random()*odds.length|0];
+    p.bossAns=String(13*p.bossN);
+    p.bossMode=true; p.input='';
+    document.getElementById('boss-eq-'+p.idx).textContent=`13 × ${p.bossN} = ?`;
+    document.getElementById('boss-'+p.idx).classList.add('show');
+    sfxBoss();
+    renderIO(p);
+  }
+
+  function bossCorrect(p) {
+    p.bossMode=false; p.input='';
+    document.getElementById('boss-eq-'+p.idx).textContent=`13 × ${p.bossN} = ${p.bossAns} ✓`;
+    finish(p);
+  }
+
+  function bossWrong(p) {
+    sfxWrong(); p.miss++; p.input='';
+    const eq=document.getElementById('boss-eq-'+p.idx);
+    eq.classList.add('wrongflash');
+    setTimeout(()=>eq.classList.remove('wrongflash'),320);
     renderIO(p);
   }
 
