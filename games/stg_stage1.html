@@ -166,7 +166,7 @@ document.addEventListener('gestureend', e => e.preventDefault());
     kachi: '【勝ち】自分の弾が勝てる色が来る！そのまま打ち返してボスへ貫通攻撃！'
   };
 
-  const BOSS_MAX_HP = 60;
+  const BOSS_MAX_HP = 300;
   const BOSS_SALVO_INTERVAL = 130;
   const FORMATION_SHOT_DELAY = 15;
   const BOSS_SHOT_SPEED = 1.5;
@@ -370,8 +370,8 @@ document.addEventListener('gestureend', e => e.preventDefault());
 
   // ---- Stage 1 ボスフェーズ判定 ----
   function getBossPhase(){
-    if (!boss || boss.hp > 40) return 'aiko';
-    if (boss.hp > 20) return 'make';
+    if (!boss || boss.hp > 200) return 'aiko';
+    if (boss.hp > 100) return 'make';
     return 'kachi';
   }
 
@@ -900,8 +900,8 @@ document.addEventListener('gestureend', e => e.preventDefault());
         ctx.fillRect(bx, by, barW*(boss.hp/boss.maxHp), 6);
         // フェーズ区切り線
         ctx.fillStyle = 'rgba(255,255,255,0.55)';
-        const m1 = bx + barW*(40/BOSS_MAX_HP);
-        const m2 = bx + barW*(20/BOSS_MAX_HP);
+        const m1 = bx + barW*(200/BOSS_MAX_HP);
+        const m2 = bx + barW*(100/BOSS_MAX_HP);
         ctx.fillRect(m1-1, by-1, 2, 8);
         ctx.fillRect(m2-1, by-1, 2, 8);
       }
