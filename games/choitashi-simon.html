@@ -4,6 +4,13 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 <title>うたわないとドッカン！ — わがまま爆弾ボムたんの記憶メロディバトル</title>
+<link rel="manifest" href="../manifest.json">
+<meta name="theme-color" content="#0B0E19">
+<link rel="apple-touch-icon" href="../icons/apple-touch-icon.png">
+<link rel="icon" href="../icons/favicon-32.png" sizes="32x32">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="mobile-web-app-capable" content="yes">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DotGothic16&family=M+PLUS+Rounded+1c:wght@500;700;800&display=swap" rel="stylesheet">
 <style>
@@ -535,6 +542,16 @@
   // 画面回転・リサイズで爆弾位置がズレないように
   window.addEventListener('resize', () => { if (running) moveBombTo(cur, false); });
 })();
+</script>
+<script>
+// オフラインで遊べるようにキャッシュを準備するService Workerを登録
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('../sw.js').catch((err) => {
+      console.warn('[sw] register failed:', err);
+    });
+  });
+}
 </script>
 </body>
 </html>
