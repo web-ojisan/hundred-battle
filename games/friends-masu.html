@@ -212,6 +212,7 @@
   .boss-overlay.show{display:flex;animation:bossIn .35s cubic-bezier(.2,2.2,.4,1);}
   @keyframes bossIn{from{scale:.4;opacity:0;}to{scale:1;opacity:1;}}
   .boss-label{font-family:"DotGothic16";font-size:clamp(16px,3vmin,26px);color:var(--bad);letter-spacing:.08em;text-shadow:0 0 14px rgba(229,72,77,.9);}
+  .boss-label.training{color:var(--gold);text-shadow:0 0 14px rgba(255,211,77,.9);}
   .boss-eq{font-family:"DotGothic16";font-size:clamp(20px,4vmin,36px);color:#fff;letter-spacing:.05em;}
   .boss-eq.wrongflash{animation:shake .3s;color:var(--bad);}
 
@@ -422,6 +423,7 @@
       sel:-1, forced:-1,
       input:'', score:0, miss:0, charges:0,
       bossMode:false, bossAns:null, bossNums:null,
+      trainingMode:false, trainAns:null, trainNums:null,
       get gridEl(){ return document.getElementById('grid-'+idx); },
       get readoutEl(){ return document.getElementById('readout-'+idx); },
       get attackEl(){ return document.getElementById('attack-'+idx); },
@@ -487,6 +489,7 @@
     p.colH = shuffle([3,4,5,6,7,8,9]);
     p.cells=[]; p.sel=-1; p.forced=-1; p.input=''; p.score=0; p.miss=0; p.charges=0;
     p.bossMode=false; p.bossAns=null; p.bossNums=null;
+    p.trainingMode=false; p.trainAns=null; p.trainNums=null;
     const bossEl=document.getElementById('boss-'+p.idx); if(bossEl)bossEl.classList.remove('show');
     const g = p.gridEl;
     g.innerHTML = '';
@@ -538,6 +541,13 @@
   function press(p, key) {
     if (!running) return;
     if (key==='⌫'){ p.input=p.input.slice(0,-1); renderIO(p); return; }
+    if (p.trainingMode) {
+      p.input += key;
+      if (p.input===p.trainAns){ trainingCorrect(p); }
+      else if (p.input.length>=p.trainAns.length){ trainingWrong(p); }
+      else renderIO(p);
+      return;
+    }
     if (p.bossMode) {
       p.input += key;
       if (p.input===p.bossAns){ bossCorrect(p); }
@@ -588,10 +598,46 @@
   function bossCorrect(p) {
     p.bossMode=false; p.input='';
     document.getElementById('boss-eq-'+p.idx).textContent=`${p.bossNums[0]} + ${p.bossNums[1]} + ${p.bossNums[2]} = ${p.bossAns} ✓`;
-    finish(p);
+    setTimeout(()=>enterTrainingMode(p), 700);
   }
 
   function bossWrong(p) {
+    sfxWrong(); p.miss++; p.input='';
+    const eq=document.getElementById('boss-eq-'+p.idx);
+    eq.classList.add('wrongflash');
+    setTimeout(()=>eq.classList.remove('wrongflash'),320);
+    renderIO(p);
+  }
+
+  // ===== 修行モード（ボス撃破後：九九7・8・9の段が無限に出題される） =====
+  function enterTrainingMode(p) {
+    if (!running) return;
+    p.trainingMode=true;
+    const label=document.querySelector('#boss-'+p.idx+' .boss-label');
+    if (label){ label.textContent='🔥 修行モード'; label.classList.add('training'); }
+    nextTrainingQuestion(p);
+  }
+
+  function nextTrainingQuestion(p) {
+    const dans=[7,8,9];
+    const dan=dans[Math.random()*dans.length|0];
+    const mul=(Math.random()*9|0)+1;
+    p.trainNums=[dan,mul];
+    p.trainAns=String(dan*mul);
+    p.input='';
+    document.getElementById('boss-eq-'+p.idx).textContent=`${dan} × ${mul} = ?`;
+    renderIO(p);
+  }
+
+  function trainingCorrect(p) {
+    sfxCorrect();
+    p.score++; p.input='';
+    updateScoreChip(p);
+    document.getElementById('boss-eq-'+p.idx).textContent=`${p.trainNums[0]} × ${p.trainNums[1]} = ${p.trainAns} ✓`;
+    setTimeout(()=>{ if (p.trainingMode && running) nextTrainingQuestion(p); },400);
+  }
+
+  function trainingWrong(p) {
     sfxWrong(); p.miss++; p.input='';
     const eq=document.getElementById('boss-eq-'+p.idx);
     eq.classList.add('wrongflash');
