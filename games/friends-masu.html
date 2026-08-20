@@ -421,7 +421,7 @@
       rowH:[], colH:[], cells:[],
       sel:-1, forced:-1,
       input:'', score:0, miss:0, charges:0,
-      bossMode:false, bossAns:null, bossN:null,
+      bossMode:false, bossAns:null, bossNums:null,
       get gridEl(){ return document.getElementById('grid-'+idx); },
       get readoutEl(){ return document.getElementById('readout-'+idx); },
       get attackEl(){ return document.getElementById('attack-'+idx); },
@@ -486,7 +486,7 @@
     p.rowH = shuffle([...Array(10).keys()].map(n=>n+1)).slice(0, p.rows);
     p.colH = shuffle([3,4,5,6,7,8,9]);
     p.cells=[]; p.sel=-1; p.forced=-1; p.input=''; p.score=0; p.miss=0; p.charges=0;
-    p.bossMode=false; p.bossAns=null; p.bossN=null;
+    p.bossMode=false; p.bossAns=null; p.bossNums=null;
     const bossEl=document.getElementById('boss-'+p.idx); if(bossEl)bossEl.classList.remove('show');
     const g = p.gridEl;
     g.innerHTML = '';
@@ -574,11 +574,12 @@
 
   // ===== ボス問題 =====
   function enterBossMode(p) {
-    const odds=[5,7,9,11,13];
-    p.bossN=odds[Math.random()*odds.length|0];
-    p.bossAns=String(13*p.bossN);
+    const odds=[7,9,11,13,15,17,19];
+    const pick=()=>odds[Math.random()*odds.length|0];
+    p.bossNums=[pick(),pick(),pick()];
+    p.bossAns=String(p.bossNums[0]+p.bossNums[1]+p.bossNums[2]);
     p.bossMode=true; p.input='';
-    document.getElementById('boss-eq-'+p.idx).textContent=`13 × ${p.bossN} = ?`;
+    document.getElementById('boss-eq-'+p.idx).textContent=`${p.bossNums[0]} + ${p.bossNums[1]} + ${p.bossNums[2]} = ?`;
     document.getElementById('boss-'+p.idx).classList.add('show');
     sfxBoss();
     renderIO(p);
@@ -586,7 +587,7 @@
 
   function bossCorrect(p) {
     p.bossMode=false; p.input='';
-    document.getElementById('boss-eq-'+p.idx).textContent=`13 × ${p.bossN} = ${p.bossAns} ✓`;
+    document.getElementById('boss-eq-'+p.idx).textContent=`${p.bossNums[0]} + ${p.bossNums[1]} + ${p.bossNums[2]} = ${p.bossAns} ✓`;
     finish(p);
   }
 
