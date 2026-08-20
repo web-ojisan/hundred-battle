@@ -364,6 +364,41 @@
      [130.8,.3,.32,'square'],[196,.18,.72,'square'],[261.6,.32,.96,'square']]
       .forEach(([f,d,dl,t])=>tone(f,d,dl,t,.11));
   }
+  function sfxBossClear() {
+    // ボス撃破！上昇スイープ＋達成の和音でカタルシスを演出
+    try {
+      const ctx = audioCtx(), t0 = ctx.currentTime;
+      const o = ctx.createOscillator(), g = ctx.createGain();
+      o.type = 'sawtooth';
+      o.frequency.setValueAtTime(130.8, t0);
+      o.frequency.exponentialRampToValueAtTime(1046.5, t0+.28);
+      g.gain.setValueAtTime(.001, t0);
+      g.gain.exponentialRampToValueAtTime(.16, t0+.05);
+      g.gain.exponentialRampToValueAtTime(.001, t0+.3);
+      o.connect(g); g.connect(ctx.destination); o.start(t0); o.stop(t0+.3);
+    } catch(e) {}
+    [[523.3,'square'],[659.3,'square'],[784,'square'],[1046.5,'square']]
+      .forEach(([f,t])=>{ tone(f,.6,.3,t,.13); tone(f/2,.6,.3,'triangle',.08); });
+    tone(1568,.5,.34,'square',.1);
+  }
+  function sfxTrainCorrect() {
+    // 修行モード正解：シャキッとキメるかっこいい音
+    tone(1046.5,.07,0,'square',.12);
+    tone(1568,.1,.05,'square',.13);
+    tone(2093,.16,.1,'triangle',.09);
+  }
+  function sfxTrainWrong() {
+    // 修行モード不正解：ブブー！と激しく鳴るミス音
+    tone(90,.28,0,'sawtooth',.16);
+    tone(60,.32,.04,'sawtooth',.14);
+    try {
+      const ctx = audioCtx(), t = ctx.currentTime;
+      const s = ctx.createBufferSource(); s.buffer = getNoise();
+      const f = ctx.createBiquadFilter(); f.type='lowpass'; f.frequency.value=800;
+      const g = ctx.createGain(); g.gain.setValueAtTime(.18,t); g.gain.exponentialRampToValueAtTime(.001,t+.3);
+      s.connect(f); f.connect(g); g.connect(ctx.destination); s.start(t); s.stop(t+.3);
+    } catch(e) {}
+  }
   function sfxFinish(byTime) {
     if (byTime) { tone(2093,.12,0,'square',.11); tone(2093,.4,.18,'square',.11); }
     else        { tone(1568,.15,0,'square',.1); tone(1568,.15,.2,'square',.1); }
@@ -597,6 +632,7 @@
 
   function bossCorrect(p) {
     p.bossMode=false; p.input='';
+    sfxBossClear();
     document.getElementById('boss-eq-'+p.idx).textContent=`${p.bossNums[0]} + ${p.bossNums[1]} + ${p.bossNums[2]} = ${p.bossAns} ✓`;
     setTimeout(()=>enterTrainingMode(p), 700);
   }
@@ -630,7 +666,7 @@
   }
 
   function trainingCorrect(p) {
-    sfxCorrect();
+    sfxTrainCorrect();
     p.score++; p.input='';
     updateScoreChip(p);
     document.getElementById('boss-eq-'+p.idx).textContent=`${p.trainNums[0]} × ${p.trainNums[1]} = ${p.trainAns} ✓`;
@@ -638,7 +674,7 @@
   }
 
   function trainingWrong(p) {
-    sfxWrong(); p.miss++; p.input='';
+    sfxTrainWrong(); p.miss++; p.input='';
     const eq=document.getElementById('boss-eq-'+p.idx);
     eq.classList.add('wrongflash');
     setTimeout(()=>eq.classList.remove('wrongflash'),320);
