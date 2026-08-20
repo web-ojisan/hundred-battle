@@ -116,6 +116,16 @@
     80% { opacity:1; }
     100%{ opacity:0; transform:scale(1.08); }
   }
+  .critical-banner{ color:var(--p1); text-shadow:0 0 30px rgba(255,59,92,1),0 0 70px rgba(255,59,92,.6); }
+  @keyframes critDoubleFlash{
+    0%  { filter:brightness(1); }
+    12% { filter:brightness(2.8); }
+    24% { filter:brightness(1); }
+    42% { filter:brightness(2.8); }
+    58% { filter:brightness(1); }
+    100%{ filter:brightness(1); }
+  }
+  .zone.crit-flash{ animation:critDoubleFlash .55s ease-out; }
 
   /* ── 背景テーマ ── */
   @keyframes arenaBreath{
@@ -693,6 +703,7 @@
   var MODE = 'ffa';
   var BOSS_HP_MAX = 10, PARTY_HP_MAX = 5;
   var TARGET_MS = 7770; // スリーセブン！ 7.77秒ちょうどを狙う
+  var CRIT_MIN_MS = TARGET_MS - 170; // 7.60秒〜7.77秒はクリティカル（2ダメージ）
 
   function maxHpFor(pl){ if (MODE !== 'boss') return null; return pl.id === 1 ? BOSS_HP_MAX : PARTY_HP_MAX; }
 
@@ -862,6 +873,33 @@
   function spawnGreatEffect(p){
     var z=zoneEl(p);
     z.classList.remove('great-flash'); void z.offsetWidth; z.classList.add('great-flash');
+  }
+
+  function spawnCriticalHitEffect(targetP){
+    // クリティカル被弾側：バナー＋二度打ちフラッシュ
+    var z=zoneEl(targetP); if(!z) return;
+    z.classList.remove('crit-flash'); void z.offsetWidth; z.classList.add('crit-flash');
+    var fx=$('fx'+targetP); if(!fx) return;
+    var old=fx.querySelector('.perfect-banner'); if(old) old.remove();
+    var banner=document.createElement('div'); banner.className='perfect-banner critical-banner'; banner.textContent='CRITICAL!!';
+    fx.appendChild(banner);
+    setTimeout(function(){ if(fx.contains(banner)) fx.removeChild(banner); }, 2000);
+  }
+  function playCriticalHit(){
+    // ズギューン！ズドン！と二連続で刺さる会心の一撃サウンド
+    var ctx = audioCtx(); if (!ctx) return;
+    if (ctx.state === 'suspended') ctx.resume();
+    beep(1568,.06,'square',.14);
+    beep(2093,.09,'square',.11);
+    setTimeout(function(){ beep(1976,.07,'square',.15); beep(2637,.1,'square',.12); }, 130);
+  }
+  function spawnDoubleAttackEffect(p, d){
+    // 攻撃側：通常のヒットエフェクトをもう一度重ねて「二連撃！」感を出す
+    if (d<=200) spawnPerfectEffect(p); else if (d<=500) spawnGreatEffect(p); else spawnPerfectEffect(p);
+    setTimeout(function(){
+      if (d<=200) spawnPerfectEffect(p); else if (d<=500) spawnGreatEffect(p); else spawnPerfectEffect(p);
+      playCriticalHit();
+    }, 220);
   }
 
   /* ── ゲームステート ── */
@@ -1035,6 +1073,10 @@
     if (reactionMs === null || reactionMs === undefined) return TARGET_MS;
     return Math.abs(reactionMs - TARGET_MS);
   }
+  function isCritical(reactionMs){
+    // 7.60秒〜7.77秒ちょうど手前のギリギリ狙いはクリティカル（2ダメージ）
+    return reactionMs !== null && reactionMs !== undefined && reactionMs >= CRIT_MIN_MS && reactionMs < TARGET_MS;
+  }
   function timingLabel(diff, tapMs){
     if (diff <= 200) return 'PERFECT!!';
     if (diff <= 500) return 'GREAT!';
@@ -1086,6 +1128,7 @@
     var oldHps = {};
     players.forEach(function(pl){ oldHps[pl.id]=pl.hp!=null?pl.hp:maxHpFor(pl); });
     var bossDiff = timingDiff(boss.reactionMs);
+    var bossCrit = isCritical(boss.reactionMs);
     var newlyDefeated = [];
     clearZoneClasses();
     var partyWins=0, bossWins=0;
@@ -1096,19 +1139,24 @@
       var missed = pl.reactionMs===null||pl.reactionMs===undefined;
       if (pDiff < bossDiff){
         partyWins++;
-        boss.hp = Math.max(0,(boss.hp!=null?boss.hp:BOSS_HP_MAX)-1);
+        var isCrit = isCritical(pl.reactionMs);
+        var dmg = isCrit ? 2 : 1;
+        boss.hp = Math.max(0,(boss.hp!=null?boss.hp:BOSS_HP_MAX)-dmg);
         z.classList.add('winner');
         var d=pDiff; var lbl=d<=200?'PERFECT!!':d<=500?'GREAT!':pick(PARTY_ATTACK_LINES);
-        setStatus(pl.id, lbl, (missed?'':pl.reactionMs+' ms'));
+        setStatus(pl.id, isCrit?('💥会心の一撃！ '+lbl):lbl, (missed?'':pl.reactionMs+' ms'));
         setCharImg(pl.id,'atk');
-        if (d<=200) spawnPerfectEffect(pl.id);
+        if (isCrit){ spawnDoubleAttackEffect(pl.id, d); spawnCriticalHitEffect(1); }
+        else if (d<=200) spawnPerfectEffect(pl.id);
         else if (d<=500) spawnGreatEffect(pl.id);
       } else {
         bossWins++;
-        pl.hp = Math.max(0,(pl.hp!=null?pl.hp:PARTY_HP_MAX)-1);
+        var dmg2 = bossCrit ? 2 : 1;
+        pl.hp = Math.max(0,(pl.hp!=null?pl.hp:PARTY_HP_MAX)-dmg2);
         z.classList.add('foul');
         setStatus(pl.id, pick(PARTY_HIT_LINES), missed?'未入力':(pl.reactionMs+' ms'));
         setCharImg(pl.id,'dim');
+        if (bossCrit) spawnCriticalHitEffect(pl.id);
         if (pl.hp<=0){ pl.eliminated=true; newlyDefeated.push(pl); }
       }
     });
@@ -1116,7 +1164,7 @@
     var bossZone = zoneEl(1);
     if (boss.reactionMs !== null && boss.reactionMs !== undefined){
       var bd = bossDiff;
-      setStatus(1, bd<=200?'PERFECT…！':bd<=500?'GREAT…！':(boss.reactionMs+' ms'), boss.reactionMs+' ms');
+      setStatus(1, bossCrit?'💥会心の一撃！':bd<=200?'PERFECT…！':bd<=500?'GREAT…！':(boss.reactionMs+' ms'), boss.reactionMs+' ms');
     } else {
       setStatus(1,'不覚…','未入力');
     }
@@ -1126,6 +1174,7 @@
     } else if (bossWins>0 && partyWins===0){
       bossZone.classList.add('winner'); setCharImg(1,'atk');
       spawnBigEffect('boss'); playBossTurnMagic();
+      if (bossCrit) setTimeout(function(){ spawnBigEffect('boss'); playCriticalHit(); }, 260);
     } else {
       if (bossWins>0){ bossZone.classList.add('winner'); setCharImg(1,'atk'); playExplosion(); }
       else{ bossZone.classList.add('foul'); setCharImg(1,'dim'); }
