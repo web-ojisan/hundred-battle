@@ -7,7 +7,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#0A0D14">
-<title>10秒ちょうどでぶっとばす！</title>
+<title>7.77秒ちょうどでぶっとばす！（スリーセブン）</title>
 <link rel="manifest" href="../manifest.json">
 <link rel="apple-touch-icon" href="../icons/apple-touch-icon.png">
 <link rel="icon" href="../icons/favicon-32.png" sizes="32x32">
@@ -692,7 +692,7 @@
   var TARGET = 5;
   var MODE = 'ffa';
   var BOSS_HP_MAX = 10, PARTY_HP_MAX = 5;
-  var TARGET_MS = 10000;
+  var TARGET_MS = 7770; // スリーセブン！ 7.77秒ちょうどを狙う
 
   function maxHpFor(pl){ if (MODE !== 'boss') return null; return pl.id === 1 ? BOSS_HP_MAX : PARTY_HP_MAX; }
 
@@ -954,7 +954,7 @@
       var z = zoneEl(pl.id);
       z.classList.remove('armed');
       z.classList.add('go');
-      setStatus(pl.id, '10秒ねらえ！', '');
+      setStatus(pl.id, '7.77秒ねらえ！', '');
       $('sub'+pl.id).style.opacity = '1';
       $('sub'+pl.id).style.color = '';
     });
@@ -971,15 +971,15 @@
         if (pl.eliminated) return;
         if (pl.reactionMs !== null && pl.reactionMs !== undefined) return;
         var subEl = $('sub'+pl.id);
-        if (elapsed < 3500){
+        if (elapsed < 2200){
           subEl.textContent = (elapsed/1000).toFixed(2)+' s';
           subEl.style.opacity = '1';
           subEl.style.color = '';
-        } else if (elapsed < 4500){
+        } else if (elapsed < 2700){
           subEl.textContent = (elapsed/1000).toFixed(2)+' s';
-          subEl.style.opacity = (Math.floor(elapsed/180)%2===0)?'1':'0.1';
+          subEl.style.opacity = (Math.floor(elapsed/140)%2===0)?'1':'0.1';
           subEl.style.color = 'var(--gold)';
-        } else if (elapsed < 5000){
+        } else if (elapsed < 3000){
           subEl.textContent = '消えるぞ…！';
           subEl.style.opacity = '1';
           subEl.style.color = 'var(--p1)';
@@ -1005,7 +1005,7 @@
     if (state==='signal'){
       if (actor.reactionMs !== null && actor.reactionMs !== undefined) return;
       var elapsed = Math.round(performance.now() - signalTime);
-      if (elapsed >= TARGET_MS) return; // past 10s
+      if (elapsed >= TARGET_MS) return; // 7.77秒すぎたら無効
       actor.reactionMs = elapsed;
       var z = zoneEl(p);
       z.classList.remove('go','flash');
@@ -1207,8 +1207,8 @@
       ? '<p class="hint">ボスHP '+BOSS_HP_MAX+' ／ パーティー各HP '+PARTY_HP_MAX+'</p>'
       : ('<div class="row"><div class="stepper"><span>勝ち抜き本数</span><button id="decTarget">−</button><span id="targetVal">'+TARGET+'</span><button id="incTarget">+</button></div></div>');
     el.overlay.innerHTML =
-      '<div class="title">10秒でぶっとばす！<small>3〜5人 タイミング対決</small></div>' +
-      '<p class="lead">合図が鳴ったら10秒をめざしてタップ！タイマーは5秒で消える。ちょうど10秒を狙え！</p>' +
+      '<div class="title">7.77秒でぶっとばす！<small>スリーセブン狙い！3〜5人 タイミング対決</small></div>' +
+      '<p class="lead">合図が鳴ったら7.77秒をめざしてタップ！タイマーは3秒で消える。ちょうど7.77秒＝スリーセブンを狙え！</p>' +
       '<div class="row"><div class="mode-toggle">' +
         '<button class="mode-btn'+(MODE==='ffa'?' active':'')+'" id="modeFFA">通常対戦</button>' +
         '<button class="mode-btn'+(MODE==='boss'?' active':'')+'" id="modeBoss">ボス戦</button>' +
