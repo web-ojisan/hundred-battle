@@ -217,13 +217,30 @@
   #resultPanel{text-align:center;gap:12px;}
   #resultEmoji{font-size:64px;}
   #resultSub{font-size:14px;font-weight:800;opacity:.85;}
+
+  /* ===== ボスバトルモード（テスト実装：演出は後日調整） ===== */
+  #bossBar{
+    position:fixed;top:8px;left:50%;transform:translateX(-50%);z-index:15;
+    display:flex;align-items:center;gap:10px;
+    background:rgba(10,13,25,.85);border:2px solid var(--gold);border-radius:14px;
+    padding:6px 16px;
+  }
+  #bossBar.hidden{display:none!important;}
+  #bossBar img{width:52px;height:52px;object-fit:contain;image-rendering:pixelated;image-rendering:crisp-edges;}
+  #bossBar .bossName{font-family:"DotGothic16";font-size:14px;color:var(--gold);}
+  #bossBar .bossHp{font-size:13px;font-weight:800;}
+  .zone .charIcon{width:30px;height:30px;object-fit:contain;image-rendering:pixelated;image-rendering:crisp-edges;display:none;}
+  .zone .hp{font-size:11px;font-weight:800;color:var(--gold);display:none;}
+  body.bossMode .zone .charIcon,body.bossMode .zone .hp{display:block;}
 </style>
 </head>
 <body>
 
 <div id="stage">
   <div class="zone hidden-zone idle" id="zoneTop" data-side="top">
+    <img class="charIcon" id="iconTop" alt="">
     <div class="pname arcade" id="pnameTop"></div>
+    <div class="hp" id="hpTop"></div>
     <div class="status">
       <div class="msg" id="msgTop">まって…</div>
       <div class="fuseWrap"><div class="fuse" id="fuseTop"></div></div>
@@ -232,7 +249,9 @@
   </div>
 
   <div class="zone hidden-zone idle" id="zoneLeft" data-side="left">
+    <img class="charIcon" id="iconLeft" alt="">
     <div class="pname arcade" id="pnameLeft"></div>
+    <div class="hp" id="hpLeft"></div>
     <div class="msg" id="msgLeft">…</div>
     <div class="fuseWrap"><div class="fuse" id="fuseLeft"></div></div>
     <div class="anchor" id="anchorLeft"></div>
@@ -241,19 +260,32 @@
   <div id="boardWrap"><div id="board" class="locked"></div></div>
 
   <div class="zone hidden-zone idle" id="zoneRight" data-side="right">
+    <img class="charIcon" id="iconRight" alt="">
     <div class="pname arcade" id="pnameRight"></div>
+    <div class="hp" id="hpRight"></div>
     <div class="msg" id="msgRight">…</div>
     <div class="fuseWrap"><div class="fuse" id="fuseRight"></div></div>
     <div class="anchor" id="anchorRight"></div>
   </div>
 
   <div class="zone hidden-zone idle" id="zoneBottom" data-side="bottom">
+    <img class="charIcon" id="iconBottom" alt="">
     <div class="pname arcade" id="pnameBottom"></div>
+    <div class="hp" id="hpBottom"></div>
     <div class="status">
       <div class="msg" id="msgBottom">まって…</div>
       <div class="fuseWrap"><div class="fuse" id="fuseBottom"></div></div>
     </div>
     <div class="anchor" id="anchorBottom"></div>
+  </div>
+</div>
+
+<!-- ボスバトルモード用HUD（テスト実装） -->
+<div class="hidden" id="bossBar">
+  <img id="bossImg" src="img/dragon.png" alt="魔王">
+  <div>
+    <div class="bossName arcade">魔王</div>
+    <div class="bossHp" id="bossHpText">HP 30/30</div>
   </div>
 </div>
 
@@ -303,6 +335,13 @@
   <div class="panel">
     <h1>うたわないとドッカン！<small>わがまま爆弾「ボムたん」の 記憶メロディバトル</small></h1>
     <div class="optGroup">
+      <div class="label">🎮 あそびかた</div>
+      <div class="optRow" data-set="mode">
+        <button class="opt on" data-v="survival">サバイバル<small>最後の1人</small></button>
+        <button class="opt" data-v="boss">ボスバトル<small>みんなで魔王をたおせ</small></button>
+      </div>
+    </div>
+    <div class="optGroup">
       <div class="label">🧑‍🤝‍🧑 あそぶ人数</div>
       <div class="optRow" data-set="players">
         <button class="opt on" data-v="2">2人</button>
@@ -318,7 +357,7 @@
         <button class="opt" data-v="5">5×5<small>じごく</small></button>
       </div>
     </div>
-    <div class="optGroup">
+    <div class="optGroup" id="maxTurnsGroup">
       <div class="label">🏁 メロディのながさ（この音数まで歌いきれたら全員クリア）</div>
       <div class="optRow" data-set="maxTurns">
         <button class="opt" data-v="8">8</button>
@@ -343,6 +382,10 @@
     <div class="rules">
       🎵 あそびかた：自分の番が来たら、いままで光った順番を<b>ぜんぶ同じ順にタップ（＝うたう）</b>→ 最後に<b>すきなマスを1音「ちょい足し」</b>。
       押し間違い・時間切れで……💥ドッカン、脱落。<b>残ったメンバーでメロディの続きから続行</b>、最後まで生き残った人の勝ち！
+    </div>
+    <div class="rules hidden" id="bossRulesNote" style="background:#1b2140;border-radius:10px;padding:10px 12px;">
+      🐉 ボスバトル（テスト中）：魔法を<b>6段</b>つみあげると「魔法発動！」で魔王にダメージ。積んだ段数・すばやさに応じてダメージが増える。
+      ミスすると自分がダメージ（積んだ段数ぶん）、<b>発動直前（6段目）のミスは全員がダメージ</b>を受ける。魔王のHPを0にできたら勝利！
     </div>
     <button id="startBtn" class="arcade">💣 ボムたん とうじょう！</button>
     <div class="note">タブレットを机の真ん中に置いて、みんなで囲んで対戦してね　<a href="../index.html">← ゲームせんたくにもどる</a></div>
@@ -376,8 +419,19 @@
 <script>
 (() => {
   // ---------- 設定 ----------
-  const cfg = { players: 2, size: 3, maxTurns: 12, speed: 'normal' };
+  const cfg = { mode: 'survival', players: 2, size: 3, maxTurns: 12, speed: 'normal' };
   const SPEEDS = { slow: [5, 1.2], normal: [4, 0.8], oni: [2.5, 0.5] }; // [基本秒, 1マスあたり加算秒]
+
+  // ---------- ボスバトルモードの定数（テスト値：後日バランス調整）----------
+  const BOSS_HP_MAX = 30;
+  const PARTY_HP_MAX = 20;
+  const CAST_LEN = 6;       // この段数つみあげると魔法発動
+  const CLIMAX_DMG = 3;     // 発動直前（6段目）のミスで全員が受けるダメージ
+
+  function applyModeUI() {
+    document.getElementById('maxTurnsGroup').classList.toggle('hidden', cfg.mode === 'boss');
+    document.getElementById('bossRulesNote').classList.toggle('hidden', cfg.mode !== 'boss');
+  }
 
   document.querySelectorAll('[data-set]').forEach(row => {
     row.addEventListener('click', e => {
@@ -386,8 +440,10 @@
       b.classList.add('on');
       const v = b.dataset.v;
       cfg[row.dataset.set] = isNaN(v) ? v : +v;
+      if (row.dataset.set === 'mode') applyModeUI();
     });
   });
+  applyModeUI();
 
   // ---------- サウンド（Web Audio・外部ファイル不要）----------
   let AC = null;
@@ -441,10 +497,10 @@
     return sorted.slice(i0).concat(sorted.slice(0, i0));
   }
   const SIDE_DOM = {
-    top:    { zone: 'zoneTop',    msg: 'msgTop',    fuse: 'fuseTop',    anchor: 'anchorTop',    pname: 'pnameTop' },
-    right:  { zone: 'zoneRight',  msg: 'msgRight',  fuse: 'fuseRight',  anchor: 'anchorRight',  pname: 'pnameRight' },
-    bottom: { zone: 'zoneBottom', msg: 'msgBottom', fuse: 'fuseBottom', anchor: 'anchorBottom', pname: 'pnameBottom' },
-    left:   { zone: 'zoneLeft',   msg: 'msgLeft',   fuse: 'fuseLeft',   anchor: 'anchorLeft',   pname: 'pnameLeft' },
+    top:    { zone: 'zoneTop',    msg: 'msgTop',    fuse: 'fuseTop',    anchor: 'anchorTop',    pname: 'pnameTop',    hp: 'hpTop',    icon: 'iconTop' },
+    right:  { zone: 'zoneRight',  msg: 'msgRight',  fuse: 'fuseRight',  anchor: 'anchorRight',  pname: 'pnameRight',  hp: 'hpRight',  icon: 'iconRight' },
+    bottom: { zone: 'zoneBottom', msg: 'msgBottom', fuse: 'fuseBottom', anchor: 'anchorBottom', pname: 'pnameBottom', hp: 'hpBottom', icon: 'iconBottom' },
+    left:   { zone: 'zoneLeft',   msg: 'msgLeft',   fuse: 'fuseLeft',   anchor: 'anchorLeft',   pname: 'pnameLeft',   hp: 'hpLeft',   icon: 'iconLeft' },
   };
 
   // ---------- 状態 ----------
@@ -456,7 +512,11 @@
   let tiles = [];
   let seats = [];         // seats[playerIdx] = 'top'|'right'|'bottom'|'left'
   let zones = [], msgs = [], fuses = [], anchors = [], NAMES = [];
+  let hpEls = [], iconEls = [];
   let alive = [], eliminatedOrder = [];
+
+  // ---------- ボスバトルモードの状態 ----------
+  let bossHP = 0, partyHP = [], magicPower = 0;
 
   const board = document.getElementById('board');
   const bomb = document.getElementById('bomb');
@@ -472,7 +532,7 @@
 
     Object.values(SIDE_DOM).forEach(d => document.getElementById(d.zone).classList.add('hidden-zone'));
 
-    zones = []; msgs = []; fuses = []; anchors = []; NAMES = [];
+    zones = []; msgs = []; fuses = []; anchors = []; NAMES = []; hpEls = []; iconEls = [];
     seats.forEach((side, i) => {
       const d = SIDE_DOM[side];
       const zEl = document.getElementById(d.zone);
@@ -483,10 +543,29 @@
       msgs.push(document.getElementById(d.msg));
       fuses.push(document.getElementById(d.fuse));
       anchors.push(document.getElementById(d.anchor));
+      hpEls.push(document.getElementById(d.hp));
+      iconEls.push(document.getElementById(d.icon));
       NAMES.push((i + 1) + 'P');
     });
     alive = Array(cfg.players).fill(true);
     eliminatedOrder = [];
+
+    document.body.classList.toggle('bossMode', cfg.mode === 'boss');
+    document.getElementById('bossBar').classList.toggle('hidden', cfg.mode !== 'boss');
+    if (cfg.mode === 'boss') {
+      bossHP = BOSS_HP_MAX; magicPower = 0;
+      partyHP = Array(cfg.players).fill(PARTY_HP_MAX);
+      iconEls.forEach(img => { img.src = 'img/magic.png'; });
+      updateBossHp(); updatePartyHp();
+    }
+  }
+
+  // ---------- ボスバトルモードのHUD更新 ----------
+  function updateBossHp() {
+    document.getElementById('bossHpText').textContent = `HP ${Math.max(0, bossHP)}/${BOSS_HP_MAX}`;
+  }
+  function updatePartyHp() {
+    hpEls.forEach((el, i) => { if (el) el.textContent = `HP ${Math.max(0, partyHP[i])}/${PARTY_HP_MAX}`; });
   }
 
   function nextAlive(p) {
@@ -571,7 +650,10 @@
       sndTick();
       nextTick = now + (remain < 3000 ? 180 : remain < 6000 ? 380 : 650);
     }
-    if (remain <= 0) { eliminate(cur, '時間切れ'); return; }
+    if (remain <= 0) {
+      if (cfg.mode === 'boss') bossMiss(cur); else eliminate(cur, '時間切れ');
+      return;
+    }
     rafId = requestAnimationFrame(fuseLoop);
   }
 
@@ -587,7 +669,7 @@
       } else {
         tiles[i].classList.add('wrongTile');
         flash(seq[pos], 700); // 正解はここだったよ
-        eliminate(cur, '押し間違い');
+        if (cfg.mode === 'boss') bossMiss(cur); else eliminate(cur, '押し間違い');
       }
     } else if (phase === 'add') {
       seq.push(i);
@@ -596,8 +678,20 @@
       cancelAnimationFrame(rafId);
       fuses[cur].style.setProperty('--pct', '100%');
       sndOK();
-      if (cfg.maxTurns > 0 && seq.length >= cfg.maxTurns) { celebrateAllClear(); return; }
-      // 爆弾を時計回りのおとなりへ！
+
+      if (cfg.mode === 'boss') {
+        magicPower += 1 + speedBonus();
+        if (seq.length >= CAST_LEN) {
+          bossHP = Math.max(0, bossHP - magicPower);
+          seq = []; magicPower = 0;
+          updateBossHp();
+          if (bossHP <= 0) { setTimeout(() => celebrateBossDefeat(), 400); return; }
+        }
+      } else if (cfg.maxTurns > 0 && seq.length >= cfg.maxTurns) {
+        celebrateAllClear(); return;
+      }
+
+      // 爆弾（魔法力）を時計回りのおとなりへ！
       phase = 'transfer';
       const compact = seats[cur] === 'left' || seats[cur] === 'right';
       const next = nextAlive(cur);
@@ -608,6 +702,75 @@
         setTimeout(() => announceTurn(next), 750);
       }, 350);
     }
+  }
+
+  // ---------- ボスバトルモード：スピード判定（残り時間の割合で魔法力ボーナス）----------
+  function speedBonus() {
+    const remain = Math.max(0, deadline - performance.now());
+    const ratio = turnTime > 0 ? remain / turnTime : 0;
+    return ratio >= 0.7 ? 2 : ratio >= 0.3 ? 1 : 0;
+  }
+
+  // ---------- ボスバトルモード：ミス処理（脱落ではなくダメージ）----------
+  function bossMiss(p) {
+    cancelAnimationFrame(rafId);
+    board.classList.add('locked');
+    phase = 'idle';
+    const attemptLevel = seq.length + 1; // ミスした時点で完成させようとしていた段数
+    const isClimax = attemptLevel >= CAST_LEN;
+    seq = []; magicPower = 0;
+
+    if (isClimax) {
+      for (let i = 0; i < cfg.players; i++) {
+        if (alive[i]) partyHP[i] = Math.max(0, partyHP[i] - CLIMAX_DMG);
+      }
+      sndBoom();
+    } else {
+      partyHP[p] = Math.max(0, partyHP[p] - attemptLevel);
+      tone(160, .25, 'sawtooth', .3);
+    }
+    updatePartyHp();
+
+    for (let i = 0; i < cfg.players; i++) {
+      if (alive[i] && partyHP[i] <= 0) knockOut(i);
+    }
+    document.body.classList.add('shake');
+    setTimeout(() => document.body.classList.remove('shake'), 550);
+
+    const aliveIdx = alive.reduce((a, v, i) => { if (v) a.push(i); return a; }, []);
+    if (aliveIdx.length === 0) {
+      running = false;
+      setTimeout(() => showEndPanel('魔王にやぶれた……もう一度いどもう！', '💀'), 1000);
+      return;
+    }
+    setTimeout(() => {
+      const next = nextAlive(p);
+      sndWhoosh();
+      moveBombTo(next, true);
+      setTimeout(() => announceTurn(next), 750);
+    }, 1000);
+  }
+
+  function knockOut(i) {
+    alive[i] = false;
+    eliminatedOrder.push(i);
+    zones[i].classList.remove('active', 'idle');
+    zones[i].classList.add('eliminated');
+  }
+
+  function celebrateBossDefeat() {
+    running = false; phase = 'idle';
+    cancelAnimationFrame(rafId);
+    bomb.classList.add('hidden');
+    sndWin();
+    alive.forEach((al, i) => {
+      if (!al) return;
+      zones[i].classList.remove('active', 'idle');
+      zones[i].classList.add('winner');
+      const [x, y] = bombTargetXY(i);
+      confettiBurst(x + BOMB_R, y + BOMB_R, `var(--p${i + 1})`);
+    });
+    setTimeout(() => showEndPanel('魔王をたおした！みんなの勝利！'), 700);
   }
 
   // ---------- 爆弾の移動 ----------
@@ -732,7 +895,8 @@
     setTimeout(() => showEndPanel(`メロディ ${cfg.maxTurns}音 かんせい！`), 700);
   }
 
-  function showEndPanel(sub) {
+  function showEndPanel(sub, emoji) {
+    document.getElementById('resultEmoji').textContent = emoji || '🏆';
     document.getElementById('resultSub').textContent = sub;
     document.getElementById('resultOverlay').classList.remove('hidden');
   }
