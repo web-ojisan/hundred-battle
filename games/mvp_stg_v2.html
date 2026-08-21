@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<title>3色協力弾幕STG（囲みレイアウト）</title>
+<title>3色協力弾幕STG</title>
 <link rel="manifest" href="../manifest.json">
 <link rel="apple-touch-icon" href="../icons/apple-touch-icon.png">
 <link rel="icon" href="../icons/favicon-32.png" sizes="32x32">
@@ -19,6 +19,11 @@
     font-family: -apple-system, "Hiragino Kaku Gothic ProN", sans-serif;
   }
   #game { display: block; width: 100vw; height: 100vh; background: #06060c; }
+  #game.shake { animation: gameShake .4s; }
+  @keyframes gameShake {
+    10%,90%{ transform: translateX(-4px); } 20%,80%{ transform: translateX(6px); }
+    30%,50%,70%{ transform: translateX(-10px); } 40%,60%{ transform: translateX(10px); }
+  }
   #hud {
     position: fixed; top: 0; left: 0; width: 100%;
     padding: 10px 14px;
@@ -58,7 +63,7 @@
   <div>🔴RED / 🔵BLUE / 🟢GREEN</div>
   <div id="fusionCount">FUSION: 0</div>
 </div>
-<div id="msg">自分の辺を指でなぞってスライド移動（よける）！なぞり続けると連射、その場でホールド→離すとチャージ開始、チャージ中に2回タップで自機を前方へ発射（貫通攻撃）</div>
+<div id="msg">ドラッグで狙いを定めて連射！離すとチャージ開始、100%たまると自動発射（貫通攻撃）。自分の砲台をダブルタップで「助ける」コール＝3人の色を一斉ローテーション。誰かとかぶるとペナルティ！</div>
 <canvas id="game"></canvas>
 
 <script>
@@ -97,44 +102,28 @@ document.addEventListener('gestureend', e => e.preventDefault());
     blue:  { hex: '#4da3ff', glow: 'rgba(77,163,255,0.6)' },
     green: { hex: '#4dff88', glow: 'rgba(77,255,136,0.6)' }
   };
+  // 「助ける」コール成功時、全員の色をこの順で1つずつローテーション
+  const ROTATE_NEXT = { red: 'blue', blue: 'green', green: 'red' };
 
-  // ---- 3辺の囲みレイアウト ----
-  // bottom = P1(緑/正面)、left = P2(赤/左辺)、right = P3(青/右辺)
-  // inward = そのプレイヤーの発射方向（常に内側=中央向き固定）、tangent = スライド方向
-  const EDGES = {
-    bottom: { inward: { x: 0,  y: -1 }, tangent: { x: 1, y: 0 } },
-    left:   { inward: { x: 1,  y: 0  }, tangent: { x: 0, y: 1 } },
-    right:  { inward: { x: -1, y: 0  }, tangent: { x: 0, y: 1 } },
-  };
-  const GLYPH_ANGLE = { bottom: 0, left: Math.PI/2, right: -Math.PI/2 };
-  const EDGE_MARGIN = 50;   // 画面端から自機ラインまでの距離
-  const LANE_INSET = 0.16;  // レーン両端の余白（隣の辺と干渉しないように）
-  const LANE_HALF_W = 42;   // レーン帯の見た目の太さ(半分)
-  const LANE_CAPTURE = 90;  // レーンからこの距離以内ならタッチを捕捉
-
+  // ---- Turret definitions (isosceles triangle, bottom of screen) ----
+  // left/right at the base (lower, wider apart), center elevated between them (apex)
   const turrets = {
-    bottom: { edge: 'bottom', color: 'green', shape: '✌️' },
-    left:   { edge: 'left',   color: 'red',   shape: '✊' },
-    right:  { edge: 'right',  color: 'blue',  shape: '✋' },
+    left:   { color: 'red',   angleMin: -10, angleMax: 60,  angle: 30,  shape: '✊' },
+    right:  { color: 'blue',  angleMin: -60, angleMax: 10,  angle: -30, shape: '✋' },
+    center: { color: 'green', angleMin: -60, angleMax: 60,  angle: 0,   shape: '✌️' }
   };
-  for (const key in turrets){ turrets[key].dir = EDGES[turrets[key].edge].inward; }
-
-  function laneToXY(lane, pos){
-    return lane.axis === 'x' ? { x: pos, y: lane.fixed } : { x: lane.fixed, y: pos };
-  }
 
   function layoutTurrets(){
-    const laneDefs = {
-      bottom: { axis: 'x', min: W*LANE_INSET, max: W*(1-LANE_INSET), fixed: H - EDGE_MARGIN },
-      left:   { axis: 'y', min: H*LANE_INSET, max: H*(1-LANE_INSET), fixed: EDGE_MARGIN },
-      right:  { axis: 'y', min: H*LANE_INSET, max: H*(1-LANE_INSET), fixed: W - EDGE_MARGIN },
-    };
+    // 自機(見える場所) : 指に隠れないよう画面中央寄りに配置
+    turrets.left.home   = { x: W*0.12, y: H*0.74 };
+    turrets.right.home  = { x: W*0.88, y: H*0.74 };
+    turrets.center.home = { x: W*0.50, y: H*0.78 };
+    // 操作パッド(触る場所) : 画面端の手前側、自機とは切り離して配置
+    turrets.left.pad    = { x: W*0.12, y: H*0.90, r: 58 };
+    turrets.right.pad   = { x: W*0.88, y: H*0.90, r: 58 };
+    turrets.center.pad  = { x: W*0.50, y: H*0.95, r: 58 };
     for (const key in turrets){
       const t = turrets[key];
-      t.lane = laneDefs[key];
-      if (t.slidePos === undefined) t.slidePos = (t.lane.min + t.lane.max) / 2;
-      t.slidePos = Math.max(t.lane.min, Math.min(t.lane.max, t.slidePos));
-      t.home = laneToXY(t.lane, t.slidePos);
       if (!t.state){
         t.state = 'idle';         // idle | outbound | return
         t.charge = 0;
@@ -142,12 +131,12 @@ document.addEventListener('gestureend', e => e.preventDefault());
         t.activePointerId = null;
         t.downPos = null;
         t.dragStarted = false;
-        t.lastTapTime = 0;
         t.pos = { x: t.home.x, y: t.home.y };
         t.hp = 5;
         t.maxHp = 5;
         t.hitFlash = 0;
         t.fireCooldown = 0;
+        t.lastTapTime = 0;
       } else if (t.state === 'idle'){
         t.pos = { x: t.home.x, y: t.home.y };
       }
@@ -168,7 +157,7 @@ document.addEventListener('gestureend', e => e.preventDefault());
   const EXPLODE_FRAMES = 100; // 復帰までの時間 (約1.6秒)
   const PLAYER_BULLET_R = 4;
   const PLAYER_BULLET_SPEED = 9;
-  const PLAYER_FIRE_COOLDOWN = 8; // なぞっている間の連射間隔(フレーム)
+  const PLAYER_FIRE_COOLDOWN = 8; // ドラッグ中の連射間隔(フレーム)
   // グー(red) > チョキ(green) > パー(blue) > グー(red)
   const BEATS = { red: 'green', green: 'blue', blue: 'red' };
 
@@ -182,7 +171,6 @@ document.addEventListener('gestureend', e => e.preventDefault());
   let enemySpawnTimer = 0;
   let elapsed = 0;
   const colorKeys = ['red','blue','green'];
-  const edgeKeys = ['bottom','left','right'];
   const ENEMY_TYPES = ['straight','diagonal','zigzag'];
   const ALERT_FRAMES = 180; // 出現前のカラーアラート表示時間(約3秒)
   const ENEMY_SIZES = {
@@ -197,34 +185,35 @@ document.addEventListener('gestureend', e => e.preventDefault());
     return 'large';
   }
 
-  // ---- 中央固定ボス ----
+  // ---- 固定位置ボス ----
   let boss = null;
   const BOSS_PATTERN_ORDER = ['sequential','stagnant'];
   const BOSS_PATTERN_DURATION = { sequential: 420, stagnant: 480 };
   const BOSS_EXPLODE_FRAMES = 90;
 
-  function arenaCenter(){
-    return { x: W*0.5, y: H*0.46 };
-  }
-
   function layoutBoss(){
-    const c = arenaCenter();
+    const x = W*0.5, y = H*0.15;
     if (!boss){
       boss = {
-        x: c.x, y: c.y, r: 30,
+        x, y, r: 32,
         hp: 90, maxHp: 90,
         color: colorKeys[Math.floor(Math.random()*3)],
         state: 'active', // active | destroyed
         pattern: 'sequential',
         patternTimer: 0,
         spawnTimer: 0,
-        seqAngle: 0,
+        seqAngle: -65,
+        seqDir: 1,
         hitFlash: 0,
         explodeTimer: 0
       };
     } else {
-      boss.x = c.x; boss.y = c.y;
+      boss.x = x; boss.y = y;
     }
+  }
+
+  function arenaCenter(){
+    return { x: W*0.5, y: H*0.62 };
   }
 
   function triggerExplosion(t){
@@ -247,34 +236,25 @@ document.addEventListener('gestureend', e => e.preventDefault());
   function addShockwave(x, y, hex){
     shockwaves.push({ x, y, r: 6, maxR: 90, life: 26, maxLife: 26, hex });
   }
-  function rotateVec(v, deg){
-    const r = deg*Math.PI/180;
-    const cos = Math.cos(r), sin = Math.sin(r);
-    return { x: v.x*cos - v.y*sin, y: v.x*sin + v.y*cos };
-  }
 
-  function distanceToLane(t, x, y){
-    const lane = t.lane;
-    if (lane.axis === 'x'){
-      const dy = Math.abs(y - lane.fixed);
-      const dx = x < lane.min ? lane.min - x : x > lane.max ? x - lane.max : 0;
-      return Math.hypot(dx, dy);
-    } else {
-      const dx = Math.abs(x - lane.fixed);
-      const dy = y < lane.min ? lane.min - y : y > lane.max ? y - lane.max : 0;
-      return Math.hypot(dx, dy);
-    }
-  }
+  const PAD_CAPTURE_MARGIN = 40; // パッド外周からさらにこの分まで捕捉を許容
 
-  function nearestIdleLane(x, y){
+  function nearestIdlePad(x, y){
     let best = null, bestDist = Infinity;
     for (const key in turrets){
       const t = turrets[key];
       if (t.state !== 'idle' || t.activePointerId !== null) continue;
-      const d = distanceToLane(t, x, y);
-      if (d <= LANE_CAPTURE && d < bestDist){ bestDist = d; best = key; }
+      const d = Math.hypot(t.pad.x - x, t.pad.y - y);
+      if (d <= t.pad.r + PAD_CAPTURE_MARGIN && d < bestDist){ bestDist = d; best = key; }
     }
     return best;
+  }
+
+  function angleFromPad(t, x, y){
+    const dx = x - t.pad.x;
+    const dy = y - t.pad.y;
+    let ang = Math.atan2(dx, -dy) * 180 / Math.PI; // 0 = 真上, + = 右
+    return Math.max(t.angleMin, Math.min(t.angleMax, ang));
   }
 
   function triggerLaunch(t){
@@ -284,6 +264,54 @@ document.addEventListener('gestureend', e => e.preventDefault());
     t.charging = false;
     t.state = 'outbound';
     t.pos = { x: t.home.x, y: t.home.y };
+  }
+
+  // ---- 「助ける」コール：ダブルタップで全員の色を一斉ローテーション ----
+  // 350ms以内に別のプレイヤーもコールしたら「かぶった」扱いでペナルティにする
+  const ROTATE_CLAIM_WINDOW = 350;
+  let rotateClaim = null; // { by: 'left'|'right'|'center', time }
+
+  function requestColorSwap(byKey){
+    const now = performance.now();
+    if (rotateClaim && (now - rotateClaim.time) < ROTATE_CLAIM_WINDOW && rotateClaim.by !== byKey){
+      // 誰かとかぶった！ペナルティ
+      triggerSwapCollisionPenalty(rotateClaim.by, byKey);
+      rotateClaim = null;
+      return;
+    }
+    const claim = { by: byKey, time: now };
+    rotateClaim = claim;
+    setTimeout(() => {
+      if (rotateClaim === claim){
+        executeColorRotation();
+        rotateClaim = null;
+      }
+    }, ROTATE_CLAIM_WINDOW);
+  }
+
+  function executeColorRotation(){
+    for (const key in turrets){
+      turrets[key].color = ROTATE_NEXT[turrets[key].color];
+    }
+    const c = arenaCenter();
+    addShockwave(c.x, c.y, '#ffffff');
+    for (const key in turrets){
+      burst(turrets[key].home.x, turrets[key].home.y, COLORS[turrets[key].color].hex, 10);
+    }
+  }
+
+  function triggerSwapCollisionPenalty(keyA, keyB){
+    [keyA, keyB].forEach(key => {
+      const t = turrets[key];
+      t.hp = Math.max(0, t.hp - 1);
+      t.hitFlash = 20;
+      burst(t.home.x, t.home.y, '#ffffff', 16);
+      addShockwave(t.home.x, t.home.y, '#ff5a5f');
+      if (t.hp <= 0) triggerExplosion(t);
+    });
+    canvas.classList.remove('shake');
+    void canvas.offsetWidth;
+    canvas.classList.add('shake');
   }
 
   // ---- Pointer events (covers mouse + multitouch on modern browsers) ----
@@ -296,7 +324,7 @@ document.addEventListener('gestureend', e => e.preventDefault());
 
   canvas.addEventListener('pointerdown', (e) => {
     e.preventDefault();
-    const key = nearestIdleLane(e.clientX, e.clientY);
+    const key = nearestIdlePad(e.clientX, e.clientY);
     if (!key) return;
     const t = turrets[key];
     t.activePointerId = e.pointerId;
@@ -310,30 +338,25 @@ document.addEventListener('gestureend', e => e.preventDefault());
     const d = Math.hypot(e.clientX - t.downPos.x, e.clientY - t.downPos.y);
     if (d > TAP_MOVE_THRESHOLD) t.dragStarted = true;
     if (t.dragStarted){
-      const raw = t.lane.axis === 'x' ? e.clientX : e.clientY;
-      t.slidePos = Math.max(t.lane.min, Math.min(t.lane.max, raw));
-      t.home = laneToXY(t.lane, t.slidePos);
-      if (t.state === 'idle') t.pos = { x: t.home.x, y: t.home.y };
-      t.charging = false;
-      t.charge = 0;
+      t.angle = angleFromPad(t, e.clientX, e.clientY);
     }
   });
 
   function releasePointer(e){
     const t = findTurretByPointer(e.pointerId);
     if (!t) return;
-    const now = performance.now();
+    const key = t === turrets.left ? 'left' : t === turrets.right ? 'right' : 'center';
     if (!t.dragStarted){
-      // tap
+      // タップ(ドラッグなし) = 「助ける」コールのダブルタップ判定
+      const now = performance.now();
       if (now - t.lastTapTime < DOUBLE_TAP_MS){
-        triggerLaunch(t);
+        requestColorSwap(key);
         t.lastTapTime = 0;
       } else {
         t.lastTapTime = now;
       }
     } else {
       t.charging = true;
-      t.lastTapTime = 0;
     }
     t.activePointerId = null;
     t.downPos = null;
@@ -343,38 +366,38 @@ document.addEventListener('gestureend', e => e.preventDefault());
   canvas.addEventListener('pointercancel', releasePointer);
 
   // ---- Drawing helpers ----
-  function drawLane(t){
+  function dirFromAngle(angleDeg){
+    const r = angleDeg * Math.PI/180;
+    return { x: Math.sin(r), y: -Math.cos(r) };
+  }
+
+  function drawArcGuide(t){
     const c = COLORS[t.color];
-    const usable = t.state === 'idle';
-    const lane = t.lane;
     ctx.save();
-    ctx.fillStyle = c.hex;
-    ctx.globalAlpha = !usable ? 0.04 : (t.activePointerId !== null ? 0.14 : 0.07);
-    if (lane.axis === 'x'){
-      ctx.fillRect(lane.min, lane.fixed - LANE_HALF_W, lane.max - lane.min, LANE_HALF_W*2);
-    } else {
-      ctx.fillRect(lane.fixed - LANE_HALF_W, lane.min, LANE_HALF_W*2, lane.max - lane.min);
-    }
-    ctx.globalAlpha = usable ? 0.35 : 0.12;
     ctx.strokeStyle = c.hex;
+    ctx.globalAlpha = 0.16;
     ctx.lineWidth = 2;
-    ctx.setLineDash([5,5]);
-    if (lane.axis === 'x') ctx.strokeRect(lane.min, lane.fixed - LANE_HALF_W, lane.max - lane.min, LANE_HALF_W*2);
-    else ctx.strokeRect(lane.fixed - LANE_HALF_W, lane.min, LANE_HALF_W*2, lane.max - lane.min);
-    ctx.setLineDash([]);
+    [t.angleMin, t.angleMax].forEach(a => {
+      const d = dirFromAngle(a);
+      ctx.beginPath();
+      ctx.moveTo(t.home.x, t.home.y);
+      ctx.lineTo(t.home.x + d.x*130, t.home.y + d.y*130);
+      ctx.stroke();
+    });
     ctx.restore();
   }
 
   function drawAimLine(t){
     const c = COLORS[t.color];
+    const d = dirFromAngle(t.angle);
     ctx.save();
     ctx.strokeStyle = c.hex;
-    ctx.globalAlpha = t.activePointerId !== null ? 0.9 : 0.35;
+    ctx.globalAlpha = t.activePointerId !== null ? 0.9 : 0.4;
     ctx.lineWidth = t.activePointerId !== null ? 3 : 2;
     ctx.setLineDash(t.activePointerId !== null ? [] : [6,6]);
     ctx.beginPath();
     ctx.moveTo(t.home.x, t.home.y);
-    ctx.lineTo(t.home.x + t.dir.x*110, t.home.y + t.dir.y*110);
+    ctx.lineTo(t.home.x + d.x*110, t.home.y + d.y*110);
     ctx.stroke();
     ctx.restore();
   }
@@ -391,21 +414,45 @@ document.addEventListener('gestureend', e => e.preventDefault());
     ctx.restore();
   }
 
-  function drawShapeGlyph(x, y, shape, r, angle){
+  function drawPad(t){
+    const c = COLORS[t.color];
+    const usable = t.state === 'idle';
     ctx.save();
-    ctx.translate(x, y);
-    if (angle) ctx.rotate(angle);
+    ctx.fillStyle = c.hex;
+    ctx.globalAlpha = !usable ? 0.04 : (t.activePointerId !== null ? 0.16 : 0.08);
+    ctx.beginPath();
+    ctx.arc(t.pad.x, t.pad.y, t.pad.r, 0, Math.PI*2);
+    ctx.fill();
+    ctx.globalAlpha = usable ? 0.5 : 0.15;
+    ctx.strokeStyle = c.hex;
+    ctx.lineWidth = 2;
+    ctx.setLineDash([5,5]);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    if (usable){
+      // 現在の角度を示す小さいインジケータ(パッド内)
+      const d = dirFromAngle(t.angle);
+      ctx.globalAlpha = 0.85;
+      ctx.beginPath();
+      ctx.arc(t.pad.x + d.x*(t.pad.r*0.6), t.pad.y + d.y*(t.pad.r*0.6), 6, 0, Math.PI*2);
+      ctx.fillStyle = c.hex;
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  function drawShapeGlyph(x, y, shape, r){
+    ctx.save();
     ctx.font = Math.round(r*1.35) + 'px sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(shape, 0, r*0.06);
+    ctx.fillText(shape, x, y + r*0.06);
     ctx.restore();
   }
 
   function drawTurretBase(t){
     const c = COLORS[t.color];
     if (t.hitFlash > 0) t.hitFlash--;
-    const angle = GLYPH_ANGLE[t.edge];
     ctx.save();
     if (t.state === 'idle'){
       ctx.shadowColor = c.glow;
@@ -415,7 +462,7 @@ document.addEventListener('gestureend', e => e.preventDefault());
       ctx.arc(t.home.x, t.home.y, TURRET_R, 0, Math.PI*2);
       ctx.fill();
       ctx.shadowBlur = 0;
-      drawShapeGlyph(t.home.x, t.home.y, t.shape, TURRET_R, angle);
+      drawShapeGlyph(t.home.x, t.home.y, t.shape, TURRET_R);
     } else if (t.state === 'destroyed'){
       // 破壊された跡地 + 復帰までのカウントダウンリング
       const progress = 1 - (t.explodeTimer / EXPLODE_FRAMES);
@@ -467,7 +514,7 @@ document.addEventListener('gestureend', e => e.preventDefault());
     ctx.arc(t.pos.x, t.pos.y, SHIP_R, 0, Math.PI*2);
     ctx.fill();
     ctx.shadowBlur = 0;
-    drawShapeGlyph(t.pos.x, t.pos.y, t.shape, SHIP_R, GLYPH_ANGLE[t.edge]);
+    drawShapeGlyph(t.pos.x, t.pos.y, t.shape, SHIP_R);
     ctx.restore();
     // trail
     particles.push({ x: t.pos.x, y: t.pos.y, vx:(Math.random()-0.5)*0.5, vy:(Math.random()-0.5)*0.5, life: 12, maxLife: 12, hex: c.hex });
@@ -487,10 +534,12 @@ document.addEventListener('gestureend', e => e.preventDefault());
     }
     if (t.charging && t.state === 'idle'){
       t.charge = Math.min(1, t.charge + 1/CHARGE_TIME_FRAMES);
+      if (t.charge >= 1) triggerLaunch(t); // チャージ満タンで自動発射
     }
     if (t.state === 'outbound'){
-      t.pos.x += t.dir.x * t.outSpeed;
-      t.pos.y += t.dir.y * t.outSpeed;
+      const d = dirFromAngle(t.angle);
+      t.pos.x += d.x * t.outSpeed;
+      t.pos.y += d.y * t.outSpeed;
       const margin = SHIP_R + 4;
       if (t.pos.x <= margin || t.pos.x >= W - margin || t.pos.y <= margin || t.pos.y >= H - margin){
         t.pos.x = Math.max(margin, Math.min(W - margin, t.pos.x));
@@ -515,40 +564,32 @@ document.addEventListener('gestureend', e => e.preventDefault());
     const color = colorKeys[Math.floor(Math.random()*3)];
     const type = ENEMY_TYPES[Math.floor(Math.random()*3)];
     const size = pickEnemySize();
-    const edge = edgeKeys[Math.floor(Math.random()*3)];
-    const lane = turrets[edge].lane;
-    const lanePos = lane.min + Math.random()*(lane.max - lane.min);
-    alerts.push({ edge, lanePos, color, type, size, life: ALERT_FRAMES, maxLife: ALERT_FRAMES });
+    const margin = 50;
+    const x = margin + Math.random()*(W - margin*2);
+    alerts.push({ x, color, type, size, life: ALERT_FRAMES, maxLife: ALERT_FRAMES });
   }
 
   function spawnEnemyFromAlert(a){
     const speedBase = 1.7 + Math.random()*0.6 + Math.min(elapsed/3200, 1.3);
     const sizeInfo = ENEMY_SIZES[a.size];
     const mult = sizeInfo.speedMult;
-    const outward = { x: -EDGES[a.edge].inward.x, y: -EDGES[a.edge].inward.y };
-    const tangent = EDGES[a.edge].tangent;
-    const c = arenaCenter();
-    const lane = turrets[a.edge].lane;
-    const laneMid = (lane.min + lane.max) / 2;
-    const tanBase = a.lanePos - laneMid; // 予告されていた到達予定地点(接線方向オフセット)
     const enemy = {
-      edge: a.edge, type: a.type, color: a.color, size: a.size,
-      outward, tangent, tanBase, laneMin: lane.min - laneMid, laneMax: lane.max - laneMid,
-      x: c.x, y: c.y, travel: 0, tanOffset: tanBase,
-      fireTimer: 40 + Math.random()*30,
+      type: a.type, color: a.color, size: a.size,
+      x: a.x, y: -24, fireTimer: 40 + Math.random()*30,
       r: sizeInfo.r, hp: sizeInfo.hp, maxHp: sizeInfo.hp
     };
     if (a.type === 'straight'){
-      enemy.vOut = (speedBase + 0.7) * mult;
-      enemy.vTan = 0;
+      enemy.vy = (speedBase + 0.7) * mult;
+      enemy.vx = 0;
     } else if (a.type === 'diagonal'){
-      enemy.vOut = (speedBase * 0.85) * mult;
-      enemy.vTan = (Math.random() < 0.5 ? -1 : 1) * (speedBase * 0.85 + 0.4) * mult;
+      enemy.vy = (speedBase * 0.85) * mult;
+      enemy.vx = (Math.random() < 0.5 ? -1 : 1) * (speedBase * 0.85 + 0.4) * mult;
     } else { // zigzag
-      enemy.vOut = (speedBase * 0.65) * mult;
+      enemy.vy = (speedBase * 0.65) * mult;
+      enemy.baseX = a.x;
       enemy.phase = Math.random()*Math.PI*2;
       enemy.freq = 0.017;
-      enemy.amplitude = Math.min(Math.max(W,H)*0.20, 130);
+      enemy.amplitude = Math.min(W*0.30, 150);
     }
     enemies.push(enemy);
   }
@@ -564,29 +605,20 @@ document.addEventListener('gestureend', e => e.preventDefault());
   }
 
   function drawAlerts(){
-    const c = arenaCenter();
     alerts.forEach(a => {
       const pulse = 0.5 + 0.5*Math.sin(a.life*0.55);
-      const col = COLORS[a.color];
+      const c = COLORS[a.color];
       const scale = ENEMY_SIZES[a.size].r / 14;
-      const outward = { x: -EDGES[a.edge].inward.x, y: -EDGES[a.edge].inward.y };
-      const tangent = EDGES[a.edge].tangent;
-      const lane = turrets[a.edge].lane;
-      const laneMid = (lane.min + lane.max) / 2;
-      const tanBase = (a.lanePos - laneMid) * 0.4; // 着地予定地点をうっすら示す(接線方向)
-      const ox = c.x + outward.x*44 + tangent.x*tanBase, oy = c.y + outward.y*44 + tangent.y*tanBase;
-      const ang = Math.atan2(-outward.x, outward.y); // 三角形の初期の向き(下向き)を outward に合わせる
+      const y = 26;
       ctx.save();
-      ctx.translate(ox, oy);
-      ctx.rotate(ang);
-      ctx.shadowColor = col.glow;
+      ctx.shadowColor = c.glow;
       ctx.shadowBlur = 14;
       ctx.globalAlpha = 0.55 + 0.35*pulse;
-      ctx.fillStyle = col.hex;
+      ctx.fillStyle = c.hex;
       ctx.beginPath();
-      ctx.moveTo(0, 12*scale);
-      ctx.lineTo(-10*scale, -8*scale);
-      ctx.lineTo(10*scale, -8*scale);
+      ctx.moveTo(a.x, y+12*scale);
+      ctx.lineTo(a.x-10*scale, y-8*scale);
+      ctx.lineTo(a.x+10*scale, y-8*scale);
       ctx.closePath();
       ctx.fill();
       ctx.restore();
@@ -601,43 +633,35 @@ document.addEventListener('gestureend', e => e.preventDefault());
       const spread = 70; // 度
       for (let i=0;i<count;i++){
         const angleDeg = -spread/2 + (spread/(count-1))*i;
-        const d = rotateVec(e.outward, angleDeg);
+        const rad = angleDeg * Math.PI/180;
         enemyBullets.push({
-          x: e.x + e.outward.x*12, y: e.y + e.outward.y*12,
-          vx: d.x*speed, vy: d.y*speed,
+          x: e.x, y: e.y+12,
+          vx: Math.sin(rad)*speed, vy: Math.cos(rad)*speed,
           color: e.color
         });
       }
     } else {
-      enemyBullets.push({
-        x: e.x + e.outward.x*12, y: e.y + e.outward.y*12,
-        vx: e.outward.x*speed, vy: e.outward.y*speed,
-        color: e.color
-      });
+      enemyBullets.push({ x: e.x, y: e.y+12, vx: 0, vy: speed, color: e.color });
     }
   }
 
   function updateEnemies(){
-    const c = arenaCenter();
     enemies.forEach(e => {
-      e.travel += e.vOut;
+      e.y += e.vy;
       if (e.type === 'diagonal'){
-        e.tanOffset += e.vTan;
-        if (e.tanOffset < e.laneMin || e.tanOffset > e.laneMax) e.vTan *= -1;
-        e.tanOffset = Math.max(e.laneMin, Math.min(e.laneMax, e.tanOffset));
+        e.x += e.vx;
+        if (e.x < 26 || e.x > W-26) e.vx *= -1;
       } else if (e.type === 'zigzag'){
-        e.tanOffset = e.tanBase + Math.sin(e.travel*e.freq + e.phase) * e.amplitude;
+        e.x = e.baseX + Math.sin(e.y*e.freq + e.phase) * e.amplitude;
+        e.x = Math.max(26, Math.min(W-26, e.x));
       }
-      e.x = c.x + e.outward.x*e.travel + e.tangent.x*e.tanOffset;
-      e.y = c.y + e.outward.y*e.travel + e.tangent.y*e.tanOffset;
       e.fireTimer--;
-      if (e.fireTimer <= 0 && e.travel > 30){
+      if (e.fireTimer <= 0 && e.y > 0){
         fireEnemyBullets(e);
         e.fireTimer = Math.max(26, 60 - Math.floor(elapsed/60)) + (e.size === 'large' ? 20 : 0);
       }
     });
-    const limit = Math.max(W,H);
-    enemies = enemies.filter(e => e.travel < limit + 40 && !e.dead);
+    enemies = enemies.filter(e => e.y < H + 40 && !e.dead);
   }
 
   function drawEnemies(){
@@ -654,7 +678,7 @@ document.addEventListener('gestureend', e => e.preventDefault());
       ctx.fillStyle = 'rgba(255,255,255,0.9)';
       ctx.font = Math.round(e.r*0.8) + 'px sans-serif';
       ctx.textAlign = 'center';
-      const label = e.type === 'straight' ? '➤' : e.type === 'diagonal' ? '➘' : '〜';
+      const label = e.type === 'straight' ? '↓' : e.type === 'diagonal' ? '↘' : '〜';
       ctx.fillText(label, e.x, e.y+3);
       ctx.restore();
 
@@ -679,31 +703,33 @@ document.addEventListener('gestureend', e => e.preventDefault());
     const speed = (5.2 + Math.min(elapsed/6000, 1.3)) / 3;
     const rad = boss.seqAngle * Math.PI/180;
     enemyBullets.push({
-      x: boss.x, y: boss.y,
-      vx: Math.cos(rad)*speed, vy: Math.sin(rad)*speed,
+      x: boss.x, y: boss.y + boss.r,
+      vx: Math.sin(rad)*speed, vy: Math.cos(rad)*speed,
       color
     });
-    boss.seqAngle += 9; // 中央から全方位へゆっくり回転しながら発射
-    if (boss.seqAngle >= 360) boss.seqAngle -= 360;
+    boss.seqAngle += 16 * boss.seqDir;
+    if (boss.seqAngle > 65){ boss.seqAngle = 65; boss.seqDir = -1; }
+    if (boss.seqAngle < -65){ boss.seqAngle = -65; boss.seqDir = 1; }
   }
 
   function spawnStagnantCluster(){
     const color = colorKeys[Math.floor(Math.random()*3)];
-    const c = arenaCenter();
+    const target = arenaCenter();
     const count = 8;
     for (let i=0;i<count;i++){
       const ang = Math.random()*Math.PI*2;
-      const dist = 70 + Math.random()*90;
-      const x = c.x + Math.cos(ang)*dist;
-      const y = c.y + Math.sin(ang)*dist;
+      const dist = 60 + Math.random()*150;
+      let x = target.x + Math.cos(ang)*dist;
+      let y = target.y - 120 + Math.sin(ang)*dist*0.6;
+      x = Math.max(40, Math.min(W-40, x));
+      y = Math.max(70, Math.min(H*0.7, y));
       enemyBullets.push({
         x, y,
-        vx: (Math.random()-0.5)*0.2,
-        vy: (Math.random()-0.5)*0.2,
+        vx: (Math.random()-0.5)*0.25,
+        vy: (Math.random()-0.5)*0.25 + 0.05,
         color,
         lingerTimer: 110 + Math.floor(Math.random()*20),
-        released: false,
-        releaseAng: ang
+        released: false
       });
     }
   }
@@ -729,7 +755,8 @@ document.addEventListener('gestureend', e => e.preventDefault());
         boss.pattern = 'sequential';
         boss.patternTimer = 0;
         boss.spawnTimer = 0;
-        boss.seqAngle = 0;
+        boss.seqAngle = -65;
+        boss.seqDir = 1;
         addShockwave(boss.x, boss.y, COLORS[boss.color].hex);
         burst(boss.x, boss.y, '#ffffff', 18);
       }
@@ -743,7 +770,7 @@ document.addEventListener('gestureend', e => e.preventDefault());
       boss.pattern = BOSS_PATTERN_ORDER[(idx+1) % BOSS_PATTERN_ORDER.length];
       boss.patternTimer = 0;
       boss.spawnTimer = 999; // 切り替え直後に即スポーンさせる
-      if (boss.pattern === 'sequential'){ boss.seqAngle = 0; }
+      if (boss.pattern === 'sequential'){ boss.seqAngle = -65; boss.seqDir = 1; }
     }
 
     boss.spawnTimer++;
@@ -754,7 +781,7 @@ document.addEventListener('gestureend', e => e.preventDefault());
     }
   }
 
-  const PATTERN_LABEL = { sequential: '全方位', stagnant: '滞留' };
+  const PATTERN_LABEL = { sequential: '連続', stagnant: '滞留' };
 
   function drawBoss(){
     if (!boss) return;
@@ -806,25 +833,14 @@ document.addEventListener('gestureend', e => e.preventDefault());
     const c = COLORS[t.color];
     const total = t.maxHp;
     const spacing = 10;
+    const startX = t.home.x - (total-1)*spacing/2;
+    const y = t.home.y - TURRET_R - 14;
     ctx.save();
-    if (t.lane.axis === 'x'){
-      const startX = t.home.x - (total-1)*spacing/2;
-      const y = t.home.y - TURRET_R - 14;
-      for (let i=0;i<total;i++){
-        ctx.beginPath();
-        ctx.arc(startX + i*spacing, y, 3.2, 0, Math.PI*2);
-        ctx.fillStyle = i < t.hp ? c.hex : 'rgba(255,255,255,0.15)';
-        ctx.fill();
-      }
-    } else {
-      const startY = t.home.y - (total-1)*spacing/2;
-      const x = t.home.x + (t.edge === 'left' ? TURRET_R+14 : -(TURRET_R+14));
-      for (let i=0;i<total;i++){
-        ctx.beginPath();
-        ctx.arc(x, startY + i*spacing, 3.2, 0, Math.PI*2);
-        ctx.fillStyle = i < t.hp ? c.hex : 'rgba(255,255,255,0.15)';
-        ctx.fill();
-      }
+    for (let i=0;i<total;i++){
+      ctx.beginPath();
+      ctx.arc(startX + i*spacing, y, 3.2, 0, Math.PI*2);
+      ctx.fillStyle = i < t.hp ? c.hex : 'rgba(255,255,255,0.15)';
+      ctx.fill();
     }
     ctx.restore();
   }
@@ -836,9 +852,12 @@ document.addEventListener('gestureend', e => e.preventDefault());
           b.lingerTimer--;
         } else if (!b.released){
           b.released = true;
+          const target = arenaCenter();
+          const dx = target.x - b.x, dy = target.y - b.y;
+          const d = Math.hypot(dx,dy) || 1;
           const releaseSpeed = 1.2;
-          b.vx = Math.cos(b.releaseAng)*releaseSpeed;
-          b.vy = Math.sin(b.releaseAng)*releaseSpeed;
+          b.vx = dx/d*releaseSpeed;
+          b.vy = dy/d*releaseSpeed;
         }
       }
       b.x += (b.vx || 0);
@@ -858,7 +877,7 @@ document.addEventListener('gestureend', e => e.preventDefault());
       }
       if (b.dead) return;
 
-      // 2. 砲台(在/不在、現在のスライド位置)への到達判定
+      // 2. 砲台(在/不在)への到達判定
       for (const key in turrets){
         const t = turrets[key];
         if (t.state === 'destroyed') continue;
@@ -900,11 +919,12 @@ document.addEventListener('gestureend', e => e.preventDefault());
     if (t.dragStarted && t.state === 'idle'){
       t.fireCooldown--;
       if (t.fireCooldown <= 0){
+        const d = dirFromAngle(t.angle);
         playerBullets.push({
-          x: t.home.x + t.dir.x*(TURRET_R+6),
-          y: t.home.y + t.dir.y*(TURRET_R+6),
-          vx: t.dir.x*PLAYER_BULLET_SPEED,
-          vy: t.dir.y*PLAYER_BULLET_SPEED,
+          x: t.home.x + d.x*(TURRET_R+6),
+          y: t.home.y + d.y*(TURRET_R+6),
+          vx: d.x*PLAYER_BULLET_SPEED,
+          vy: d.y*PLAYER_BULLET_SPEED,
           color: t.color
         });
         t.fireCooldown = PLAYER_FIRE_COOLDOWN;
@@ -1037,7 +1057,8 @@ document.addEventListener('gestureend', e => e.preventDefault());
 
     for (const key in turrets){
       const t = turrets[key];
-      drawLane(t);
+      drawPad(t);
+      drawArcGuide(t);
       if (t.state === 'idle'){
         drawAimLine(t);
         drawChargeRing(t);
