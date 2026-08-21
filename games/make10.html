@@ -52,11 +52,11 @@
   }
   @media (prefers-reduced-motion: reduce){ .ambient{display:none;} }
 
-  .stage{ width:100%; max-width:560px; padding:18px; position:relative; z-index:1;}
+  .stage{ width:100%; max-width:720px; padding:18px; position:relative; z-index:1;}
 
   .app{
     background:#141930; border:2px solid #39456f; border-radius:28px;
-    padding:18px 16px 22px; box-shadow:0 18px 40px rgba(0,0,0,.5);
+    padding:22px 20px 26px; box-shadow:0 18px 40px rgba(0,0,0,.5);
   }
 
   /* topbar */
@@ -88,18 +88,18 @@
     animation:dotPulse 1.2s ease-in-out infinite;
   }
   @keyframes dotPulse{ 0%,100%{opacity:.35} 50%{opacity:1} }
-  .score-label{ font-size:.72rem; color:var(--ink-soft); font-weight:700; }
-  .score-wrap{text-align:right; max-width:170px;}
+  .score-label{ font-size:.85rem; color:var(--ink-soft); font-weight:700; }
+  .score-wrap{text-align:right; max-width:210px;}
   .score-value{
-    font-family:'Baloo 2',sans-serif; font-weight:800; font-size:1.9rem; line-height:1.1;
+    font-family:'Baloo 2',sans-serif; font-weight:800; font-size:2.4rem; line-height:1.1;
     color:var(--ink); word-break:break-all;
   }
 
   .combo-chip{
-    margin-top:2px; display:inline-block;
-    font-family:'Baloo 2', sans-serif; font-weight:800; font-size:.78rem;
+    margin-top:4px; display:inline-block;
+    font-family:'Baloo 2', sans-serif; font-weight:800; font-size:.92rem;
     color:#fff; background:linear-gradient(160deg,#FF7A6B,#FF8C42);
-    padding:3px 10px; border-radius:999px; box-shadow:0 4px 10px rgba(255,122,107,.45);
+    padding:4px 12px; border-radius:999px; box-shadow:0 4px 10px rgba(255,122,107,.45);
   }
   .combo-chip.pop{ animation:comboPop .4s ease; }
   .combo-chip.breakaway{ animation:comboBreak .32s ease forwards; }
@@ -110,53 +110,53 @@
 
   main.board{
     position:relative; overflow:hidden; background:#0d1122;
-    border-radius:20px; padding:16px 12px 20px; min-height:260px;
-    display:flex; flex-direction:column; justify-content:flex-end; gap:4px;
+    border-radius:20px; padding:20px 16px 24px; min-height:320px;
+    display:flex; flex-direction:column; justify-content:flex-end; gap:6px;
   }
 
   /* per-round timer */
   .timer-chip{
     text-align:center; font-family:'Baloo 2', sans-serif; font-weight:800;
-    font-size:1.5rem; color:var(--ink-soft); line-height:1; padding:4px 0 2px;
+    font-size:1.8rem; color:var(--ink-soft); line-height:1; padding:4px 0 2px;
   }
   .timer-chip.urgent{ color:#FF6B6B; animation:timerPulse .5s ease infinite; }
   @keyframes timerPulse{ 50%{transform:scale(1.12)} }
 
   .trail{
-    display:flex; flex-direction:column; align-items:center; gap:2px;
-    max-height:180px; overflow-y:auto; scroll-behavior:smooth;
+    display:flex; flex-direction:column; align-items:center; gap:4px;
+    max-height:240px; overflow-y:auto; scroll-behavior:smooth;
   }
   .trail-row{
     display:flex; align-items:center; justify-content:center; flex-wrap:wrap;
-    gap:4px 6px; transform:scale(.6); transform-origin:center; transition:opacity .3s ease;
+    gap:6px 8px; transform:scale(.85); transform-origin:center; transition:opacity .3s ease;
   }
-  .trail-arrow{font-size:.9rem; color:var(--ink-soft); opacity:.5; margin:-2px 0;}
+  .trail-arrow{font-size:1.1rem; color:var(--ink-soft); opacity:.5; margin:-2px 0;}
   .mini-bubble{
-    width:34px; height:34px; border-radius:50%;
+    width:44px; height:44px; border-radius:50%;
     display:flex; align-items:center; justify-content:center;
-    font-family:'Baloo 2', sans-serif; font-weight:700; font-size:.95rem;
+    font-family:'Baloo 2', sans-serif; font-weight:700; font-size:1.15rem;
     background:var(--bubble-bg); border:2px solid var(--bubble-border); color:#3a4870;
   }
   .mini-bubble.gold{ background:linear-gradient(160deg,#FFE580,var(--gold)); border-color:var(--gold-deep); color:var(--gold-text);}
-  .mini-plus{ font-size:.85rem; color:var(--ink-soft); font-weight:700;}
+  .mini-plus{ font-size:1rem; color:var(--ink-soft); font-weight:700;}
 
-  .current-row{ padding-top:6px; }
+  .current-row{ padding-top:8px; }
   .goal-chip{
     display:flex; align-items:center; justify-content:center; gap:6px;
-    text-align:center; margin:0 auto 10px; width:fit-content;
-    font-family:'M PLUS Rounded 1c', sans-serif; font-weight:800; font-size:.95rem;
+    text-align:center; margin:0 auto 14px; width:fit-content;
+    font-family:'M PLUS Rounded 1c', sans-serif; font-weight:800; font-size:1.1rem;
     color:var(--gold-text); background:linear-gradient(160deg,#FFE580,#FFD23F);
-    border:2px solid var(--gold-deep); border-radius:999px; padding:7px 18px;
+    border:2px solid var(--gold-deep); border-radius:999px; padding:9px 22px;
     box-shadow:0 0 14px rgba(255,210,63,.45);
   }
-  .goal-chip b{ font-family:'Baloo 2', sans-serif; font-size:1.25rem; }
-  .equation{ display:flex; align-items:center; justify-content:center; flex-wrap:nowrap; gap:4px 5px; }
-  .plus{ font-family:'Baloo 2', sans-serif; font-weight:700; font-size:1.1rem; color:var(--ink-soft);}
+  .goal-chip b{ font-family:'Baloo 2', sans-serif; font-size:1.45rem; }
+  .equation{ display:flex; align-items:center; justify-content:center; flex-wrap:wrap; gap:6px 8px; }
+  .plus{ font-family:'Baloo 2', sans-serif; font-weight:700; font-size:1.3rem; color:var(--ink-soft);}
 
   .bubble{
-    width:52px; height:52px; border-radius:50%;
+    width:68px; height:68px; border-radius:50%;
     display:flex; align-items:center; justify-content:center;
-    font-family:'Baloo 2', sans-serif; font-weight:800; font-size:1.2rem;
+    font-family:'Baloo 2', sans-serif; font-weight:800; font-size:1.55rem;
     background:var(--bubble-bg); border:3px solid var(--bubble-border);
     box-shadow:0 6px 14px var(--bubble-shadow);
     cursor:pointer; user-select:none; color:#1a2240;
@@ -174,6 +174,19 @@
     background:linear-gradient(160deg,#FFE580,var(--gold));
     border-color:var(--gold-deep); color:var(--gold-text);
   }
+  .bubble.bonus20{
+    background:linear-gradient(160deg,#E0C3FC,#8EC5FC);
+    border-color:#7B61FF; color:#3a2270;
+    box-shadow:0 0 0 4px rgba(123,97,255,.35), 0 6px 14px var(--bubble-shadow);
+  }
+  .bubble.pulse-bonus20{ animation:popBonus20 .7s ease; }
+  @keyframes popBonus20{
+    0%{ transform:scale(.6) rotate(0deg); box-shadow:0 0 0 rgba(123,97,255,0); }
+    35%{ transform:scale(1.6) rotate(8deg); box-shadow:0 0 36px 16px rgba(123,97,255,.85); }
+    55%{ transform:scale(1.3) rotate(-6deg); box-shadow:0 0 28px 12px rgba(123,97,255,.7); }
+    75%{ transform:scale(1.4) rotate(4deg); box-shadow:0 0 32px 14px rgba(123,97,255,.75); }
+    100%{ transform:scale(1) rotate(0deg); box-shadow:0 0 0 4px rgba(123,97,255,.35), 0 6px 14px var(--bubble-shadow); }
+  }
   .bubble.pulse-gold{ animation:popGold .6s ease; }
   .bubble.pulse-normal{ animation:popNormal .45s ease; }
   @keyframes popGold{
@@ -184,7 +197,7 @@
     100%{ transform:scale(1) rotate(0deg); box-shadow:0 6px 14px var(--bubble-shadow); }
   }
   @keyframes popNormal{ 0%{transform:scale(.75)} 55%{transform:scale(1.12)} 100%{transform:scale(1)} }
-  @media (prefers-reduced-motion: reduce){ .bubble.pulse-gold, .bubble.pulse-normal{ animation:none; } }
+  @media (prefers-reduced-motion: reduce){ .bubble.pulse-gold, .bubble.pulse-normal, .bubble.pulse-bonus20{ animation:none; } }
 
   .board-flash{
     position:absolute; inset:0; border-radius:20px; pointer-events:none;
@@ -231,6 +244,12 @@
     -webkit-background-clip:text; background-clip:text; color:transparent;
     text-shadow:0 0 14px rgba(255,140,66,.6);
   }
+  .plus-ten-float.bonus20-float{
+    font-size:1.9rem; font-weight:900;
+    background:linear-gradient(90deg,#FF6B6B,#FFD23F,#6BFFB8,#6BCBFF,#B79CFF);
+    -webkit-background-clip:text; background-clip:text; color:transparent;
+    text-shadow:0 0 18px rgba(123,97,255,.65);
+  }
   @keyframes floatUp{
     0%{ transform:translate(-50%,-50%) scale(.5); opacity:0; }
     18%{ opacity:1; transform:translate(-50%,-65%) scale(1.25); }
@@ -244,7 +263,7 @@
   /* mode select */
   .mode-select{ text-align:center; padding:22px 8px 8px; }
   .game-title{
-    font-family:'DotGothic16', monospace; font-size:1.5rem;
+    font-family:'DotGothic16', monospace; font-size:1.7rem;
     color:var(--gold); text-shadow:2px 2px 0 #000; margin:0 0 6px; letter-spacing:.05em;
   }
   .mode-select-sub{ font-size:.85rem; color:var(--ink-soft); font-weight:700; margin:0 0 22px; }
@@ -322,7 +341,7 @@
   }
   @media (prefers-reduced-motion:reduce){ .bubble.final-burst{animation:none} .star-particle{display:none} }
 
-  .hint{ text-align:center; font-size:.82rem; color:var(--ink-soft); margin:12px 0 0; font-weight:700; }
+  .hint{ text-align:center; font-size:.98rem; color:var(--ink-soft); margin:14px 0 0; font-weight:700; }
 
   .back-link{
     display:block; margin:16px auto 0; text-align:center;
@@ -464,6 +483,7 @@
     const s = ms/1000;
     if(s <= 1.2) return 3; if(s <= 2.5) return 2; if(s <= 5) return 1.5; return 1;
   }
+  const BONUS20_SCORE = 30; // 「20も作れ！」ボーナスの加点（10の目標とは別枠）
 
   const els = {
     equation:     document.getElementById('equation'),
@@ -518,6 +538,13 @@
     if(c>=5){ playTone(ctx,2637*ratio,now+.38,.22,'sine',.10); playTone(ctx,3136*ratio,now+.42,.18,'sine',.08); }
   }
   function playMergeTick(){ const ctx=ensureAudio(); if(!ctx) return; playTone(ctx,392,ctx.currentTime,.12,'sine',.08); }
+  function playBonus20Fanfare(){
+    const ctx = ensureAudio(); if(!ctx) return;
+    const now = ctx.currentTime;
+    [659.25,783.99,987.77,1318.5,1567.98].forEach((f,i)=>playTone(ctx,f,now+i*.07,.35,'triangle',.26));
+    playTone(ctx,2093,now+.35,.25,'sine',.14);
+    playTone(ctx,2637,now+.4,.22,'sine',.12);
+  }
   function playFinalChime(){
     const ctx = ensureAudio(); if(!ctx) return;
     const now = ctx.currentTime;
@@ -693,6 +720,22 @@
     }
     updateComboChip(c);
   }
+  function spawnBonus20Float(x, y){
+    if(REDUCE_MOTION) return;
+    const el = document.createElement('div');
+    el.className = 'plus-ten-float bonus20-float';
+    el.textContent = '🎉 20も作れた！ +'+BONUS20_SCORE;
+    el.style.left=x+'px'; el.style.top=y+'px';
+    document.body.appendChild(el); setTimeout(()=>el.remove(), 950);
+  }
+  function celebrateBonus20(bubbleEl){
+    playBonus20Fanfare(); triggerBoardFlash(5); triggerShake(3);
+    if(bubbleEl){
+      const rect=bubbleEl.getBoundingClientRect();
+      const cx=rect.left+rect.width/2, cy=rect.top+rect.height/2;
+      spawnConfetti(cx,cy,5); spawnBonus20Float(cx,cy); spawnStars(bubbleEl);
+    }
+  }
 
   function shuffle(arr){
     for(let i=arr.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [arr[i],arr[j]]=[arr[j],arr[i]]; }
@@ -824,7 +867,8 @@
       b.type='button'; b.className='bubble'; b.textContent=n.value; b.dataset.id=String(n.id);
       if(n.id===selectedId) b.classList.add('selected');
       if(n.gold) b.classList.add('gold');
-      if(animatingIds.has(n.id)) b.classList.add(n.gold?'pulse-gold':'pulse-normal');
+      if(n.bonus20) b.classList.add('bonus20');
+      if(animatingIds.has(n.id)) b.classList.add(n.gold?'pulse-gold':n.bonus20?'pulse-bonus20':'pulse-normal');
       b.setAttribute('aria-label','すうじ '+n.value);
       b.addEventListener('click',()=>onBubbleClick(n.id));
       els.equation.appendChild(b);
@@ -862,18 +906,22 @@
     if(idxA===-1||idxB===-1) return;
     const a=numbers[idxA], b=numbers[idxB], sum=a.value+b.value;
     const isGold=sum===currentTarget;
+    const isBonus20=currentTarget===10 && sum===20; // 10モードでも「20も作れ！」はボーナス演出
     trail.push(numbers.map(n=>n.value));
     const insertAt=Math.min(idxA,idxB);
-    const newBubble={id:idCounter++, value:sum, gold:isGold};
+    const newBubble={id:idCounter++, value:sum, gold:isGold, bonus20:isBonus20};
     numbers=numbers.filter(n=>n.id!==idA&&n.id!==idB);
     numbers.splice(insertAt,0,newBubble);
     const sm=isGold ? computeSpeedMultiplier(selectTime!==null?(performance.now()-selectTime):9999) : 1;
     if(isGold){
       combo++; const cb=Math.min((combo-1)*2,20); score+=Math.round((10+cb)*sm);
       tensCount++; roundTens++;
+    } else if(isBonus20){
+      score += BONUS20_SCORE;
     } else { score+=2; }
     animatingIds=new Set([newBubble.id]); render();
     if(isGold){ celebrateTen(els.equation.querySelector('[data-id="'+newBubble.id+'"]'), combo, sm); }
+    else if(isBonus20){ celebrateBonus20(els.equation.querySelector('[data-id="'+newBubble.id+'"]')); }
     else { playMergeTick(); resetCombo(); }
     setTimeout(()=>{ animatingIds=new Set(); render(); }, 620);
   }
