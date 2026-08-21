@@ -3,7 +3,7 @@
 //
 // キャッシュの中身を変えたとき（画像やゲームの追加/更新）は、
 // CACHE_VERSION の値を書き換えてデプロイすること（古いキャッシュを破棄して新しいものに切り替わる）。
-const CACHE_VERSION = 'v13';
+const CACHE_VERSION = 'v14';
 const CACHE_NAME = `oyako-arcade-${CACHE_VERSION}`;
 const FONT_CACHE_NAME = 'oyako-arcade-fonts';
 
@@ -12,6 +12,7 @@ const PRECACHE_URLS = [
   './',
   './index.html',
   './manifest.json',
+  './pause-ui.js',
   './icons/apple-touch-icon.png',
   './icons/icon-192.png',
   './icons/icon-512.png',

@@ -44,16 +44,9 @@
   #rotateOverlay .icon { font-size: 52px; animation: spin 1.4s ease-in-out infinite alternate; }
   @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(-90deg); } }
   @media (orientation: landscape) and (pointer: coarse) { #rotateOverlay { display: flex; } }
-  #backLink {
-    position: fixed; top: 30px; right: 8px; z-index: 11;
-    font-size: 10px; color: rgba(255,255,255,0.35); text-decoration: none;
-    padding: 4px 6px; letter-spacing: .5px;
-  }
 </style>
 </head>
 <body>
-
-<a id="backLink" href="../index.html">← もどる</a>
 
 <div id="rotateOverlay">
   <div class="icon">📱</div>
@@ -81,12 +74,6 @@ document.addEventListener('contextmenu', e => e.preventDefault());
 document.addEventListener('gesturestart', e => e.preventDefault());
 document.addEventListener('gesturechange', e => e.preventDefault());
 document.addEventListener('gestureend', e => e.preventDefault());
-
-// タッチのデフォルト動作を全面封鎖しているため、戻るリンクはpointerdownで明示的に遷移させる
-document.getElementById('backLink').addEventListener('pointerdown', e => {
-  e.preventDefault();
-  location.href = '../index.html';
-});
 
 (function(){
   const canvas = document.getElementById('game');
@@ -1092,6 +1079,8 @@ document.getElementById('backLink').addEventListener('pointerdown', e => {
   loop();
 })();
 </script>
+<script src="../pause-ui.js"></script>
+
 <script>
 // オフラインで遊べるようにキャッシュを準備するService Workerを登録
 if ('serviceWorker' in navigator) {
