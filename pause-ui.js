@@ -9,6 +9,11 @@
 //   （3色STGなど）確実に反応するよう、click ではなく pointerdown で処理する
 // - タブレットを机に置いて対面で囲むゲームがあるため、ボタンは対角2箇所に配置。
 //   左下側は180度回転させ、対面から見ても正しい向きで読めるようにしている
+//
+// カスタムの呼び出し口を使いたいゲーム（例：誰も触らない中央のバトルバーをタップで開く）は、
+// このスクリプトを読み込む前に以下のように設定すると、右上・左下の⏸ボタンの代わりにそちらを使う：
+//   <script>window.PAUSE_UI_CONFIG = { trigger: '#battleBar' };</script>
+//   <script src="../pause-ui.js"></script>
 (function () {
   function init() {
     var style = document.createElement('style');
@@ -45,16 +50,23 @@
       '#pauseExitBtn{background:#2b3252;color:#EDF1FF;border:1.5px solid #4DA3FF;}';
     document.head.appendChild(style);
 
-    var btnTR = document.createElement('div');
-    btnTR.id = 'pauseBtnTR'; btnTR.className = 'pauseBtn';
-    btnTR.textContent = '⏸';
-    document.body.appendChild(btnTR);
+    var cfg = window.PAUSE_UI_CONFIG || {};
+    var customTrigger = cfg.trigger
+      ? (typeof cfg.trigger === 'string' ? document.querySelector(cfg.trigger) : cfg.trigger)
+      : null;
 
-    // 対面（テーブルの向かい側）からも押せるよう、180度回転させた分身を左下にも配置
-    var btnBL = document.createElement('div');
-    btnBL.id = 'pauseBtnBL'; btnBL.className = 'pauseBtn';
-    btnBL.textContent = '⏸';
-    document.body.appendChild(btnBL);
+    if (!customTrigger) {
+      var btnTR = document.createElement('div');
+      btnTR.id = 'pauseBtnTR'; btnTR.className = 'pauseBtn';
+      btnTR.textContent = '⏸';
+      document.body.appendChild(btnTR);
+
+      // 対面（テーブルの向かい側）からも押せるよう、180度回転させた分身を左下にも配置
+      var btnBL = document.createElement('div');
+      btnBL.id = 'pauseBtnBL'; btnBL.className = 'pauseBtn';
+      btnBL.textContent = '⏸';
+      document.body.appendChild(btnBL);
+    }
 
     var overlay = document.createElement('div');
     overlay.id = 'pauseOverlay';
@@ -70,8 +82,12 @@
     function closePause(e) { if (e) { e.preventDefault(); e.stopPropagation(); } overlay.classList.remove('show'); }
     function exitToMenu(e) { if (e) { e.preventDefault(); e.stopPropagation(); } location.href = '../index.html'; }
 
-    btnTR.addEventListener('pointerdown', openPause);
-    btnBL.addEventListener('pointerdown', openPause);
+    if (customTrigger) {
+      customTrigger.addEventListener('pointerdown', openPause);
+    } else {
+      btnTR.addEventListener('pointerdown', openPause);
+      btnBL.addEventListener('pointerdown', openPause);
+    }
     overlay.addEventListener('pointerdown', function (e) {
       if (e.target === overlay) closePause(e); // 背景タップでも閉じる
     });
