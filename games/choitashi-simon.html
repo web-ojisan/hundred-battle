@@ -526,6 +526,14 @@
   const stageEl = document.getElementById('stage');
   const BOMB_R = 44; // 爆弾アイコンの半径（座標合わせ用）
 
+  // ---------- プレイヤーの呼び名（属性ネーム：色スロットごとに固定） ----------
+  const ELEMENTS = [
+    { icon: '🔥', kanji: '火' },
+    { icon: '💧', kanji: '水' },
+    { icon: '🌙', kanji: '月' },
+    { icon: '🌸', kanji: '花' },
+  ];
+
   // ---------- プレイヤーゾーンの組み立て ----------
   function setupPlayers() {
     const sides = activeSides(cfg.players);
@@ -541,14 +549,16 @@
       const zEl = document.getElementById(d.zone);
       zEl.classList.remove('hidden-zone', 'eliminated', 'idle', 'active', 'winner', 'announce', 'p1', 'p2', 'p3', 'p4');
       zEl.classList.add('idle', 'p' + (i + 1));
-      document.getElementById(d.pname).textContent = (i + 1) + 'P';
+      const el = ELEMENTS[i % ELEMENTS.length];
+      const label = el.icon + el.kanji;
+      document.getElementById(d.pname).textContent = label;
       zones.push(zEl);
       msgs.push(document.getElementById(d.msg));
       fuses.push(document.getElementById(d.fuse));
       anchors.push(document.getElementById(d.anchor));
       hpEls.push(document.getElementById(d.hp));
       iconEls.push(document.getElementById(d.icon));
-      NAMES.push((i + 1) + 'P');
+      NAMES.push(label);
     });
     alive = Array(cfg.players).fill(true);
     eliminatedOrder = [];
