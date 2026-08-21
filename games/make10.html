@@ -141,6 +141,32 @@
   .mini-plus{ font-size:1rem; color:var(--ink-soft); font-weight:700;}
 
   .current-row{ padding-top:8px; }
+
+  /* 最終計算モード（テンキーで自力入力）*/
+  .calcPad{ display:flex; flex-direction:column; align-items:center; gap:10px; margin-top:6px; }
+  .calcExpr{
+    font-family:'Baloo 2', sans-serif; font-weight:800; font-size:1.5rem;
+    color:var(--ink); text-align:center;
+  }
+  .calcInput{
+    min-width:110px; text-align:center;
+    font-family:'Baloo 2', sans-serif; font-weight:800; font-size:1.8rem;
+    color:var(--gold); background:#0a0d16; border:2px solid var(--gold-deep);
+    border-radius:12px; padding:6px 18px;
+  }
+  .calcInput.wrong{ animation:calcWrong .3s ease; border-color:#FF6B6B; }
+  @keyframes calcWrong{ 20%,60%{transform:translateX(-6px)} 40%,80%{transform:translateX(6px)} }
+  .calcKeys{
+    display:grid; grid-template-columns:repeat(3,64px); gap:8px; justify-content:center;
+  }
+  .calc-key{
+    width:64px; height:56px; border-radius:12px; border:2px solid #39456f;
+    background:#1b2140; color:var(--ink); cursor:pointer;
+    font-family:'Baloo 2', sans-serif; font-weight:800; font-size:1.35rem;
+    box-shadow:0 3px 0 rgba(0,0,0,.4); transition:transform .1s ease;
+  }
+  .calc-key:active{ transform:translateY(2px); box-shadow:0 1px 0 rgba(0,0,0,.4); }
+  .calc-key.calc-del{ background:#3a2230; border-color:#7a3a4a; font-size:1.1rem; }
   .goal-chip{
     display:flex; align-items:center; justify-content:center; gap:6px;
     text-align:center; margin:0 auto 14px; width:fit-content;
@@ -151,6 +177,8 @@
   }
   .goal-chip b{ font-family:'Baloo 2', sans-serif; font-size:1.45rem; }
   .equation{ display:flex; align-items:center; justify-content:center; flex-wrap:wrap; gap:6px 8px; }
+  .equation.calc-locked .bubble{ cursor:default; opacity:.55; }
+  .equation.calc-locked .bubble:hover{ transform:none; }
   .plus{ font-family:'Baloo 2', sans-serif; font-weight:700; font-size:1.3rem; color:var(--ink-soft);}
 
   .bubble{
@@ -420,6 +448,11 @@
         <div class="current-row">
           <div class="goal-chip" id="goalChip"></div>
           <div class="equation" id="equation"></div>
+          <div class="calcPad hidden" id="calcPad">
+            <div class="calcExpr" id="calcExpr"></div>
+            <div class="calcInput" id="calcInput">?</div>
+            <div class="calcKeys" id="calcKeys"></div>
+          </div>
         </div>
       </main>
 
@@ -464,6 +497,8 @@
   let goldCount = 0, silverCount = 0, bronzeCount = 0, currentTarget = 10;
   let combo = 0, selectTime = null;
   let roundResults = {};
+  // 最終計算モード：もう10(20)の組み合わせが無くなったら、残りぜんぶの合計をテンキーで自力入力させる
+  let calcMode = false, calcAnswer = '', calcInput = '';
 
   const bigUnits = ['','万','億','兆','京','垓','秭','穣','溝','澗','正','載','極','恒河沙','阿僧祇','那由他','不可思議','無量大数'];
   function formatScoreDisplay(num){
@@ -502,6 +537,10 @@
     timerVal:     document.getElementById('timerVal'),
     finalScoreVal:document.getElementById('finalScoreVal'),
     finalMedalsRow:document.getElementById('finalMedalsRow'),
+    calcPad:      document.getElementById('calcPad'),
+    calcExpr:     document.getElementById('calcExpr'),
+    calcInput:    document.getElementById('calcInput'),
+    calcKeys:     document.getElementById('calcKeys'),
   };
 
   function randInt(min,max){ return Math.floor(Math.random()*(max-min+1))+min; }
@@ -538,6 +577,12 @@
     if(c>=5){ playTone(ctx,2637*ratio,now+.38,.22,'sine',.10); playTone(ctx,3136*ratio,now+.42,.18,'sine',.08); }
   }
   function playMergeTick(){ const ctx=ensureAudio(); if(!ctx) return; playTone(ctx,392,ctx.currentTime,.12,'sine',.08); }
+  function playCalcCorrect(){
+    const ctx = ensureAudio(); if(!ctx) return;
+    const now = ctx.currentTime;
+    [880,1175,1568].forEach((f,i)=>playTone(ctx,f,now+i*.08,.22,'triangle',.22));
+  }
+  function playCalcWrong(){ const ctx=ensureAudio(); if(!ctx) return; playTone(ctx,150,ctx.currentTime,.22,'sawtooth',.16); }
   function playBonus20Fanfare(){
     const ctx = ensureAudio(); if(!ctx) return;
     const now = ctx.currentTime;
@@ -628,6 +673,7 @@
   function onRoundTimeout(){
     if(resultShown) return;
     resultShown = true;
+    calcMode = false; els.calcPad.hidden = true; els.equation.classList.remove('calc-locked');
     bronzeCount++; roundResults[round]='bronze';
     renderRoundTrack();
     playFinalChime();
@@ -787,6 +833,7 @@
     currentTarget=target; round=1; score=0; tensCount=0;
     goldCount=0; silverCount=0; bronzeCount=0; roundResults={};
     selectedId=null; trail=[]; resultShown=false; roundTens=0; combo=0; selectTime=null;
+    calcMode=false; calcInput=''; els.calcPad.hidden=true; els.equation.classList.remove('calc-locked');
     els.comboChip.hidden=true;
     numbers=generateEquation(currentTarget);
     maxPossibleTens=maxTens(numbers.map(n=>n.value), currentTarget);
@@ -801,6 +848,7 @@
     round++;
     numbers=generateEquation(currentTarget);
     trail=[]; selectedId=null; resultShown=false; roundTens=0;
+    calcMode=false; calcInput=''; els.calcPad.hidden=true; els.equation.classList.remove('calc-locked');
     maxPossibleTens=maxTens(numbers.map(n=>n.value), currentTarget);
     els.hint.textContent='2つの すうじを タップしてね';
     render();
@@ -894,9 +942,70 @@
     setTimeout(()=>{ if(round>=cfg.rounds){ showFinalResult(); } else { newRound(); } }, 1100);
   }
 
+  // ---------- 最終計算モード（もう10/20の組み合わせが無い残りを自力で計算）----------
+  function hasShortcutPair(){
+    for(let i=0;i<numbers.length;i++){
+      for(let j=i+1;j<numbers.length;j++){
+        const s = numbers[i].value + numbers[j].value;
+        if(s === currentTarget) return true;
+        if(currentTarget===10 && s===20) return true; // 10+10のボーナス合体もショートカット扱い
+      }
+    }
+    return false;
+  }
+  function buildCalcKeys(){
+    els.calcKeys.innerHTML = '';
+    ['1','2','3','4','5','6','7','8','9','⌫','0'].forEach(k=>{
+      const b = document.createElement('button');
+      b.type='button'; b.className='calc-key'+(k==='⌫'?' calc-del':'');
+      b.textContent=k;
+      b.addEventListener('click',()=>onCalcKey(k));
+      els.calcKeys.appendChild(b);
+    });
+  }
+  buildCalcKeys();
+  function enterCalcMode(){
+    calcMode = true;
+    calcAnswer = String(numbers.reduce((s,n)=>s+n.value,0));
+    calcInput = '';
+    els.calcExpr.textContent = numbers.map(n=>n.value).join(' + ') + ' = ?';
+    els.calcInput.textContent = '?';
+    els.calcInput.classList.remove('wrong');
+    els.calcPad.hidden = false;
+    els.equation.classList.add('calc-locked');
+    els.hint.textContent = 'のこりを ぜんぶ たしざんしよう！';
+  }
+  function onCalcKey(k){
+    if(!calcMode) return;
+    if(k==='⌫'){ calcInput = calcInput.slice(0,-1); els.calcInput.textContent = calcInput || '?'; return; }
+    calcInput += k;
+    els.calcInput.textContent = calcInput;
+    if(calcInput === calcAnswer){ calcCorrect(); return; }
+    if(calcInput.length >= calcAnswer.length){
+      playCalcWrong();
+      els.calcInput.classList.remove('wrong'); void els.calcInput.offsetWidth; els.calcInput.classList.add('wrong');
+      calcInput = '';
+      setTimeout(()=>{ els.calcInput.textContent = '?'; }, 260);
+    }
+  }
+  function calcCorrect(){
+    const finalValue = numbers.reduce((s,n)=>s+n.value,0);
+    score += 2 * Math.max(0, numbers.length - 1);
+    calcMode = false;
+    els.calcPad.hidden = true;
+    els.equation.classList.remove('calc-locked');
+    playCalcCorrect();
+    const combined = { id:idCounter++, value:finalValue, gold:false, bonus20:false };
+    trail.push(numbers.map(n=>n.value));
+    animatingIds = new Set([combined.id]);
+    numbers = [combined];
+    render();
+    setTimeout(()=>{ animatingIds=new Set(); render(); }, 500);
+  }
+
   // ---------- interaction ----------
   function onBubbleClick(id){
-    if(resultShown) return;
+    if(resultShown || calcMode) return;
     if(selectedId===null){ selectedId=id; selectTime=performance.now(); render(); return; }
     if(selectedId===id){ selectedId=null; render(); return; }
     doMerge(selectedId, id); selectedId=null;
@@ -923,7 +1032,10 @@
     if(isGold){ celebrateTen(els.equation.querySelector('[data-id="'+newBubble.id+'"]'), combo, sm); }
     else if(isBonus20){ celebrateBonus20(els.equation.querySelector('[data-id="'+newBubble.id+'"]')); }
     else { playMergeTick(); resetCombo(); }
-    setTimeout(()=>{ animatingIds=new Set(); render(); }, 620);
+    setTimeout(()=>{
+      animatingIds=new Set(); render();
+      if(numbers.length>1 && !resultShown && !hasShortcutPair()) enterCalcMode();
+    }, 620);
   }
 
   // ---------- settings wiring ----------
