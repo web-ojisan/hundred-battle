@@ -168,7 +168,10 @@
   }
   #trackSvg{ position:absolute; inset:0; width:100%; height:100%; }
   #squareLayer, #pawnLayer{ position:absolute; inset:0; width:100%; height:100%; }
-  #pawnLayer{ pointer-events:none; }
+  /* #centerPanel(z-index:6)の真下に中央リングのマスがあるため、
+     それより手前に出して駒やマスが隠れて見えなくなるのを防ぐ */
+  #squareLayer{ z-index:7; pointer-events:none; }
+  #pawnLayer{ z-index:7; pointer-events:none; }
 
   .square{
     position:absolute;
@@ -192,13 +195,25 @@
     color:var(--ink-soft);
   }
   .square.start{ background:var(--gold); }
+  .home-square{
+    position:absolute;
+    width:clamp(20px,3.2vw,32px);
+    height:clamp(20px,3.2vw,32px);
+    transform:translate(-50%,-50%);
+    border-radius:50%;
+    border:2.5px solid var(--ink);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:clamp(10px,1.6vw,15px);
+    box-shadow:0 2px 0 rgba(0,0,0,0.18);
+  }
   .square.goal{
     background-image: repeating-conic-gradient(#222 0% 25%, #fff 0% 50%);
     background-size: 12px 12px;
   }
   .square.warp{ background:var(--purple); }
   .square.skip{ background:var(--grayblue); }
-  .square.back3{ background:var(--red); }
   .square.again{ background:var(--green); }
   .square.coin{ background:#fff3c4; }
   .square.item{ background:#ffd9ec; }
@@ -539,6 +554,7 @@
       <p class="section-label">マスの説明</p>
       <div class="legend-grid">
         <div class="legend-item"><span>🏁</span>スタート</div>
+        <div class="legend-item"><span>🚩</span>じぶんのホーム</div>
         <div class="legend-item"><span>🔑</span>中央への入口</div>
         <div class="legend-item"><span>💰</span>コイン</div>
         <div class="legend-item"><span>🎴</span>アイテム</div>
@@ -546,7 +562,6 @@
         <div class="legend-item"><span>💢</span>ダメージ</div>
         <div class="legend-item"><span>😴</span>1回休み</div>
         <div class="legend-item"><span>🌀</span>ワープ</div>
-        <div class="legend-item"><span>⏪</span>3マス戻る</div>
         <div class="legend-item"><span>🎲</span>もう一回</div>
         <div class="legend-item"><span>🐴</span>相乗り</div>
         <div class="legend-item"><span>⚔️</span>奪い合い</div>
@@ -614,24 +629,8 @@
   const GOAL_INDEX = N - 1;
   const MAX_HP = 10;
 
-  const SPECIALS = {
-    0:  { type:'start',  label:'スタート',   icon:'🏁' },
-    1:  { type:'gate',   label:'中央への入口', icon:'🔑' },
-    2:  { type:'coin',   label:'コイン',     icon:'💰' },
-    4:  { type:'heal',   label:'回復',       icon:'🩹' },
-    6:  { type:'item',   label:'アイテム',   icon:'🎴' },
-    8:  { type:'damage', label:'ダメージ',   icon:'💢' },
-    10: { type:'warp',   label:'ワープ！',   icon:'🌀', target:18 },
-    12: { type:'coin',   label:'コイン',     icon:'💰' },
-    14: { type:'item',   label:'アイテム',   icon:'🎴' },
-    16: { type:'skip',   label:'１回休み',   icon:'😴' },
-    19: { type:'back3',  label:'３マス戻る', icon:'⏪' },
-    21: { type:'heal',   label:'回復',       icon:'🩹' },
-    23: { type:'again',  label:'もう一回！', icon:'🎲' },
-    25: { type:'item',   label:'アイテム',   icon:'🎴' },
-    26: { type:'coin',   label:'コイン',     icon:'💰' },
-    27: { type:'coin',   label:'コイン',     icon:'💰' }
-  };
+  // マスの配置は毎ゲーム buildSpecials() でランダムに組み直す(下のほうで定義)
+  let SPECIALS = {};
 
   const CENTER_N = 8;
   const CENTER_GOAL_INDEX = 0;
@@ -641,8 +640,8 @@
     2: { type:'coin',  label:'コイン',     icon:'💰' },
     5: { type:'coin',  label:'コイン',     icon:'💰' }
   };
-  const KEY_COIN_THRESHOLD = 15;
-  const GATE_INDEX = 1;
+  const KEY_COIN_THRESHOLD = 10;
+  let GATE_INDEX = 1; // buildSpecials()実行後、実際に🔑が置かれたマスに更新される
   const CENTER_GHOST_CHANCE = 0.22;
 
   const PLAYER_COLORS = [
@@ -664,7 +663,7 @@
   };
   const CARD_TYPES = ['swap','push','double','shield'];
 
-  const DAY_ROLLS_PER_PLAYER = 4;
+  const DAY_ROLLS_PER_PLAYER = 3;
   const NIGHT_ROLLS_PER_PLAYER = 2;
   const NPC_START_POS = 14;
 
@@ -682,11 +681,13 @@
     phase: 'day',
     phaseRollCount: 0,
     pendingPhaseSwitch: false,
+    npcTurnCounter: 0,        // オバケは全員が一周するごとに1回だけ動く
     pendingGateMover: null
   };
   let npc = { pos: NPC_START_POS };
   let trackPoints = [];   // {x,y} in % of boardCard (outer loop)
   let centerTrackPoints = []; // {x,y} in % of boardCard (center ring)
+  let homePoints = [];    // {x,y} in % of boardCard (プレイヤーごとのホームマス、マス0の外側)
   let bannerTimer = null;
   let cornerEls = [];     // built per game start
 
@@ -742,6 +743,7 @@
       name: name,
       colorHex: PLAYER_COLORS[i].hex,
       pos: 0,
+      atHome: true,   // 最初の1回動くまでは外周の外側にある自分専用のスタート地点にいる
       skip: false,
       coins: 0,
       cards: [],
@@ -772,6 +774,7 @@
     state.phase = 'day';
     state.phaseRollCount = 0;
     state.pendingPhaseSwitch = false;
+    state.npcTurnCounter = 0;
     npc.pos = NPC_START_POS;
     buildCornerControls();
     goToGameScreen();
@@ -916,7 +919,70 @@
     }
     centerTrackPoints = cpts;
 
+    // ---- 各プレイヤー専用のホームマス(マス0のすぐ外側にファンさせて配置) ----
+    const homeGap = shortSide * 0.10;
+    const homeSpacing = shortSide * 0.085;
+    const hx0 = x0 + r, hy0 = Math.max(shortSide*0.03, y0 - homeGap);
+    const hpts = [];
+    for(let i=0;i<4;i++){
+      const fan = i - 1.5; // -1.5, -0.5, 0.5, 1.5 (中心そろえ)
+      hpts.push({ x: ((hx0 + fan*homeSpacing)/w)*100, y: (hy0/h)*100 });
+    }
+    homePoints = hpts;
+
     return pts;
+  }
+
+  /* ================= マス配置(毎ゲームランダム) ================= */
+  function shuffleArray(arr){
+    for(let i=arr.length-1;i>0;i--){
+      const j = Math.floor(Math.random()*(i+1));
+      const tmp = arr[i]; arr[i] = arr[j]; arr[j] = tmp;
+    }
+    return arr;
+  }
+
+  function buildSpecials(){
+    const pool = [
+      { type:'gate',   label:'中央への入口', icon:'🔑' },
+      { type:'coin',   label:'コイン',     icon:'💰' },
+      { type:'coin',   label:'コイン',     icon:'💰' },
+      { type:'coin',   label:'コイン',     icon:'💰' },
+      { type:'coin',   label:'コイン',     icon:'💰' },
+      { type:'heal',   label:'回復',       icon:'🩹' },
+      { type:'heal',   label:'回復',       icon:'🩹' },
+      { type:'item',   label:'アイテム',   icon:'🎴' },
+      { type:'item',   label:'アイテム',   icon:'🎴' },
+      { type:'item',   label:'アイテム',   icon:'🎴' },
+      { type:'damage', label:'ダメージ',   icon:'💢' },
+      { type:'warp',   label:'ワープ！',   icon:'🌀' },
+      { type:'skip',   label:'１回休み',   icon:'😴' },
+      { type:'again',  label:'もう一回！', icon:'🎲' }
+    ];
+    const indices = [];
+    for(let i=1;i<N;i++) indices.push(i);
+    shuffleArray(indices);
+
+    const specials = { 0: { type:'start', label:'スタート', icon:'🏁' } };
+    pool.forEach((entry, k)=>{ specials[indices[k]] = entry; });
+
+    let gateIdx = 1;
+    let warpIdx = null;
+    Object.keys(specials).forEach(k=>{
+      const i = parseInt(k,10);
+      if(specials[i].type === 'gate') gateIdx = i;
+      if(specials[i].type === 'warp') warpIdx = i;
+    });
+
+    // ワープの飛び先は自分自身以外のマスからランダムに決める
+    if(warpIdx !== null){
+      let target;
+      do{ target = Math.floor(Math.random()*N); } while(target === warpIdx);
+      specials[warpIdx].target = target;
+    }
+
+    SPECIALS = specials;
+    GATE_INDEX = gateIdx;
   }
 
   function buildSquares(){
@@ -950,6 +1016,21 @@
       if(info) sq.title = info.label;
       squareLayer.appendChild(sq);
     }
+
+    // 各プレイヤー専用のホームマス(マス0の外側)
+    const playerCount = state.players.length || 0;
+    for(let i=0;i<playerCount;i++){
+      const hp = homePoints[i];
+      if(!hp) continue;
+      const home = document.createElement('div');
+      home.className = 'home-square';
+      home.style.left = hp.x + '%';
+      home.style.top = hp.y + '%';
+      home.style.background = PLAYER_COLORS[i].hex;
+      home.textContent = '🚩';
+      home.title = state.players[i].name + ' のホーム';
+      squareLayer.appendChild(home);
+    }
   }
 
   let resizeTimer = null;
@@ -967,16 +1048,16 @@
   function renderPawns(){
     pawnLayer.innerHTML = '';
     state.players.forEach((p, i)=>{
-      const pts = p.inCenter ? centerTrackPoints : trackPoints;
-      const idx = p.inCenter ? p.centerPos : p.pos;
-      const pt = pts[idx];
+      const pt = p.atHome ? homePoints[i] : (p.inCenter ? centerTrackPoints[p.centerPos] : trackPoints[p.pos]);
+      if(!pt) return;
       const off = PAWN_OFFSETS[i];
       const pawn = document.createElement('div');
       const riding = p.ridingOn !== null;
-      pawn.className = 'pawn' + (state.moving && i===state.current ? ' hopping' : '') + (riding ? ' riding' : '');
+      // ゆらゆらは「動いた駒」ではなく「次に動くプレイヤー(手番)」の駒に表示する
+      pawn.className = 'pawn' + (i===state.current ? ' hopping' : '') + (riding ? ' riding' : '');
       pawn.style.left = pt.x + '%';
       pawn.style.top = pt.y + '%';
-      let mx = off.x, my = off.y;
+      let mx = p.atHome ? 0 : off.x, my = p.atHome ? 0 : off.y;
       if(riding) my -= 12;
       pawn.style.marginLeft = mx + 'px';
       pawn.style.marginTop = my + 'px';
@@ -1112,6 +1193,75 @@
   }
   function stopAllBgm(){ stopBgm(); stopDayBgm(); }
 
+  /* ================= SFX ================= */
+  // サイコロの音(振っている間のカタカタ音＋着地音)
+  function sfxDiceTick(){
+    const ctx = audioCtx(); if(!ctx) return;
+    const t = ctx.currentTime;
+    const o = ctx.createOscillator(), g = ctx.createGain();
+    o.type = 'square'; o.frequency.value = 650 + Math.random()*350;
+    g.gain.setValueAtTime(.05,t); g.gain.exponentialRampToValueAtTime(.001,t+.04);
+    o.connect(g); g.connect(ctx.destination);
+    o.start(t); o.stop(t+.05);
+  }
+  function sfxDiceLand(){
+    const ctx = audioCtx(); if(!ctx) return;
+    const t = ctx.currentTime;
+    const o = ctx.createOscillator(), g = ctx.createGain();
+    o.type = 'triangle'; o.frequency.setValueAtTime(300,t); o.frequency.exponentialRampToValueAtTime(110,t+.12);
+    g.gain.setValueAtTime(.1,t); g.gain.exponentialRampToValueAtTime(.001,t+.16);
+    o.connect(g); g.connect(ctx.destination);
+    o.start(t); o.stop(t+.17);
+  }
+  // コマが1マス進むごとの音
+  function sfxStep(){
+    const ctx = audioCtx(); if(!ctx) return;
+    const t = ctx.currentTime;
+    const o = ctx.createOscillator(), g = ctx.createGain();
+    o.type = 'sine'; o.frequency.setValueAtTime(520,t); o.frequency.exponentialRampToValueAtTime(720,t+.06);
+    g.gain.setValueAtTime(.06,t); g.gain.exponentialRampToValueAtTime(.001,t+.08);
+    o.connect(g); g.connect(ctx.destination);
+    o.start(t); o.stop(t+.09);
+  }
+  // バトル開始のぶつかり合う音
+  function sfxBattleClash(){
+    const ctx = audioCtx(); if(!ctx) return;
+    const t = ctx.currentTime;
+    const s = ctx.createBufferSource(); s.buffer = _dayGetNoise();
+    const f = ctx.createBiquadFilter(); f.type='bandpass'; f.frequency.value=1600; f.Q.value=1.1;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(.17,t); g.gain.exponentialRampToValueAtTime(.001,t+.18);
+    s.connect(f); f.connect(g); g.connect(ctx.destination);
+    s.start(t); s.stop(t+.2);
+    const o = ctx.createOscillator(), og = ctx.createGain();
+    o.type='triangle'; o.frequency.value=1200;
+    og.gain.setValueAtTime(.05,t); og.gain.exponentialRampToValueAtTime(.001,t+.15);
+    o.connect(og); og.connect(ctx.destination);
+    o.start(t); o.stop(t+.16);
+  }
+  // バトルに勝った時の音
+  function sfxBattleWin(){
+    const ctx = audioCtx(); if(!ctx) return;
+    const t = ctx.currentTime;
+    [523.25,659.25,783.99].forEach((freq,i)=>{
+      const o = ctx.createOscillator(), g = ctx.createGain();
+      o.type='square'; o.frequency.value=freq;
+      g.gain.setValueAtTime(.0001,t+i*.08); g.gain.linearRampToValueAtTime(.06,t+i*.08+.02); g.gain.exponentialRampToValueAtTime(.0001,t+i*.08+.18);
+      o.connect(g); g.connect(ctx.destination);
+      o.start(t+i*.08); o.stop(t+i*.08+.2);
+    });
+  }
+  // バトルに負けた/ダメージを受けた時の音
+  function sfxBattleLose(){
+    const ctx = audioCtx(); if(!ctx) return;
+    const t = ctx.currentTime;
+    const o = ctx.createOscillator(), g = ctx.createGain();
+    o.type='sawtooth'; o.frequency.setValueAtTime(220,t); o.frequency.exponentialRampToValueAtTime(80,t+.35);
+    g.gain.setValueAtTime(.09,t); g.gain.exponentialRampToValueAtTime(.001,t+.4);
+    o.connect(g); g.connect(ctx.destination);
+    o.start(t); o.stop(t+.42);
+  }
+
   function applyPhaseVisuals(){
     boardCard.classList.toggle('night-mode', state.phase === 'night');
     phaseBadge.textContent = state.phase === 'night' ? '🌙 よる' : '☀️ ひる';
@@ -1131,7 +1281,7 @@
   function findNearestPlayer(){
     let best = null, bestDist = Infinity;
     state.players.forEach(p=>{
-      if(p.inCenter) return;
+      if(p.inCenter || p.atHome) return;
       const fwd = (p.pos - npc.pos + N) % N;
       const dist = Math.min(fwd, N - fwd);
       if(dist < bestDist){ bestDist = dist; best = p; }
@@ -1150,7 +1300,7 @@
   }
 
   function npcRelocateRandom(){
-    const occupied = new Set(state.players.filter(p=>!p.inCenter).map(p=>p.pos));
+    const occupied = new Set(state.players.filter(p=>!p.inCenter && !p.atHome).map(p=>p.pos));
     const free = [];
     for(let i=1; i<N-1; i++){ if(!occupied.has(i)) free.push(i); }
     // 空きマスが必ずあればそこから選ぶ(プレイヤーの上に出現しないことを保証)。
@@ -1218,6 +1368,7 @@
     turnLabel.style.borderColor = p.colorHex;
     renderPlayerBar();
     renderHand();
+    renderPawns(); // 手番が変わった駒がすぐゆらゆらするように更新
 
     if(p.ridingOn !== null){
       const carrier = state.players[p.ridingOn];
@@ -1358,12 +1509,14 @@
     const maxTicks = 10;
     const iv = setInterval(()=>{
       diceEl.dataset.value = 1 + Math.floor(Math.random()*6);
+      sfxDiceTick();
       ticks++;
       if(ticks >= maxTicks){
         clearInterval(iv);
         const finalVal = 1 + Math.floor(Math.random()*6);
         diceEl.dataset.value = finalVal;
         diceEl.classList.remove('shake');
+        sfxDiceLand();
         state.rolling = false;
 
         state.phaseRollCount++;
@@ -1424,6 +1577,7 @@
       moveInCenter(p, steps);
       return;
     }
+    p.atHome = false; // 最初の移動でホームマスから外周ループに合流する
     let remaining = steps;
     renderPawns();
     const iv = setInterval(()=>{
@@ -1437,6 +1591,7 @@
       }
       p.pos = (p.pos + 1) % N;
       remaining--;
+      sfxStep();
       renderPawns();
       renderPlayerBar();
     }, 220);
@@ -1455,13 +1610,14 @@
       }
       p.centerPos = (p.centerPos + 1) % CENTER_N;
       remaining--;
+      sfxStep();
       renderPawns();
       renderPlayerBar();
     }, 260);
   }
 
   function afterMove(p){
-    const rival = state.players.find(o => o !== p && !o.inCenter && o.pos === p.pos && o.ridingOn === null);
+    const rival = state.players.find(o => o !== p && !o.inCenter && !o.atHome && o.pos === p.pos && o.ridingOn === null);
     if(rival){
       const moverIdx = state.players.indexOf(p);
       const rivalIdx = state.players.indexOf(rival);
@@ -1553,6 +1709,7 @@
   /* ================= encounter scramble (HP based) ================= */
   function runScramble(p1, p2, cb){
     showBanner('⚔️ ' + p1.name + ' と ' + p2.name + ' の奪い合い！');
+    sfxBattleClash();
     setTimeout(()=>{
       p1.hp = Math.max(0, p1.hp - 2);
       p2.hp = Math.max(0, p2.hp - 2);
@@ -1561,6 +1718,7 @@
       const downed = [p1,p2].filter(pl => pl.hp <= 0);
       if(downed.length > 0){
         showBanner('💢 もみあいで両者ダメージ！');
+        sfxBattleLose();
         setTimeout(()=>{
           downed.forEach(pl=>{
             const other = (pl===p1) ? p2 : p1;
@@ -1590,6 +1748,7 @@
           loser.coins -= steal;
           winner.coins += steal;
           showBanner('💥 ' + winner.name + ' のかち！ ' + loser.name + 'は3マスさがってコイン' + steal + '枚うばわれた', 1700);
+          sfxBattleWin();
         }
         renderPawns();
         renderPlayerBar();
@@ -1602,6 +1761,7 @@
   function runNpcBattle(player, cb){
     const isNight = state.phase === 'night';
     showBanner('⚔️ ' + player.name + ' 対 👹オバケ！');
+    sfxBattleClash();
     setTimeout(()=>{
       const npcPower = isNight ? (3 + Math.floor(Math.random()*4)) : (1 + Math.floor(Math.random()*4));
       const playerRoll = 1 + Math.floor(Math.random()*6);
@@ -1622,6 +1782,7 @@
           }
           renderPlayerBar();
           showBanner(msg, 1800);
+          sfxBattleWin();
         } else if(player.shield){
           player.shield = false;
           showBanner('🛡 ' + player.name + ' はシールドで防いだ！', 1500);
@@ -1631,6 +1792,7 @@
           player.hp = Math.max(0, player.hp - dmg);
           player.coins -= stealCoins;
           renderPlayerBar();
+          sfxBattleLose();
           if(player.hp <= 0){
             showBanner('💫 ' + player.name + ' はオバケにやられてダウン！5マス戻ってHP回復', 1900);
             knockOut(player, null);
@@ -1649,6 +1811,7 @@
   /* ================= center-ring ghost battle ================= */
   function runCenterGhostBattle(player, cb){
     showBanner('👻 中央のオバケが立ちはだかる！');
+    sfxBattleClash();
     setTimeout(()=>{
       const ghostPower = 4 + Math.floor(Math.random()*3);
       const roll = 1 + Math.floor(Math.random()*6);
@@ -1659,6 +1822,7 @@
           player.coins += gain;
           renderPlayerBar();
           showBanner('🎉 オバケを撃退！コイン+' + gain, 1700);
+          sfxBattleWin();
           setTimeout(()=>{ hideBanner(); cb(); }, 1800);
         } else if(player.shield){
           player.shield = false;
@@ -1671,6 +1835,7 @@
           renderPawns();
           renderPlayerBar();
           showBanner('💀 ' + player.name + ' はオバケにやられて外周へ吹き飛ばされた…資格も失った', 2000);
+          sfxBattleLose();
           setTimeout(()=>{ hideBanner(); finishTurn(player, false); }, 2100);
         }
       }, 900);
@@ -1700,6 +1865,7 @@
     const goingNight = state.phase === 'day';
     state.phase = goingNight ? 'night' : 'day';
     state.phaseRollCount = 0;
+    state.npcTurnCounter = 0;
     applyPhaseVisuals();
     showBanner(goingNight ? '🌙 夜になった…オバケが動き出す気配…' : '☀️ 朝になった！オバケはおとなしくなった', 1700);
     setTimeout(()=>{
@@ -1710,12 +1876,16 @@
 
   function afterPhaseSwitch(cb){
     if(state.phase !== 'night'){ cb(); return; }
+    // オバケが動くのはプレイヤー全員が1回ずつまわった(一周した)タイミングのみ
+    state.npcTurnCounter = (state.npcTurnCounter||0) + 1;
+    if(state.npcTurnCounter < state.players.length){ cb(); return; }
+    state.npcTurnCounter = 0;
     const target = findNearestPlayer();
     if(!target){ cb(); return; }
     const steps = 1 + Math.floor(Math.random()*2);
     npcStepToward(target.pos, steps);
     renderPawns();
-    const caught = state.players.find(p => !p.inCenter && p.pos === npc.pos && p.ridingOn === null);
+    const caught = state.players.find(p => !p.inCenter && !p.atHome && p.pos === npc.pos && p.ridingOn === null);
     if(caught){
       showBanner('👹 オバケが ' + caught.name + ' に追いついた！');
       setTimeout(()=>{ runNpcBattle(caught, cb); }, 900);
@@ -1809,7 +1979,6 @@
         case 'again': grantExtraRoll = true; break;
         case 'skip':  p.skip = true; break;
         case 'warp':  p.pos = sq.target; syncRiders(p); renderPawns(); renderPlayerBar(); relocated = true; break;
-        case 'back3': moveBack(p, 3); renderPawns(); renderPlayerBar(); relocated = true; break;
         case 'goal':  break;
       }
       hideBanner();
@@ -1895,7 +2064,10 @@
     state.phase = 'day';
     state.phaseRollCount = 0;
     state.pendingPhaseSwitch = false;
+    state.npcTurnCounter = 0;
     npc.pos = NPC_START_POS;
+    buildSpecials();
+    buildSquares();
     applyPhaseVisuals();
     renderPawns();
     updateTurnUI();
@@ -1912,6 +2084,7 @@
   function goToGameScreen(){
     setupScreen.classList.remove('active');
     gameScreen.classList.add('active');
+    buildSpecials();
     trackPoints = computeTrackPoints();
     buildSquares();
     applyPhaseVisuals();
