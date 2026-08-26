@@ -1,0 +1,1846 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>ぐるぐるすごろく</title>
+<link rel="manifest" href="../manifest.json">
+<meta name="theme-color" content="#123328">
+<link rel="apple-touch-icon" href="../icons/apple-touch-icon.png">
+<link rel="icon" href="../icons/favicon-32.png" sizes="32x32">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@400;500;700;900&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --felt:#1b4d3e;
+    --felt-dark:#123328;
+    --paper:#fbf3e1;
+    --paper-edge:#e3d3ab;
+    --ink:#3b2a1e;
+    --ink-soft:#7a6650;
+    --gold:#f4c542;
+    --red:#e4572e;
+    --blue:#2e86ab;
+    --yellow:#f4b942;
+    --green:#4fae73;
+    --purple:#8e6fce;
+    --grayblue:#7b8fa1;
+    --coin:#e9b400;
+    --hp:#d64550;
+  }
+
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{height:100%;}
+  body{
+    margin:0;
+    min-height:100%;
+    font-family:'Zen Maru Gothic', sans-serif;
+    color:var(--ink);
+    background:
+      radial-gradient(ellipse at 50% 0%, rgba(255,255,255,0.06), transparent 60%),
+      repeating-radial-gradient(circle at 20% 20%, rgba(255,255,255,0.015) 0px, rgba(255,255,255,0.015) 2px, transparent 2px, transparent 4px),
+      linear-gradient(160deg, var(--felt), var(--felt-dark));
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:18px;
+    user-select:none;
+  }
+
+  #app{ width:100%; max-width:1000px; }
+  .screen{ display:none; }
+  .screen.active{ display:flex; flex-direction:column; align-items:center; }
+
+  /* ---------- setup screen ---------- */
+  .card{
+    background:var(--paper);
+    border-radius:28px;
+    padding:32px 30px;
+    width:100%;
+    max-width:580px;
+    box-shadow: 0 14px 0 var(--paper-edge), 0 22px 40px rgba(0,0,0,0.45);
+    border:3px solid var(--ink);
+  }
+  .title{
+    font-weight:900;
+    font-size:clamp(26px,5vw,36px);
+    text-align:center;
+    margin:0 0 4px;
+    letter-spacing:1px;
+  }
+  .subtitle{
+    text-align:center;
+    color:var(--ink-soft);
+    font-weight:500;
+    margin:0 0 10px;
+    font-size:14px;
+  }
+  .rules-box{
+    background:#fff;
+    border:2.5px solid var(--ink);
+    border-radius:14px;
+    padding:10px 14px;
+    margin:0 0 16px;
+    font-size:12px;
+    line-height:1.75;
+    color:var(--ink-soft);
+  }
+  .rules-box b{ color:var(--ink); }
+  .section-label{
+    font-weight:700;
+    font-size:14px;
+    color:var(--ink-soft);
+    margin:18px 0 8px;
+  }
+  .legend-grid{
+    display:grid;
+    grid-template-columns:repeat(2,1fr);
+    gap:7px 14px;
+    background:#fff;
+    border:2.5px solid var(--ink);
+    border-radius:14px;
+    padding:12px 14px;
+  }
+  .legend-item{
+    display:flex;
+    align-items:center;
+    gap:7px;
+    font-size:12px;
+    font-weight:700;
+    color:var(--ink-soft);
+  }
+  .legend-item span{ font-size:16px; }
+
+  .count-row{ display:flex; gap:10px; justify-content:center; }
+  .count-btn{
+    flex:1;
+    padding:12px 0;
+    border-radius:16px;
+    border:3px solid var(--ink);
+    background:#fff;
+    font-family:inherit;
+    font-weight:700;
+    font-size:16px;
+    cursor:pointer;
+    transition:transform .12s ease;
+  }
+  .count-btn:active{ transform:scale(0.94); }
+  .count-btn.active{ background:var(--gold); }
+
+  .name-row{
+    display:flex;
+    align-items:center;
+    gap:12px;
+    background:#fff;
+    border:3px solid var(--ink);
+    border-radius:16px;
+    padding:8px 12px;
+    margin-bottom:10px;
+    transition:opacity .15s ease;
+  }
+  .name-row.disabled{ opacity:0.35; pointer-events:none; }
+  .name-dot{
+    width:26px; height:26px; border-radius:50%;
+    border:3px solid var(--ink);
+    flex-shrink:0;
+  }
+  .name-row input{
+    flex:1;
+    border:none;
+    outline:none;
+    font-family:inherit;
+    font-size:16px;
+    font-weight:700;
+    background:transparent;
+    color:var(--ink);
+  }
+
+  .start-btn{
+    width:100%;
+    margin-top:20px;
+    padding:16px 0;
+    border-radius:18px;
+    border:3px solid var(--ink);
+    background:var(--gold);
+    font-family:inherit;
+    font-weight:900;
+    font-size:18px;
+    cursor:pointer;
+    box-shadow:0 6px 0 #c99a1f;
+  }
+  .start-btn:active{ transform:translateY(4px); box-shadow:0 2px 0 #c99a1f; }
+
+  /* ---------- game screen (full-bleed tablet board) ---------- */
+  #gameScreen.active{
+    position:fixed;
+    inset:0;
+    display:block;
+    background:
+      radial-gradient(ellipse at 50% 0%, rgba(255,255,255,0.06), transparent 60%),
+      linear-gradient(160deg, var(--felt), var(--felt-dark));
+    z-index:5;
+  }
+
+  #settingsBtn{
+    position:absolute;
+    top:10px;
+    left:50%;
+    transform:translateX(-50%);
+    z-index:9;
+    background:rgba(255,255,255,0.14);
+    border:2px solid rgba(255,255,255,0.4);
+    color:#fdf6e3;
+    border-radius:12px;
+    padding:6px 12px;
+    font-family:inherit;
+    font-weight:700;
+    font-size:12px;
+    cursor:pointer;
+  }
+  #settingsBtn:active{ transform:translateX(-50%) scale(0.95); }
+
+  #boardCard{
+    position:absolute;
+    inset:16px;
+    background:var(--paper);
+    border-radius:28px;
+    border:3px solid var(--ink);
+    box-shadow:0 14px 0 var(--paper-edge), 0 22px 40px rgba(0,0,0,0.45);
+    overflow:hidden;
+  }
+  #trackSvg{ position:absolute; inset:0; width:100%; height:100%; }
+  #squareLayer, #pawnLayer{ position:absolute; inset:0; width:100%; height:100%; }
+  #pawnLayer{ pointer-events:none; }
+
+  .square{
+    position:absolute;
+    width:clamp(28px,4.4vw,46px);
+    height:clamp(28px,4.4vw,46px);
+    transform:translate(-50%,-50%);
+    background:#fff;
+    border:2.5px solid var(--ink);
+    border-radius:9px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:clamp(13px,2.1vw,19px);
+    box-shadow:0 3px 0 rgba(0,0,0,0.18);
+  }
+  .square .idx{
+    position:absolute;
+    top:2px; left:4px;
+    font-size:7px;
+    font-weight:700;
+    color:var(--ink-soft);
+  }
+  .square.start{ background:var(--gold); }
+  .square.goal{
+    background-image: repeating-conic-gradient(#222 0% 25%, #fff 0% 50%);
+    background-size: 12px 12px;
+  }
+  .square.warp{ background:var(--purple); }
+  .square.skip{ background:var(--grayblue); }
+  .square.back3{ background:var(--red); }
+  .square.again{ background:var(--green); }
+  .square.coin{ background:#fff3c4; }
+  .square.item{ background:#ffd9ec; }
+  .square.damage{ background:#ffb3a7; }
+  .square.heal{ background:#c8f2c8; }
+  .square.gate{ background:#d8c4ff; }
+
+  .square.center-square{
+    width:clamp(24px,3.8vw,38px);
+    height:clamp(24px,3.8vw,38px);
+    font-size:clamp(11px,1.9vw,16px);
+    border-color:#8e6fce;
+    z-index:1;
+  }
+  .square.center-square.goal{
+    background:var(--gold);
+    background-image:none;
+    border-color:var(--ink);
+    box-shadow:0 0 0 4px rgba(244,197,66,0.35), 0 3px 0 rgba(0,0,0,0.18);
+  }
+
+  .pawn{
+    position:absolute;
+    width:clamp(14px,2.2vw,22px);
+    height:clamp(14px,2.2vw,22px);
+    border-radius:50%;
+    border:2.5px solid var(--ink);
+    box-shadow:0 3px 0 rgba(0,0,0,0.3);
+    transform:translate(-50%,-50%);
+    transition:left .18s ease, top .18s ease;
+  }
+  .pawn.hopping{ animation:pawnHop .22s ease-in-out infinite; }
+  .pawn.riding{ transform:translate(-50%,-50%) scale(0.76); border-style:dashed; z-index:3; }
+  .pawn.riding::after{
+    content:'🐴';
+    position:absolute;
+    font-size:11px;
+    top:-15px; left:50%;
+    transform:translate(-50%,0);
+  }
+  @keyframes pawnHop{
+    0%,100%{ margin-top:0; }
+    50%{ margin-top:-9px; }
+  }
+
+  .npc-pawn{
+    position:absolute;
+    width:clamp(18px,2.8vw,28px);
+    height:clamp(18px,2.8vw,28px);
+    border-radius:50%;
+    background:#4a3b63;
+    border:2.5px solid var(--ink);
+    box-shadow:0 3px 0 rgba(0,0,0,0.35);
+    transform:translate(-50%,-50%);
+    transition:left .35s ease, top .35s ease;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:clamp(11px,1.8vw,14px);
+    z-index:4;
+  }
+
+  #boardCard.night-mode::before{
+    content:'';
+    position:absolute;
+    inset:0;
+    background:rgba(18,14,38,0.4);
+    z-index:2;
+    pointer-events:none;
+    transition:opacity .5s ease;
+  }
+
+  /* center hub: turn info / banner-adjacent controls */
+  #centerPanel{
+    position:absolute;
+    left:50%; top:50%;
+    transform:translate(-50%,-50%);
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:7px;
+    width:min(60%,300px);
+    z-index:6;
+  }
+  #phaseBadge{
+    font-weight:700;
+    font-size:10px;
+    color:#fdf6e3;
+    background:rgba(0,0,0,0.28);
+    padding:3px 10px;
+    border-radius:999px;
+    white-space:nowrap;
+  }
+  #turnLabel{
+    font-weight:900;
+    font-size:clamp(12px,2.1vw,15px);
+    padding:6px 14px;
+    border-radius:999px;
+    border:2.5px solid var(--ink);
+    background:#fff;
+    white-space:nowrap;
+  }
+
+  #handBar{
+    display:flex;
+    gap:6px;
+    min-height:30px;
+    align-items:center;
+    justify-content:center;
+    flex-wrap:wrap;
+  }
+  .card-btn{
+    width:32px; height:32px;
+    border-radius:9px;
+    border:2.5px solid var(--ink);
+    background:#fff;
+    font-size:16px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    cursor:pointer;
+    box-shadow:0 3px 0 var(--paper-edge);
+  }
+  .card-btn:active{ transform:translateY(2px); box-shadow:none; }
+  .card-btn.selected{ background:var(--gold); }
+
+  #choiceBar{
+    display:none;
+    flex-direction:column;
+    gap:6px;
+    width:100%;
+  }
+  #choiceBar.show{ display:flex; }
+  .choice-btn{
+    padding:9px 10px;
+    border-radius:13px;
+    border:2.5px solid var(--ink);
+    background:#fff;
+    font-family:inherit;
+    font-weight:800;
+    font-size:clamp(11px,2vw,13px);
+    cursor:pointer;
+    box-shadow:0 4px 0 var(--paper-edge);
+  }
+  .choice-btn:active{ transform:translateY(2px); box-shadow:none; }
+  .choice-btn:disabled{ opacity:0.35; cursor:default; box-shadow:none; }
+  .choice-btn.primary{ background:var(--gold); }
+
+  .dot{ border-radius:50%; background:var(--ink); opacity:0; justify-self:center; align-self:center; width:100%; height:100%; }
+  .dice{
+    display:grid;
+    grid-template-columns:repeat(3,1fr);
+    grid-template-rows:repeat(3,1fr);
+    background:#fff;
+    border:3px solid var(--ink);
+  }
+  .dice.shake{ animation:diceShake .09s linear infinite; }
+  @keyframes diceShake{
+    0%{ transform:rotate(0deg) scale(1); }
+    20%{ transform:rotate(-14deg) scale(1.06); }
+    40%{ transform:rotate(11deg) scale(0.95); }
+    60%{ transform:rotate(-9deg) scale(1.05); }
+    80%{ transform:rotate(7deg) scale(0.97); }
+    100%{ transform:rotate(0deg) scale(1); }
+  }
+  .dice[data-value="1"] .dot-5{opacity:1;}
+  .dice[data-value="2"] .dot-1,.dice[data-value="2"] .dot-9{opacity:1;}
+  .dice[data-value="3"] .dot-1,.dice[data-value="3"] .dot-5,.dice[data-value="3"] .dot-9{opacity:1;}
+  .dice[data-value="4"] .dot-1,.dice[data-value="4"] .dot-3,.dice[data-value="4"] .dot-7,.dice[data-value="4"] .dot-9{opacity:1;}
+  .dice[data-value="5"] .dot-1,.dice[data-value="5"] .dot-3,.dice[data-value="5"] .dot-5,.dice[data-value="5"] .dot-7,.dice[data-value="5"] .dot-9{opacity:1;}
+  .dice[data-value="6"] .dot-1,.dice[data-value="6"] .dot-3,.dice[data-value="6"] .dot-4,.dice[data-value="6"] .dot-6,.dice[data-value="6"] .dot-7,.dice[data-value="6"] .dot-9{opacity:1;}
+
+  #banner{
+    position:absolute;
+    left:50%; top:7%;
+    transform:translate(-50%,-14px);
+    background:var(--ink);
+    color:#fdf6e3;
+    font-weight:700;
+    font-size:clamp(11px,2vw,14px);
+    padding:9px 16px;
+    border-radius:999px;
+    white-space:nowrap;
+    max-width:70%;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    opacity:0;
+    pointer-events:none;
+    transition:opacity .2s ease, transform .2s ease;
+    z-index:7;
+  }
+  #banner.show{ opacity:1; transform:translate(-50%,0); }
+
+  /* ---------- corner player controls (icon + dice-roll button) ---------- */
+  #cornerLayer{ position:absolute; inset:0; pointer-events:none; z-index:8; }
+  .corner-player{
+    position:absolute;
+    pointer-events:auto;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:6px;
+    padding:9px 10px;
+    background:var(--paper);
+    border:3px solid var(--ink);
+    border-radius:18px;
+    box-shadow:0 6px 0 var(--paper-edge), 0 10px 16px rgba(0,0,0,0.35);
+    width:96px;
+    opacity:0.55;
+    transition:opacity .2s ease, box-shadow .2s ease;
+    cursor:pointer;
+  }
+  .corner-player.active-turn{
+    opacity:1;
+    border-color:var(--gold);
+    animation:cornerGlow 1.1s ease-in-out infinite;
+  }
+  @keyframes cornerGlow{
+    0%,100%{ box-shadow:0 6px 0 var(--paper-edge), 0 0 0 4px rgba(244,197,66,0.35), 0 10px 16px rgba(0,0,0,0.4); }
+    50%{ box-shadow:0 6px 0 var(--paper-edge), 0 0 0 10px rgba(244,197,66,0.12), 0 10px 16px rgba(0,0,0,0.4); }
+  }
+  .corner-player.selectable{
+    opacity:1;
+    border-color:#ff5c5c;
+    animation:chipPulse 0.8s ease-in-out infinite;
+  }
+  @keyframes chipPulse{
+    0%,100%{ box-shadow:0 6px 0 var(--paper-edge), 0 0 0 0 rgba(255,92,92,0.5); }
+    50%{ box-shadow:0 6px 0 var(--paper-edge), 0 0 0 8px rgba(255,92,92,0); }
+  }
+  .corner-bl{ left:12px; bottom:12px; }
+  .corner-br{ right:12px; bottom:12px; }
+  .corner-tr{ right:12px; top:12px; transform:rotate(180deg); }
+  .corner-tl{ left:12px; top:12px; transform:rotate(180deg); }
+
+  .corner-top{ display:flex; align-items:center; gap:6px; }
+  .corner-avatar{
+    width:24px; height:24px;
+    border-radius:50%;
+    border:2.5px solid var(--ink);
+    position:relative;
+    flex-shrink:0;
+  }
+  .corner-avatar .corner-badge{ position:absolute; font-size:10px; }
+  .corner-avatar .shield-badge{ right:-6px; bottom:-6px; }
+  .corner-avatar .ride-badge{ left:-7px; top:-8px; }
+  .corner-avatar .key-badge{ right:-7px; top:-8px; }
+  .corner-name{
+    font-size:11px; font-weight:800;
+    max-width:60px;
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  }
+  .corner-stats{ display:flex; gap:7px; font-size:10px; font-weight:700; }
+  .corner-stats .stat-hp{ color:var(--hp); }
+  .corner-stats .stat-coins{ color:#a87b00; }
+  .dice.corner-dice{
+    width:44px; height:44px;
+    padding:12%;
+    gap:6%;
+    border-radius:11px;
+  }
+
+  /* win overlay */
+  #winOverlay{
+    position:fixed; inset:0;
+    background:rgba(10,20,16,0.72);
+    display:none;
+    align-items:center;
+    justify-content:center;
+    z-index:50;
+    overflow:hidden;
+  }
+  #winOverlay.show{ display:flex; }
+  .confetti{
+    position:absolute;
+    top:-10px;
+    width:9px; height:14px;
+    opacity:0.9;
+    animation:fall linear forwards;
+  }
+  @keyframes fall{
+    to{ transform:translateY(115vh) rotate(540deg); }
+  }
+  .win-card{
+    background:var(--paper);
+    border:3px solid var(--ink);
+    border-radius:26px;
+    padding:36px 34px;
+    text-align:center;
+    box-shadow:0 16px 0 var(--paper-edge), 0 26px 40px rgba(0,0,0,0.5);
+    z-index:2;
+    max-width:420px;
+  }
+  .win-dot{ width:52px; height:52px; border-radius:50%; border:3.5px solid var(--ink); margin:0 auto 14px; }
+  .win-title{ font-weight:900; font-size:26px; margin:0 0 6px; }
+  .win-sub{ color:var(--ink-soft); font-weight:500; margin:0 0 8px; font-size:14px; }
+  .win-coins{ color:var(--ink); font-weight:700; font-size:13px; margin:0 0 22px; }
+  .win-btns{ display:flex; gap:10px; }
+  .win-btns button{
+    flex:1;
+    padding:12px 0;
+    border-radius:14px;
+    border:2.5px solid var(--ink);
+    font-family:inherit;
+    font-weight:800;
+    font-size:14px;
+    cursor:pointer;
+  }
+  #playAgainBtn{ background:var(--gold); box-shadow:0 5px 0 #c99a1f; }
+  #backToSetupBtn{ background:#fff; }
+
+  @media (max-width:520px){
+    .card{ padding:24px 18px; }
+    .corner-player{ width:82px; padding:7px 8px; }
+    .dice.corner-dice{ width:38px; height:38px; }
+  }
+</style>
+</head>
+<body>
+
+<div id="app">
+
+  <!-- ============ SETUP SCREEN ============ -->
+  <div class="screen active" id="setupScreen">
+    <div class="card">
+      <p class="title">🎲 ぐるぐるすごろく</p>
+      <p class="subtitle">2〜4人でiPadを囲んで遊ぼう！各自タブレットの隅のコマをタップしてサイコロを振ります。</p>
+      <div class="rules-box">
+        <b>勝ち方</b>：外周をぐるぐる回ってコインを<b>15枚</b>貯めると、🔑<b>入口マス</b>から中央の小さな円形コースへ進めるようになります(進むかは自分で選べる)。中央では8マスの円をぐるぐる回り、<b>ちょうど中央ゴールに止まったら勝利</b>(オーバーしたらそのまま回り続ける)。中央では🎯いれかえカードで先頭の人と入れ替わったり、💥おしだしカードで妨害したりできるので、中央入りしても油断できません。中央には強いオバケも出現し、負けると外周へ吹き飛ばされてコインも没収されます。<br>
+        他の人のマスに止まったら選べる：🐴<b>相乗り</b>＝その人の動きにタダ乗りできるが、自分の番は基本おやすみ。降りるときはその番のサイコロがそのまま着地チェックになり、偶数(2,4,6)なら出た目の数だけダメージ、奇数(1,3,5)なら無傷成功(5は大成功)。⚔️<b>奪い合い</b>＝おたがいダメージを受けつつサイコロ勝負、負けると3マス後退＆コインを奪われる。HPが0で「ダウン」、5マス戻ってHP回復。<br>
+        👹<b>オバケ</b>(外周)は☀️昼はおとなしく居座るだけ(狩ると楽勝＆報酬控えめ)、🌙夜になると毎ターン一番近いプレイヤーへ近づいてくる(追いつかれると強敵だが報酬は豪華)。昼夜はサイコロを振った回数(1人あたり昼4回・夜2回)で自動的に切り替わります。
+      </div>
+
+      <p class="section-label">マスの説明</p>
+      <div class="legend-grid">
+        <div class="legend-item"><span>🏁</span>スタート</div>
+        <div class="legend-item"><span>🔑</span>中央への入口</div>
+        <div class="legend-item"><span>💰</span>コイン</div>
+        <div class="legend-item"><span>🎴</span>アイテム</div>
+        <div class="legend-item"><span>🩹</span>回復</div>
+        <div class="legend-item"><span>💢</span>ダメージ</div>
+        <div class="legend-item"><span>😴</span>1回休み</div>
+        <div class="legend-item"><span>🌀</span>ワープ</div>
+        <div class="legend-item"><span>⏪</span>3マス戻る</div>
+        <div class="legend-item"><span>🎲</span>もう一回</div>
+        <div class="legend-item"><span>🐴</span>相乗り</div>
+        <div class="legend-item"><span>⚔️</span>奪い合い</div>
+        <div class="legend-item"><span>👹</span>オバケ(外周)</div>
+        <div class="legend-item"><span>👻</span>オバケ(中央)</div>
+        <div class="legend-item"><span>🏆</span>中央ゴール</div>
+      </div>
+
+      <p class="section-label">にんずう</p>
+      <div class="count-row" id="countRow">
+        <button class="count-btn" data-count="2">2人</button>
+        <button class="count-btn active" data-count="3">3人</button>
+        <button class="count-btn" data-count="4">4人</button>
+      </div>
+
+      <p class="section-label">なまえ</p>
+      <div id="nameList"></div>
+
+      <button class="start-btn" id="startBtn">スタート！</button>
+    </div>
+  </div>
+
+  <!-- ============ GAME SCREEN (full-bleed) ============ -->
+  <div class="screen" id="gameScreen">
+    <button id="settingsBtn">⏸ ポーズ</button>
+
+    <div id="boardCard">
+      <svg id="trackSvg"></svg>
+      <div id="squareLayer"></div>
+      <div id="pawnLayer"></div>
+    </div>
+
+    <div id="centerPanel">
+      <div id="phaseBadge">☀️ ひる</div>
+      <div id="turnLabel">じゅんび中…</div>
+      <div id="handBar"></div>
+      <div id="choiceBar"></div>
+    </div>
+
+    <div id="banner"></div>
+    <div id="cornerLayer"></div>
+  </div>
+
+</div>
+
+<!-- ============ WIN OVERLAY ============ -->
+<div id="winOverlay">
+  <div id="confettiLayer"></div>
+  <div class="win-card">
+    <div class="win-dot" id="winDot"></div>
+    <p class="win-title" id="winTitle">〇〇のかち！</p>
+    <p class="win-sub">おめでとう！🎉</p>
+    <p class="win-coins" id="winCoinsLine"></p>
+    <div class="win-btns">
+      <button id="playAgainBtn">もう一度あそぶ</button>
+      <button id="backToSetupBtn">せっていへ</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ---------------- config ---------------- */
+  const N = 28;                  // 全マス数(周回を長く)
+  const GOAL_INDEX = N - 1;
+  const MAX_HP = 10;
+
+  const SPECIALS = {
+    0:  { type:'start',  label:'スタート',   icon:'🏁' },
+    1:  { type:'gate',   label:'中央への入口', icon:'🔑' },
+    2:  { type:'coin',   label:'コイン',     icon:'💰' },
+    4:  { type:'heal',   label:'回復',       icon:'🩹' },
+    6:  { type:'item',   label:'アイテム',   icon:'🎴' },
+    8:  { type:'damage', label:'ダメージ',   icon:'💢' },
+    10: { type:'warp',   label:'ワープ！',   icon:'🌀', target:18 },
+    12: { type:'coin',   label:'コイン',     icon:'💰' },
+    14: { type:'item',   label:'アイテム',   icon:'🎴' },
+    16: { type:'skip',   label:'１回休み',   icon:'😴' },
+    19: { type:'back3',  label:'３マス戻る', icon:'⏪' },
+    21: { type:'heal',   label:'回復',       icon:'🩹' },
+    23: { type:'again',  label:'もう一回！', icon:'🎲' },
+    25: { type:'item',   label:'アイテム',   icon:'🎴' },
+    26: { type:'coin',   label:'コイン',     icon:'💰' },
+    27: { type:'coin',   label:'コイン',     icon:'💰' }
+  };
+
+  const CENTER_N = 8;
+  const CENTER_GOAL_INDEX = 0;
+  const CENTER_ENTRY_INDEX = 4;
+  const CENTER_SPECIALS = {
+    0: { type:'goal',  label:'中央ゴール', icon:'🏆' },
+    2: { type:'coin',  label:'コイン',     icon:'💰' },
+    5: { type:'coin',  label:'コイン',     icon:'💰' }
+  };
+  const KEY_COIN_THRESHOLD = 15;
+  const GATE_INDEX = 1;
+  const CENTER_GHOST_CHANCE = 0.22;
+
+  const PLAYER_COLORS = [
+    { key:'red',    hex:'#e4572e' },
+    { key:'blue',   hex:'#2e86ab' },
+    { key:'yellow', hex:'#f4b942' },
+    { key:'green',  hex:'#4fae73' }
+  ];
+  const CORNER_CLASSES = ['corner-bl','corner-br','corner-tr','corner-tl'];
+
+  const PAWN_OFFSETS = [ {x:-7,y:-7}, {x:7,y:-7}, {x:-7,y:7}, {x:7,y:7} ];
+
+  const CARD_ICON  = { swap:'🎯', push:'💥', double:'⭐', shield:'🛡' };
+  const CARD_LABEL = {
+    swap:'🎯 いれかえカード（自分と相手の位置を交換）',
+    push:'💥 おしだしカード（相手を3マス下げる）',
+    double:'⭐ ダブルカード（次のサイコロの目が2倍）',
+    shield:'🛡 シールドカード（次の勝負に負けても無効化）'
+  };
+  const CARD_TYPES = ['swap','push','double','shield'];
+
+  const DAY_ROLLS_PER_PLAYER = 4;
+  const NIGHT_ROLLS_PER_PLAYER = 2;
+  const NPC_START_POS = 14;
+
+  /* ---------------- state ---------------- */
+  let state = {
+    playerCount: 3,
+    players: [],     // {name,colorHex,pos,skip,coins,cards[],shield,doubleNext,hp,ridingOn}
+    current: 0,
+    rolling: false,
+    moving: false,
+    selecting: null,          // {card, casterIdx, handIdx}
+    pendingChoice: null,      // 'encounter' | 'ride'
+    pendingEncounter: null,   // {moverIdx, rivalIdx}
+    dismountCheck: false,
+    phase: 'day',
+    phaseRollCount: 0,
+    pendingPhaseSwitch: false,
+    pendingGateMover: null
+  };
+  let npc = { pos: NPC_START_POS };
+  let trackPoints = [];   // {x,y} in % of boardCard (outer loop)
+  let centerTrackPoints = []; // {x,y} in % of boardCard (center ring)
+  let bannerTimer = null;
+  let cornerEls = [];     // built per game start
+
+  /* ---------------- element refs ---------------- */
+  const setupScreen    = document.getElementById('setupScreen');
+  const gameScreen      = document.getElementById('gameScreen');
+  const countRow          = document.getElementById('countRow');
+  const nameList            = document.getElementById('nameList');
+  const startBtn              = document.getElementById('startBtn');
+  const settingsBtn             = document.getElementById('settingsBtn');
+  const boardCard                = document.getElementById('boardCard');
+  const trackSvg                   = document.getElementById('trackSvg');
+  const squareLayer                  = document.getElementById('squareLayer');
+  const pawnLayer                      = document.getElementById('pawnLayer');
+  const phaseBadge                       = document.getElementById('phaseBadge');
+  const turnLabel                          = document.getElementById('turnLabel');
+  const handBar                              = document.getElementById('handBar');
+  const choiceBar                              = document.getElementById('choiceBar');
+  const bannerEl                                 = document.getElementById('banner');
+  const cornerLayer                                = document.getElementById('cornerLayer');
+  const winOverlay                                   = document.getElementById('winOverlay');
+  const winDot                                         = document.getElementById('winDot');
+  const winTitle                                         = document.getElementById('winTitle');
+  const winCoinsLine                                       = document.getElementById('winCoinsLine');
+  const confettiLayer                                        = document.getElementById('confettiLayer');
+  const playAgainBtn                                           = document.getElementById('playAgainBtn');
+  const backToSetupBtn                                           = document.getElementById('backToSetupBtn');
+
+  /* ================= setup screen ================= */
+  function buildNameRows(){
+    nameList.innerHTML = '';
+    for(let i=0;i<4;i++){
+      const row = document.createElement('div');
+      row.className = 'name-row';
+      row.dataset.i = i;
+      const dot = document.createElement('div');
+      dot.className = 'name-dot';
+      dot.style.background = PLAYER_COLORS[i].hex;
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.maxLength = 8;
+      input.value = 'プレイヤー' + (i+1);
+      input.id = 'nameInput' + i;
+      row.appendChild(dot);
+      row.appendChild(input);
+      nameList.appendChild(row);
+    }
+    refreshNameRowVisibility();
+  }
+
+  function refreshNameRowVisibility(){
+    const rows = nameList.querySelectorAll('.name-row');
+    rows.forEach(r=>{
+      const i = parseInt(r.dataset.i,10);
+      r.classList.toggle('disabled', i >= state.playerCount);
+    });
+  }
+
+  countRow.addEventListener('click', (e)=>{
+    const btn = e.target.closest('.count-btn');
+    if(!btn) return;
+    state.playerCount = parseInt(btn.dataset.count,10);
+    countRow.querySelectorAll('.count-btn').forEach(b=>b.classList.toggle('active', b===btn));
+    refreshNameRowVisibility();
+  });
+
+  function freshPlayer(i, name){
+    return {
+      name: name,
+      colorHex: PLAYER_COLORS[i].hex,
+      pos: 0,
+      skip: false,
+      coins: 0,
+      cards: [],
+      shield: false,
+      doubleNext: false,
+      hp: MAX_HP,
+      ridingOn: null,
+      inCenter: false,
+      centerPos: 0
+    };
+  }
+
+  startBtn.addEventListener('click', ()=>{
+    state.players = [];
+    for(let i=0;i<state.playerCount;i++){
+      const input = document.getElementById('nameInput'+i);
+      const name = (input.value || ('プレイヤー'+(i+1))).trim() || ('プレイヤー'+(i+1));
+      state.players.push(freshPlayer(i, name));
+    }
+    state.current = 0;
+    state.rolling = false;
+    state.moving = false;
+    state.selecting = null;
+    state.pendingChoice = null;
+    state.pendingEncounter = null;
+    state.dismountCheck = false;
+    state.phase = 'day';
+    state.phaseRollCount = 0;
+    state.pendingPhaseSwitch = false;
+    npc.pos = NPC_START_POS;
+    buildCornerControls();
+    goToGameScreen();
+  });
+
+  // settingsBtn は他ゲームと共通の「⏸ ポーズ」トリガーとして pause-ui.js が拾う
+  // （4隅がプレイヤー操作で埋まるボードなので、既定の右上/左下ボタンは使わない）
+
+  /* ================= corner player controls ================= */
+  function buildCornerControls(){
+    cornerLayer.innerHTML = '';
+    cornerEls = [];
+    state.players.forEach((p,i)=>{
+      const root = document.createElement('div');
+      root.className = 'corner-player ' + CORNER_CLASSES[i];
+      root.dataset.i = i;
+
+      const top = document.createElement('div');
+      top.className = 'corner-top';
+      const avatar = document.createElement('div');
+      avatar.className = 'corner-avatar';
+      avatar.style.background = p.colorHex;
+      const shieldBadge = document.createElement('span');
+      shieldBadge.className = 'corner-badge shield-badge';
+      shieldBadge.textContent = '🛡';
+      shieldBadge.style.display = 'none';
+      const rideBadge = document.createElement('span');
+      rideBadge.className = 'corner-badge ride-badge';
+      rideBadge.textContent = '🐴';
+      rideBadge.style.display = 'none';
+      const keyBadge = document.createElement('span');
+      keyBadge.className = 'corner-badge key-badge';
+      keyBadge.textContent = '🔑';
+      keyBadge.style.display = 'none';
+      avatar.appendChild(shieldBadge);
+      avatar.appendChild(rideBadge);
+      avatar.appendChild(keyBadge);
+      const nameEl = document.createElement('div');
+      nameEl.className = 'corner-name';
+      nameEl.textContent = p.name;
+      top.appendChild(avatar);
+      top.appendChild(nameEl);
+
+      const stats = document.createElement('div');
+      stats.className = 'corner-stats';
+      const hpEl = document.createElement('span');
+      hpEl.className = 'stat-hp';
+      const coinsEl = document.createElement('span');
+      coinsEl.className = 'stat-coins';
+      stats.appendChild(hpEl);
+      stats.appendChild(coinsEl);
+
+      const diceEl = document.createElement('div');
+      diceEl.className = 'dice corner-dice';
+      diceEl.dataset.value = '1';
+      for(let d=1; d<=9; d++){
+        const dot = document.createElement('div');
+        dot.className = 'dot dot-' + d;
+        diceEl.appendChild(dot);
+      }
+
+      root.appendChild(top);
+      root.appendChild(stats);
+      root.appendChild(diceEl);
+      root.addEventListener('click', ()=>onCornerClick(i));
+      cornerLayer.appendChild(root);
+
+      cornerEls.push({ root, diceEl, nameEl, hpEl, coinsEl, shieldBadge, rideBadge, keyBadge });
+    });
+  }
+
+  function onCornerClick(idx){
+    if(state.selecting){
+      if(idx === state.selecting.casterIdx) return;
+      if(state.players[idx].ridingOn !== null) return;
+      resolveCardTarget(idx);
+      return;
+    }
+    if(idx !== state.current) return;
+    rollDice();
+  }
+
+  /* ================= board building ================= */
+  function computeTrackPoints(){
+    const rect = boardCard.getBoundingClientRect();
+    const w = Math.max(rect.width, 100);
+    const h = Math.max(rect.height, 100);
+    trackSvg.setAttribute('viewBox', '0 0 ' + w + ' ' + h);
+    trackSvg.innerHTML = '';
+
+    const shortSide = Math.min(w,h);
+    const margin = shortSide * 0.16;
+    const r = shortSide * 0.22;
+    const x0 = margin, y0 = margin, x1 = w - margin, y1 = h - margin;
+
+    const NS = "http://www.w3.org/2000/svg";
+    const d = `M ${x0+r} ${y0} L ${x1-r} ${y0} A ${r} ${r} 0 0 1 ${x1} ${y0+r} ` +
+               `L ${x1} ${y1-r} A ${r} ${r} 0 0 1 ${x1-r} ${y1} ` +
+               `L ${x0+r} ${y1} A ${r} ${r} 0 0 1 ${x0} ${y1-r} ` +
+               `L ${x0} ${y0+r} A ${r} ${r} 0 0 1 ${x0+r} ${y0} Z`;
+
+    const dash = document.createElementNS(NS,'path');
+    dash.setAttribute('d', d);
+    dash.setAttribute('fill','none');
+    dash.setAttribute('stroke','#c9b78c');
+    dash.setAttribute('stroke-width', Math.max(6, shortSide*0.02));
+    dash.setAttribute('stroke-dasharray','2 20');
+    dash.setAttribute('stroke-linecap','round');
+    trackSvg.appendChild(dash);
+
+    const measurePath = document.createElementNS(NS,'path');
+    measurePath.setAttribute('d', d);
+    trackSvg.appendChild(measurePath);
+    const len = measurePath.getTotalLength();
+    const pts = [];
+    for(let i=0;i<N;i++){
+      const p = measurePath.getPointAtLength((len*i)/N);
+      pts.push({ x: (p.x/w)*100, y: (p.y/h)*100 });
+    }
+    trackSvg.removeChild(measurePath);
+
+    // ---- center ring (小さな円形コース) ----
+    const cx = w/2, cy = h/2;
+    const rc = shortSide * 0.135;
+    const centerDash = document.createElementNS(NS,'circle');
+    centerDash.setAttribute('cx', cx);
+    centerDash.setAttribute('cy', cy);
+    centerDash.setAttribute('r', rc);
+    centerDash.setAttribute('fill','none');
+    centerDash.setAttribute('stroke','#c9b78c');
+    centerDash.setAttribute('stroke-width', Math.max(5, shortSide*0.016));
+    centerDash.setAttribute('stroke-dasharray','2 14');
+    centerDash.setAttribute('stroke-linecap','round');
+    trackSvg.appendChild(centerDash);
+
+    const cpts = [];
+    for(let i=0;i<CENTER_N;i++){
+      const angle = -Math.PI/2 + (i/CENTER_N)*Math.PI*2;
+      const x = cx + rc*Math.cos(angle);
+      const y = cy + rc*Math.sin(angle);
+      cpts.push({ x:(x/w)*100, y:(y/h)*100 });
+    }
+    centerTrackPoints = cpts;
+
+    return pts;
+  }
+
+  function buildSquares(){
+    squareLayer.innerHTML = '';
+    for(let i=0;i<N;i++){
+      const info = SPECIALS[i];
+      const sq = document.createElement('div');
+      sq.className = 'square' + (info ? (' ' + info.type) : '');
+      sq.style.left = trackPoints[i].x + '%';
+      sq.style.top = trackPoints[i].y + '%';
+      const idx = document.createElement('span');
+      idx.className = 'idx';
+      idx.textContent = i;
+      sq.appendChild(idx);
+      const icon = document.createElement('span');
+      icon.textContent = info ? info.icon : '';
+      sq.appendChild(icon);
+      if(info) sq.title = info.label;
+      squareLayer.appendChild(sq);
+    }
+
+    for(let i=0;i<CENTER_N;i++){
+      const info = CENTER_SPECIALS[i];
+      const sq = document.createElement('div');
+      sq.className = 'square center-square' + (info ? (' ' + info.type) : '');
+      sq.style.left = centerTrackPoints[i].x + '%';
+      sq.style.top = centerTrackPoints[i].y + '%';
+      const icon = document.createElement('span');
+      icon.textContent = info ? info.icon : '';
+      sq.appendChild(icon);
+      if(info) sq.title = info.label;
+      squareLayer.appendChild(sq);
+    }
+  }
+
+  let resizeTimer = null;
+  window.addEventListener('resize', ()=>{
+    if(!gameScreen.classList.contains('active')) return;
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(()=>{
+      trackPoints = computeTrackPoints();
+      buildSquares();
+      renderPawns();
+    }, 200);
+  });
+
+  /* ================= pawns ================= */
+  function renderPawns(){
+    pawnLayer.innerHTML = '';
+    state.players.forEach((p, i)=>{
+      const pts = p.inCenter ? centerTrackPoints : trackPoints;
+      const idx = p.inCenter ? p.centerPos : p.pos;
+      const pt = pts[idx];
+      const off = PAWN_OFFSETS[i];
+      const pawn = document.createElement('div');
+      const riding = p.ridingOn !== null;
+      pawn.className = 'pawn' + (state.moving && i===state.current ? ' hopping' : '') + (riding ? ' riding' : '');
+      pawn.style.left = pt.x + '%';
+      pawn.style.top = pt.y + '%';
+      let mx = off.x, my = off.y;
+      if(riding) my -= 12;
+      pawn.style.marginLeft = mx + 'px';
+      pawn.style.marginTop = my + 'px';
+      pawn.style.background = p.colorHex;
+      pawnLayer.appendChild(pawn);
+    });
+
+    const npcPt = trackPoints[npc.pos];
+    const npcEl = document.createElement('div');
+    npcEl.className = 'npc-pawn';
+    npcEl.style.left = npcPt.x + '%';
+    npcEl.style.top = npcPt.y + '%';
+    npcEl.textContent = '👹';
+    pawnLayer.appendChild(npcEl);
+  }
+
+  function applyPhaseVisuals(){
+    boardCard.classList.toggle('night-mode', state.phase === 'night');
+    phaseBadge.textContent = state.phase === 'night' ? '🌙 よる' : '☀️ ひる';
+  }
+
+  function findNearestPlayer(){
+    let best = null, bestDist = Infinity;
+    state.players.forEach(p=>{
+      if(p.inCenter) return;
+      const fwd = (p.pos - npc.pos + N) % N;
+      const dist = Math.min(fwd, N - fwd);
+      if(dist < bestDist){ bestDist = dist; best = p; }
+    });
+    return best;
+  }
+
+  function npcStepToward(targetPos, steps){
+    for(let s=0; s<steps; s++){
+      const fwd = (targetPos - npc.pos + N) % N;
+      if(fwd === 0) break;
+      const bwd = N - fwd;
+      if(fwd <= bwd){ npc.pos = (npc.pos + 1) % N; }
+      else { npc.pos = (npc.pos - 1 + N) % N; }
+    }
+  }
+
+  function npcRelocateRandom(){
+    let pos, tries = 0;
+    do{
+      pos = 1 + Math.floor(Math.random() * (N - 2));
+      tries++;
+    } while(state.players.some(p=>!p.inCenter && p.pos===pos) && tries < 20);
+    npc.pos = pos;
+  }
+
+  function syncRiders(carrier){
+    const cIdx = state.players.indexOf(carrier);
+    state.players.forEach(pl=>{
+      if(pl.ridingOn === cIdx) pl.pos = carrier.pos;
+    });
+  }
+
+  // 後退させる(ゾーンに応じて外周はループ、中央リングもループ)
+  function moveBack(pl, n){
+    if(pl.inCenter){
+      pl.centerPos = ((pl.centerPos - n) % CENTER_N + CENTER_N) % CENTER_N;
+    } else {
+      pl.pos = ((pl.pos - n) % N + N) % N;
+      syncRiders(pl);
+    }
+  }
+
+  // ゾーンをまたいだ完全な入れ替え(外周⇔中央の横取りに対応)
+  function fullSwap(a, b){
+    const tmpPos = a.pos, tmpCenter = a.centerPos, tmpInCenter = a.inCenter;
+    a.pos = b.pos; a.centerPos = b.centerPos; a.inCenter = b.inCenter;
+    b.pos = tmpPos; b.centerPos = tmpCenter; b.inCenter = tmpInCenter;
+    syncRiders(a);
+    syncRiders(b);
+  }
+
+  function knockOut(p, opponent){
+    if(opponent){
+      const steal = Math.floor(p.coins/2);
+      p.coins -= steal;
+      opponent.coins += steal;
+    }
+    p.hp = 5;
+    moveBack(p, 5);
+    renderPawns();
+    renderPlayerBar();
+  }
+
+  /* ================= player status (corner UI refresh) ================= */
+  function renderPlayerBar(){
+    state.players.forEach((p,i)=>{
+      const ce = cornerEls[i];
+      if(!ce) return;
+      ce.hpEl.textContent = '❤️' + p.hp;
+      ce.coinsEl.textContent = '💰' + p.coins;
+      ce.shieldBadge.style.display = p.shield ? '' : 'none';
+      ce.rideBadge.style.display = p.ridingOn !== null ? '' : 'none';
+      ce.keyBadge.style.display = (!p.inCenter && p.coins >= KEY_COIN_THRESHOLD) ? '' : 'none';
+      ce.nameEl.textContent = p.name + (p.inCenter ? ' ✨' : '');
+      ce.root.classList.toggle('active-turn', i === state.current && !state.selecting);
+      ce.root.classList.toggle('selectable', !!(state.selecting && i !== state.selecting.casterIdx && p.ridingOn === null));
+    });
+  }
+
+  function updateTurnUI(){
+    const p = state.players[state.current];
+    turnLabel.textContent = p.name + ' の ばん';
+    turnLabel.style.borderColor = p.colorHex;
+    renderPlayerBar();
+    renderHand();
+
+    if(p.ridingOn !== null){
+      const carrier = state.players[p.ridingOn];
+      state.pendingChoice = 'ride';
+      showChoice(p.name + ' は ' + carrier.name + ' に相乗り中！', [
+        { label:'🐴 とびおりる（サイコロで着地チェック）', action:'dismount' },
+        { label:'😌 そのまま乗る（この番はおやすみ）', action:'stayRiding' }
+      ]);
+    } else {
+      hideChoice();
+    }
+  }
+
+  /* ================= hand / cards ================= */
+  function renderHand(){
+    handBar.innerHTML = '';
+    const p = state.players[state.current];
+    if(!p) return;
+    p.cards.forEach((c,i)=>{
+      const b = document.createElement('button');
+      b.className = 'card-btn' + (state.selecting && state.selecting.handIdx===i ? ' selected' : '');
+      b.textContent = CARD_ICON[c];
+      b.title = CARD_LABEL[c];
+      b.addEventListener('click', ()=>useCard(i));
+      handBar.appendChild(b);
+    });
+  }
+
+  function useCard(i){
+    if(state.moving || state.rolling || state.pendingChoice==='ride') return;
+    const p = state.players[state.current];
+    const card = p.cards[i];
+    if(!card) return;
+
+    if(state.selecting && state.selecting.handIdx===i){
+      state.selecting = null;
+      hideBanner();
+      renderPlayerBar();
+      renderHand();
+      return;
+    }
+    if(state.selecting) return;
+
+    if(card === 'shield'){
+      p.cards.splice(i,1);
+      p.shield = true;
+      renderHand();
+      renderPlayerBar();
+      showBanner('🛡 シールドをはった！', 1200);
+      return;
+    }
+    if(card === 'double'){
+      p.cards.splice(i,1);
+      p.doubleNext = true;
+      renderHand();
+      showBanner('⭐ 次のサイコロは2ばいになる！', 1200);
+      return;
+    }
+    if(state.players.length < 2) return;
+    state.selecting = { card: card, casterIdx: state.current, handIdx: i };
+    showBanner(card==='swap' ? '🎯 いれかえる相手のコマをタップ！' : '💥 おしだす相手のコマをタップ！');
+    renderPlayerBar();
+    renderHand();
+  }
+
+  function resolveCardTarget(targetIdx){
+    const sel = state.selecting;
+    const caster = state.players[sel.casterIdx];
+    const target = state.players[targetIdx];
+    caster.cards.splice(sel.handIdx,1);
+    if(sel.card === 'swap'){
+      fullSwap(caster, target);
+      showBanner('🎯 ' + caster.name + 'と' + target.name + 'がいれかわった！', 1400);
+    } else if(sel.card === 'push'){
+      moveBack(target, 3);
+      showBanner('💥 ' + target.name + 'は3マスさがった！', 1400);
+    }
+    state.selecting = null;
+    renderPawns();
+    renderPlayerBar();
+    renderHand();
+  }
+
+  /* ================= banner ================= */
+  function showBanner(text, autoHideMs){
+    clearTimeout(bannerTimer);
+    bannerEl.textContent = text;
+    bannerEl.classList.add('show');
+    if(autoHideMs){
+      bannerTimer = setTimeout(hideBanner, autoHideMs);
+    }
+  }
+  function hideBanner(){
+    bannerEl.classList.remove('show');
+  }
+
+  /* ================= choice UI (encounter / riding) ================= */
+  function showChoice(bannerText, buttons){
+    showBanner(bannerText);
+    choiceBar.innerHTML = '';
+    buttons.forEach((b,idx)=>{
+      const btn = document.createElement('button');
+      btn.className = 'choice-btn' + (idx===0 ? ' primary' : '');
+      btn.textContent = b.label;
+      btn.disabled = !!b.disabled;
+      btn.addEventListener('click', ()=>onChoiceClick(b.action));
+      choiceBar.appendChild(btn);
+    });
+    choiceBar.classList.add('show');
+    handBar.style.display = 'none';
+  }
+  function hideChoice(){
+    choiceBar.classList.remove('show');
+    choiceBar.innerHTML = '';
+    handBar.style.display = '';
+  }
+  function onChoiceClick(action){
+    const kind = state.pendingChoice;
+    state.pendingChoice = null;
+    if(kind === 'encounter') handleEncounterChoice(action);
+    else if(kind === 'ride') handleRideChoice(action);
+    else if(kind === 'gate') handleGateChoice(action);
+  }
+
+  /* ================= dice roll ================= */
+  function rollDice(){
+    if(state.rolling || state.moving || state.selecting || state.pendingChoice) return;
+    const ce = cornerEls[state.current];
+    if(!ce) return;
+    const diceEl = ce.diceEl;
+
+    state.rolling = true;
+    diceEl.classList.add('shake');
+    let ticks = 0;
+    const maxTicks = 10;
+    const iv = setInterval(()=>{
+      diceEl.dataset.value = 1 + Math.floor(Math.random()*6);
+      ticks++;
+      if(ticks >= maxTicks){
+        clearInterval(iv);
+        const finalVal = 1 + Math.floor(Math.random()*6);
+        diceEl.dataset.value = finalVal;
+        diceEl.classList.remove('shake');
+        state.rolling = false;
+
+        state.phaseRollCount++;
+        const threshold = (state.phase === 'day' ? DAY_ROLLS_PER_PLAYER : NIGHT_ROLLS_PER_PLAYER) * state.players.length;
+        if(state.phaseRollCount >= threshold){
+          state.pendingPhaseSwitch = true;
+        }
+
+        setTimeout(()=>{
+          const p = state.players[state.current];
+
+          function proceedMove(steps){
+            if(p.doubleNext){
+              p.doubleNext = false;
+              const s2 = steps * 2;
+              showBanner('⭐ ダブルで ' + s2 + ' マス！');
+              setTimeout(()=>{ hideBanner(); movePlayer(s2); }, 1000);
+            } else {
+              movePlayer(steps);
+            }
+          }
+
+          if(state.dismountCheck){
+            state.dismountCheck = false;
+            if(finalVal % 2 === 0){
+              p.hp = Math.max(0, p.hp - finalVal);
+              renderPlayerBar();
+              showBanner('💥 着地失敗！-' + finalVal + ' HP', 1300);
+              setTimeout(()=>{
+                hideBanner();
+                if(p.hp <= 0){
+                  showBanner('💫 ダウン！5マス戻ってHP回復');
+                  knockOut(p, null);
+                  setTimeout(()=>{ hideBanner(); finishTurn(p, false); }, 1400);
+                } else {
+                  proceedMove(finalVal);
+                }
+              }, 1400);
+            } else {
+              showBanner(finalVal===5 ? '🍀 大成功の着地！ラッキー！' : '👍 うまく着地した！', 1100);
+              setTimeout(()=>{ hideBanner(); proceedMove(finalVal); }, 1200);
+            }
+            return;
+          }
+
+          proceedMove(finalVal);
+        }, 250);
+      }
+    }, 90);
+  }
+
+  /* ================= movement ================= */
+  function movePlayer(steps){
+    state.moving = true;
+    const p = state.players[state.current];
+    if(p.inCenter){
+      moveInCenter(p, steps);
+      return;
+    }
+    let remaining = steps;
+    renderPawns();
+    const iv = setInterval(()=>{
+      if(remaining <= 0){
+        clearInterval(iv);
+        syncRiders(p);
+        renderPawns();
+        renderPlayerBar();
+        afterMove(p);
+        return;
+      }
+      p.pos = (p.pos + 1) % N;
+      remaining--;
+      renderPawns();
+      renderPlayerBar();
+    }, 220);
+  }
+
+  function moveInCenter(p, steps){
+    let remaining = steps;
+    renderPawns();
+    const iv = setInterval(()=>{
+      if(remaining <= 0){
+        clearInterval(iv);
+        renderPawns();
+        renderPlayerBar();
+        afterCenterMove(p);
+        return;
+      }
+      p.centerPos = (p.centerPos + 1) % CENTER_N;
+      remaining--;
+      renderPawns();
+      renderPlayerBar();
+    }, 260);
+  }
+
+  function afterMove(p){
+    const rival = state.players.find(o => o !== p && !o.inCenter && o.pos === p.pos && o.ridingOn === null);
+    if(rival){
+      const moverIdx = state.players.indexOf(p);
+      const rivalIdx = state.players.indexOf(rival);
+      const riderExists = state.players.some(o => o.ridingOn === rivalIdx);
+      state.pendingChoice = 'encounter';
+      state.pendingEncounter = { moverIdx: moverIdx, rivalIdx: rivalIdx };
+      showChoice(p.name + ' が ' + rival.name + ' のマスに止まった！', [
+        { label:'🐴 相乗りする', action:'ride', disabled: riderExists },
+        { label:'⚔️ 奪い合う', action:'fight' }
+      ]);
+    } else if(npc.pos === p.pos){
+      showBanner('👹 ' + p.name + ' がオバケと遭遇！');
+      setTimeout(()=>{ runNpcBattle(p, function(){ resolveSquare(p); }); }, 900);
+    } else if(p.pos === GATE_INDEX && p.coins >= KEY_COIN_THRESHOLD){
+      offerGateChoice(p);
+    } else {
+      resolveSquare(p);
+    }
+  }
+
+  function afterCenterMove(p){
+    if(p.centerPos === CENTER_GOAL_INDEX){
+      handleWin(p);
+      return;
+    }
+    const rival = state.players.find(o => o !== p && o.inCenter && o.centerPos === p.centerPos);
+    if(rival){
+      const moverIdx = state.players.indexOf(p);
+      const rivalIdx = state.players.indexOf(rival);
+      state.pendingChoice = 'encounter';
+      state.pendingEncounter = { moverIdx: moverIdx, rivalIdx: rivalIdx };
+      showChoice(p.name + ' が ' + rival.name + ' とはちあわせ！', [
+        { label:'⚔️ 奪い合う', action:'fight' }
+      ]);
+      return;
+    }
+    if(Math.random() < CENTER_GHOST_CHANCE){
+      showBanner('👻 中央のオバケが現れた！');
+      setTimeout(()=>{ runCenterGhostBattle(p, function(){ resolveCenterSquare(p); }); }, 900);
+      return;
+    }
+    resolveCenterSquare(p);
+  }
+
+  function offerGateChoice(p){
+    state.pendingChoice = 'gate';
+    state.pendingGateMover = state.players.indexOf(p);
+    showChoice('🔑 ' + p.name + ' は中央へ進む資格を持っている！', [
+      { label:'✨ 中央へ進む', action:'enter' },
+      { label:'🚶 外周を回り続ける', action:'stay' }
+    ]);
+  }
+
+  function handleGateChoice(action){
+    hideChoice();
+    const idx = state.pendingGateMover;
+    const p = state.players[idx];
+    state.pendingGateMover = null;
+    if(action === 'enter'){
+      state.players.forEach(o=>{ if(o.ridingOn === idx) o.ridingOn = null; });
+      p.inCenter = true;
+      p.centerPos = CENTER_ENTRY_INDEX;
+      renderPawns();
+      renderPlayerBar();
+      showBanner('✨ ' + p.name + ' は中央コースへ突入！', 1600);
+      setTimeout(()=>{ hideBanner(); finishTurn(p, false); }, 1700);
+    } else {
+      resolveSquare(p);
+    }
+  }
+
+  function handleEncounterChoice(action){
+    hideChoice();
+    const mover = state.players[state.pendingEncounter.moverIdx];
+    const rival = state.players[state.pendingEncounter.rivalIdx];
+    state.pendingEncounter = null;
+    const resolveAfter = mover.inCenter ? function(){ resolveCenterSquare(mover); } : function(){ resolveSquare(mover); };
+    if(action === 'ride'){
+      mover.ridingOn = state.players.indexOf(rival);
+      renderPawns();
+      renderPlayerBar();
+      showBanner('🐴 ' + mover.name + ' は ' + rival.name + ' に相乗りした！');
+      setTimeout(()=>{ hideBanner(); finishTurn(mover, false); }, 1500);
+    } else {
+      runScramble(mover, rival, resolveAfter);
+    }
+  }
+
+  /* ================= encounter scramble (HP based) ================= */
+  function runScramble(p1, p2, cb){
+    showBanner('⚔️ ' + p1.name + ' と ' + p2.name + ' の奪い合い！');
+    setTimeout(()=>{
+      p1.hp = Math.max(0, p1.hp - 2);
+      p2.hp = Math.max(0, p2.hp - 2);
+      renderPlayerBar();
+
+      const downed = [p1,p2].filter(pl => pl.hp <= 0);
+      if(downed.length > 0){
+        showBanner('💢 もみあいで両者ダメージ！');
+        setTimeout(()=>{
+          downed.forEach(pl=>{
+            const other = (pl===p1) ? p2 : p1;
+            knockOut(pl, other);
+          });
+          const names = downed.map(pl=>pl.name).join('と');
+          showBanner('💫 ' + names + ' がダウン！5マス戻ってHP回復', 1800);
+          setTimeout(()=>{ hideBanner(); cb(); }, 1900);
+        }, 1200);
+        return;
+      }
+
+      const a = 1 + Math.floor(Math.random()*6);
+      const d = 1 + Math.floor(Math.random()*6);
+      showBanner('🎲 ' + p1.name + ':' + a + '　対　' + p2.name + ':' + d);
+      setTimeout(()=>{
+        let winner, loser;
+        if(a >= d){ winner = p1; loser = p2; }
+        else { winner = p2; loser = p1; }
+
+        if(loser.shield){
+          loser.shield = false;
+          showBanner('🛡 ' + loser.name + ' はシールドで防いだ！', 1500);
+        } else {
+          moveBack(loser, 3);
+          const steal = Math.min(3, loser.coins);
+          loser.coins -= steal;
+          winner.coins += steal;
+          showBanner('💥 ' + winner.name + ' のかち！ ' + loser.name + 'は3マスさがってコイン' + steal + '枚うばわれた', 1700);
+        }
+        renderPawns();
+        renderPlayerBar();
+        setTimeout(()=>{ hideBanner(); cb(); }, 1700);
+      }, 900);
+    }, 900);
+  }
+
+  /* ================= NPC battle ================= */
+  function runNpcBattle(player, cb){
+    const isNight = state.phase === 'night';
+    showBanner('⚔️ ' + player.name + ' 対 👹オバケ！');
+    setTimeout(()=>{
+      const npcPower = isNight ? (3 + Math.floor(Math.random()*4)) : (1 + Math.floor(Math.random()*4));
+      const playerRoll = 1 + Math.floor(Math.random()*6);
+      showBanner('🎲 ' + player.name + ':' + playerRoll + '　対　👹:' + npcPower);
+      setTimeout(()=>{
+        if(playerRoll >= npcPower){
+          const coinGain = isNight ? (6 + Math.floor(Math.random()*5)) : (2 + Math.floor(Math.random()*3));
+          player.coins += coinGain;
+          let msg = '🎉 ' + player.name + ' の勝ち！コイン+' + coinGain;
+          if(isNight){
+            if(player.cards.length < 3){
+              const t = CARD_TYPES[Math.floor(Math.random()*CARD_TYPES.length)];
+              player.cards.push(t);
+              renderHand();
+              msg += '＋カード獲得！';
+            }
+            player.hp = Math.min(MAX_HP, player.hp + 2);
+          }
+          renderPlayerBar();
+          showBanner(msg, 1800);
+        } else if(player.shield){
+          player.shield = false;
+          showBanner('🛡 ' + player.name + ' はシールドで防いだ！', 1500);
+        } else {
+          const dmg = isNight ? (3 + Math.floor(Math.random()*3)) : 1;
+          const stealCoins = Math.min(isNight ? 4 : 1, player.coins);
+          player.hp = Math.max(0, player.hp - dmg);
+          player.coins -= stealCoins;
+          renderPlayerBar();
+          if(player.hp <= 0){
+            showBanner('💫 ' + player.name + ' はオバケにやられてダウン！5マス戻ってHP回復', 1900);
+            knockOut(player, null);
+          } else {
+            showBanner('💥 オバケにやられた…HP-' + dmg + '　コイン-' + stealCoins, 1800);
+          }
+        }
+        npcRelocateRandom();
+        renderPawns();
+        renderPlayerBar();
+        setTimeout(()=>{ hideBanner(); cb(); }, 1900);
+      }, 900);
+    }, 900);
+  }
+
+  /* ================= center-ring ghost battle ================= */
+  function runCenterGhostBattle(player, cb){
+    showBanner('👻 中央のオバケが立ちはだかる！');
+    setTimeout(()=>{
+      const ghostPower = 4 + Math.floor(Math.random()*3);
+      const roll = 1 + Math.floor(Math.random()*6);
+      showBanner('🎲 ' + player.name + ':' + roll + '　対　👻:' + ghostPower);
+      setTimeout(()=>{
+        if(roll >= ghostPower){
+          const gain = 4 + Math.floor(Math.random()*4);
+          player.coins += gain;
+          renderPlayerBar();
+          showBanner('🎉 オバケを撃退！コイン+' + gain, 1700);
+          setTimeout(()=>{ hideBanner(); cb(); }, 1800);
+        } else if(player.shield){
+          player.shield = false;
+          showBanner('🛡 シールドで防いだ！', 1500);
+          setTimeout(()=>{ hideBanner(); cb(); }, 1600);
+        } else {
+          player.inCenter = false;
+          player.pos = Math.floor(Math.random() * N);
+          player.coins = Math.max(0, Math.min(player.coins, KEY_COIN_THRESHOLD - 1));
+          renderPawns();
+          renderPlayerBar();
+          showBanner('💀 ' + player.name + ' はオバケにやられて外周へ吹き飛ばされた…資格も失った', 2000);
+          setTimeout(()=>{ hideBanner(); finishTurn(player, false); }, 2100);
+        }
+      }, 900);
+    }, 900);
+  }
+
+  function resolveCenterSquare(p){
+    const sq = CENTER_SPECIALS[p.centerPos];
+    if(!sq || sq.type !== 'coin'){
+      finishTurn(p, false);
+      return;
+    }
+    const gain = 2 + Math.floor(Math.random()*3);
+    p.coins += gain;
+    renderPlayerBar();
+    showBanner('💰 +' + gain + ' コイン！');
+    setTimeout(()=>{ hideBanner(); finishTurn(p, false); }, 1300);
+  }
+
+  /* ================= day / night phase ================= */
+  function checkPhaseAndContinue(cb){
+    if(!state.pendingPhaseSwitch){
+      afterPhaseSwitch(cb);
+      return;
+    }
+    state.pendingPhaseSwitch = false;
+    const goingNight = state.phase === 'day';
+    state.phase = goingNight ? 'night' : 'day';
+    state.phaseRollCount = 0;
+    applyPhaseVisuals();
+    showBanner(goingNight ? '🌙 夜になった…オバケが動き出す気配…' : '☀️ 朝になった！オバケはおとなしくなった', 1700);
+    setTimeout(()=>{
+      hideBanner();
+      afterPhaseSwitch(cb);
+    }, 1800);
+  }
+
+  function afterPhaseSwitch(cb){
+    if(state.phase !== 'night'){ cb(); return; }
+    const target = findNearestPlayer();
+    if(!target){ cb(); return; }
+    const steps = 1 + Math.floor(Math.random()*2);
+    npcStepToward(target.pos, steps);
+    renderPawns();
+    const caught = state.players.find(p => !p.inCenter && p.pos === npc.pos && p.ridingOn === null);
+    if(caught){
+      showBanner('👹 オバケが ' + caught.name + ' に追いついた！');
+      setTimeout(()=>{ runNpcBattle(caught, cb); }, 900);
+    } else {
+      cb();
+    }
+  }
+
+  /* ================= riding decision ================= */
+  function handleRideChoice(action){
+    hideChoice();
+    const p = state.players[state.current];
+    if(action === 'dismount'){
+      p.ridingOn = null;
+      renderPlayerBar();
+      showBanner('🐴 ' + p.name + ' はとびおりた！サイコロで着地チェック！');
+      setTimeout(()=>{
+        hideBanner();
+        state.dismountCheck = true;
+      }, 1000);
+    } else {
+      showBanner('😌 ' + p.name + ' はそのまま乗っている', 1300);
+      setTimeout(()=>{ hideBanner(); nextTurn(); }, 1400);
+    }
+  }
+
+  /* ================= square effects ================= */
+  function resolveSquare(p){
+    const sq = SPECIALS[p.pos];
+    if(!sq || sq.type === 'start'){
+      finishTurn(p, false);
+      return;
+    }
+
+    if(sq.type === 'coin'){
+      const gain = 2 + Math.floor(Math.random()*4);
+      p.coins += gain;
+      renderPlayerBar();
+      showBanner('💰 +' + gain + ' コイン！');
+      setTimeout(()=>{ hideBanner(); finishTurn(p, false); }, 1300);
+      return;
+    }
+
+    if(sq.type === 'heal'){
+      const heal = 2 + Math.floor(Math.random()*3);
+      p.hp = Math.min(MAX_HP, p.hp + heal);
+      renderPlayerBar();
+      showBanner('🩹 +' + heal + ' HP！');
+      setTimeout(()=>{ hideBanner(); finishTurn(p, false); }, 1300);
+      return;
+    }
+
+    if(sq.type === 'damage'){
+      const dmg = 2 + Math.floor(Math.random()*3);
+      p.hp = Math.max(0, p.hp - dmg);
+      renderPlayerBar();
+      showBanner('💢 -' + dmg + ' HP！');
+      setTimeout(()=>{
+        if(p.hp <= 0){
+          showBanner('💫 ダウン！5マス戻ってHP回復');
+          knockOut(p, null);
+          setTimeout(()=>{ hideBanner(); finishTurn(p, false); }, 1400);
+        } else {
+          hideBanner();
+          finishTurn(p, false);
+        }
+      }, 1300);
+      return;
+    }
+
+    if(sq.type === 'item'){
+      if(p.cards.length < 3){
+        const t = CARD_TYPES[Math.floor(Math.random()*CARD_TYPES.length)];
+        p.cards.push(t);
+        renderHand();
+        showBanner('🎴 ' + CARD_LABEL[t] + ' を手に入れた！');
+      } else {
+        p.coins += 5;
+        renderPlayerBar();
+        showBanner('🎴 手札がいっぱい！かわりにコイン+5');
+      }
+      setTimeout(()=>{ hideBanner(); finishTurn(p, false); }, 1300);
+      return;
+    }
+
+    showBanner(sq.icon + ' ' + sq.label);
+    setTimeout(()=>{
+      let grantExtraRoll = false;
+      switch(sq.type){
+        case 'again': grantExtraRoll = true; break;
+        case 'skip':  p.skip = true; break;
+        case 'warp':  p.pos = sq.target; syncRiders(p); renderPawns(); renderPlayerBar(); break;
+        case 'back3': moveBack(p, 3); renderPawns(); renderPlayerBar(); break;
+        case 'goal':  break;
+      }
+      hideBanner();
+      finishTurn(p, grantExtraRoll);
+    }, 1300);
+  }
+
+  function finishTurn(p, grantExtraRoll){
+    state.moving = false;
+    checkPhaseAndContinue(()=>{
+      if(grantExtraRoll){
+        showBanner('🎲 ' + p.name + ' もう一回ふれる！', 1300);
+        return;
+      }
+      nextTurn();
+    });
+  }
+
+  function nextTurn(){
+    const nIdx = (state.current + 1) % state.players.length;
+    advanceSkipping(nIdx, 0);
+  }
+
+  function advanceSkipping(idx, guard){
+    const p = state.players[idx];
+    if(p.skip && guard < state.players.length){
+      p.skip = false;
+      showBanner('😴 ' + p.name + ' は１回休み');
+      setTimeout(()=>{
+        hideBanner();
+        advanceSkipping((idx+1) % state.players.length, guard+1);
+      }, 1200);
+      return;
+    }
+    state.current = idx;
+    updateTurnUI();
+  }
+
+  /* ================= win ================= */
+  function handleWin(p){
+    winDot.style.background = p.colorHex;
+    winTitle.textContent = p.name + ' の かち！';
+    const richest = state.players.reduce((a,b)=> b.coins > a.coins ? b : a, state.players[0]);
+    winCoinsLine.textContent = '💰 いちばんお金持ち：' + richest.name + '（' + richest.coins + 'コイン）';
+    spawnConfetti();
+    winOverlay.classList.add('show');
+  }
+
+  function spawnConfetti(){
+    confettiLayer.innerHTML = '';
+    const colors = PLAYER_COLORS.map(c=>c.hex);
+    for(let i=0;i<50;i++){
+      const c = document.createElement('div');
+      c.className = 'confetti';
+      c.style.left = (Math.random()*100) + '%';
+      c.style.background = colors[i % colors.length];
+      c.style.animationDuration = (1.6 + Math.random()*1.4) + 's';
+      c.style.animationDelay = (Math.random()*0.6) + 's';
+      c.style.borderRadius = (Math.random()<0.5) ? '50%' : '2px';
+      confettiLayer.appendChild(c);
+    }
+  }
+
+  playAgainBtn.addEventListener('click', ()=>{
+    winOverlay.classList.remove('show');
+    state.players.forEach((p,i)=>{
+      const fresh = freshPlayer(i, p.name);
+      Object.assign(p, fresh);
+    });
+    state.current = 0;
+    state.selecting = null;
+    state.pendingChoice = null;
+    state.pendingEncounter = null;
+    state.pendingGateMover = null;
+    state.dismountCheck = false;
+    state.phase = 'day';
+    state.phaseRollCount = 0;
+    state.pendingPhaseSwitch = false;
+    npc.pos = NPC_START_POS;
+    applyPhaseVisuals();
+    renderPawns();
+    updateTurnUI();
+  });
+
+  backToSetupBtn.addEventListener('click', ()=>{
+    winOverlay.classList.remove('show');
+    gameScreen.classList.remove('active');
+    setupScreen.classList.add('active');
+  });
+
+  /* ================= screen transition ================= */
+  function goToGameScreen(){
+    setupScreen.classList.remove('active');
+    gameScreen.classList.add('active');
+    trackPoints = computeTrackPoints();
+    buildSquares();
+    applyPhaseVisuals();
+    renderPawns();
+    updateTurnUI();
+  }
+
+  /* ================= init ================= */
+  buildNameRows();
+
+})();
+</script>
+<script>window.PAUSE_UI_CONFIG = { trigger: '#settingsBtn' };</script>
+<script src="../pause-ui.js"></script>
+</body>
+</html>
