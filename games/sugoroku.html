@@ -72,24 +72,6 @@
     margin:0 0 4px;
     letter-spacing:1px;
   }
-  .subtitle{
-    text-align:center;
-    color:var(--ink-soft);
-    font-weight:500;
-    margin:0 0 10px;
-    font-size:14px;
-  }
-  .rules-box{
-    background:#fff;
-    border:2.5px solid var(--ink);
-    border-radius:14px;
-    padding:10px 14px;
-    margin:0 0 16px;
-    font-size:12px;
-    line-height:1.75;
-    color:var(--ink-soft);
-  }
-  .rules-box b{ color:var(--ink); }
   .section-label{
     font-weight:700;
     font-size:14px;
@@ -130,34 +112,6 @@
   }
   .count-btn:active{ transform:scale(0.94); }
   .count-btn.active{ background:var(--gold); }
-
-  .name-row{
-    display:flex;
-    align-items:center;
-    gap:12px;
-    background:#fff;
-    border:3px solid var(--ink);
-    border-radius:16px;
-    padding:8px 12px;
-    margin-bottom:10px;
-    transition:opacity .15s ease;
-  }
-  .name-row.disabled{ opacity:0.35; pointer-events:none; }
-  .name-dot{
-    width:26px; height:26px; border-radius:50%;
-    border:3px solid var(--ink);
-    flex-shrink:0;
-  }
-  .name-row input{
-    flex:1;
-    border:none;
-    outline:none;
-    font-family:inherit;
-    font-size:16px;
-    font-weight:700;
-    background:transparent;
-    color:var(--ink);
-  }
 
   .start-btn{
     width:100%;
@@ -335,6 +289,16 @@
     color:#fdf6e3;
     background:rgba(0,0,0,0.28);
     padding:3px 10px;
+    border-radius:999px;
+    white-space:nowrap;
+  }
+  #phaseCountdown{
+    font-weight:700;
+    font-size:9px;
+    color:#fdf6e3;
+    opacity:.85;
+    background:rgba(0,0,0,0.22);
+    padding:2px 9px;
     border-radius:999px;
     white-space:nowrap;
   }
@@ -571,12 +535,6 @@
   <div class="screen active" id="setupScreen">
     <div class="card">
       <p class="title">🎲 ぐるぐるすごろく</p>
-      <p class="subtitle">2〜4人でiPadを囲んで遊ぼう！各自タブレットの隅のコマをタップしてサイコロを振ります。</p>
-      <div class="rules-box">
-        <b>勝ち方</b>：外周をぐるぐる回ってコインを<b>15枚</b>貯めると、🔑<b>入口マス</b>から中央の小さな円形コースへ進めるようになります(進むかは自分で選べる)。中央では8マスの円をぐるぐる回り、<b>ちょうど中央ゴールに止まったら勝利</b>(オーバーしたらそのまま回り続ける)。中央では🎯いれかえカードで先頭の人と入れ替わったり、💥おしだしカードで妨害したりできるので、中央入りしても油断できません。中央には強いオバケも出現し、負けると外周へ吹き飛ばされてコインも没収されます。<br>
-        他の人のマスに止まったら選べる：🐴<b>相乗り</b>＝その人の動きにタダ乗りできるが、自分の番は基本おやすみ。降りるときはその番のサイコロがそのまま着地チェックになり、偶数(2,4,6)なら出た目の数だけダメージ、奇数(1,3,5)なら無傷成功(5は大成功)。⚔️<b>奪い合い</b>＝おたがいダメージを受けつつサイコロ勝負、負けると3マス後退＆コインを奪われる。HPが0で「ダウン」、5マス戻ってHP回復。<br>
-        👹<b>オバケ</b>(外周)は☀️昼はおとなしく居座るだけ(狩ると楽勝＆報酬控えめ)、🌙夜になると毎ターン一番近いプレイヤーへ近づいてくる(追いつかれると強敵だが報酬は豪華)。昼夜はサイコロを振った回数(1人あたり昼4回・夜2回)で自動的に切り替わります。
-      </div>
 
       <p class="section-label">マスの説明</p>
       <div class="legend-grid">
@@ -604,9 +562,6 @@
         <button class="count-btn" data-count="4">4人</button>
       </div>
 
-      <p class="section-label">なまえ</p>
-      <div id="nameList"></div>
-
       <button class="start-btn" id="startBtn">スタート！</button>
     </div>
   </div>
@@ -623,6 +578,7 @@
 
     <div id="centerPanel">
       <div id="phaseBadge">☀️ ひる</div>
+      <div id="phaseCountdown"></div>
       <div id="turnLabel">じゅんび中…</div>
       <div id="handBar"></div>
       <div id="choiceBar"></div>
@@ -738,7 +694,6 @@
   const setupScreen    = document.getElementById('setupScreen');
   const gameScreen      = document.getElementById('gameScreen');
   const countRow          = document.getElementById('countRow');
-  const nameList            = document.getElementById('nameList');
   const startBtn              = document.getElementById('startBtn');
   const settingsBtn             = document.getElementById('settingsBtn');
   const boardCard                = document.getElementById('boardCard');
@@ -746,6 +701,7 @@
   const squareLayer                  = document.getElementById('squareLayer');
   const pawnLayer                      = document.getElementById('pawnLayer');
   const phaseBadge                       = document.getElementById('phaseBadge');
+  const phaseCountdown                   = document.getElementById('phaseCountdown');
   const turnLabel                          = document.getElementById('turnLabel');
   const handBar                              = document.getElementById('handBar');
   const choiceBar                              = document.getElementById('choiceBar');
@@ -760,33 +716,18 @@
   const backToSetupBtn                                           = document.getElementById('backToSetupBtn');
 
   /* ================= setup screen ================= */
-  function buildNameRows(){
-    nameList.innerHTML = '';
-    for(let i=0;i<4;i++){
-      const row = document.createElement('div');
-      row.className = 'name-row';
-      row.dataset.i = i;
-      const dot = document.createElement('div');
-      dot.className = 'name-dot';
-      dot.style.background = PLAYER_COLORS[i].hex;
-      const input = document.createElement('input');
-      input.type = 'text';
-      input.maxLength = 8;
-      input.value = 'プレイヤー' + (i+1);
-      input.id = 'nameInput' + i;
-      row.appendChild(dot);
-      row.appendChild(input);
-      nameList.appendChild(row);
-    }
-    refreshNameRowVisibility();
-  }
-
-  function refreshNameRowVisibility(){
-    const rows = nameList.querySelectorAll('.name-row');
-    rows.forEach(r=>{
-      const i = parseInt(r.dataset.i,10);
-      r.classList.toggle('disabled', i >= state.playerCount);
-    });
+  // 「7.77秒でぶっとばす」「ぶっとばす！」と同じ名前リストからランダムに割り当てる
+  const NAME_POOL = [
+    'ピエトロ','ジェフ','サム','マイク','トム','ジョン','アレックス','カルロス',
+    'ルーカス','ディエゴ','マルコ','ネイト','ライアン','ケビン','ダニー',
+    'あきと','じゅんや','けいすけ','ようすけ','えいた','りょうた','しょうた',
+    'たくみ','かいと','はると','そうた','ゆうき','だいち','こうき','りく',
+    'たかひろ','こうせい','ゆうな'
+  ];
+  function randomName(exclude){
+    const pool = NAME_POOL.filter(n => (exclude||[]).indexOf(n) === -1);
+    if(!pool.length) return NAME_POOL[Math.floor(Math.random()*NAME_POOL.length)];
+    return pool[Math.floor(Math.random()*pool.length)];
   }
 
   countRow.addEventListener('click', (e)=>{
@@ -794,7 +735,6 @@
     if(!btn) return;
     state.playerCount = parseInt(btn.dataset.count,10);
     countRow.querySelectorAll('.count-btn').forEach(b=>b.classList.toggle('active', b===btn));
-    refreshNameRowVisibility();
   });
 
   function freshPlayer(i, name){
@@ -816,9 +756,10 @@
 
   startBtn.addEventListener('click', ()=>{
     state.players = [];
+    const usedNames = [];
     for(let i=0;i<state.playerCount;i++){
-      const input = document.getElementById('nameInput'+i);
-      const name = (input.value || ('プレイヤー'+(i+1))).trim() || ('プレイヤー'+(i+1));
+      const name = randomName(usedNames);
+      usedNames.push(name);
       state.players.push(freshPlayer(i, name));
     }
     state.current = 0;
@@ -1052,9 +993,139 @@
     pawnLayer.appendChild(npcEl);
   }
 
+  /* ================= night BGM ================= */
+  // 「7.77秒でぶっとばす」ボス戦で使っているBGM生成ロジックをそのまま移植。
+  // 夜になったらこのBGMを鳴らし、朝になったら止める。
+  var actx = null;
+  function audioCtx(){
+    if (!actx){
+      var AC = window.AudioContext || window.webkitAudioContext;
+      if (AC) actx = new AC();
+    }
+    return actx;
+  }
+  var bgmSource = null, bgmGain = null, bgmCache = {};
+  function stopBgm(){ if (bgmSource){ try{ bgmSource.stop(); }catch(e){} bgmSource=null; } bgmGain=null; }
+  function _playBgmBuffer(buf){
+    var ctx = audioCtx(); if (!ctx||!buf) return;
+    if (ctx.state==='suspended') ctx.resume();
+    stopBgm();
+    var g = ctx.createGain(); g.gain.value=0.28; g.connect(ctx.destination);
+    var src = ctx.createBufferSource(); src.buffer=buf; src.loop=true; src.connect(g); src.start();
+    bgmSource=src; bgmGain=g;
+  }
+  function _ensureBgm(key, renderFn, loopDur){
+    if (bgmCache[key]){ _playBgmBuffer(bgmCache[key]); return; }
+    var SR = 44100;
+    var oCtx = new OfflineAudioContext(1, Math.ceil(loopDur*SR), SR);
+    renderFn(oCtx, loopDur, SR);
+    oCtx.startRendering().then(function(buf){ bgmCache[key]=buf; _playBgmBuffer(buf); });
+  }
+  function _tone(oCtx,t,freq,dur,type,vol){ var o=oCtx.createOscillator(),g=oCtx.createGain(); o.type=type||'sawtooth'; o.frequency.value=freq; g.gain.setValueAtTime(0.0001,t); g.gain.linearRampToValueAtTime(vol,t+Math.min(0.06,dur*0.3)); g.gain.setValueAtTime(vol,t+dur-0.05); g.gain.linearRampToValueAtTime(0.0001,t+dur); o.connect(g); g.connect(oCtx.destination); o.start(t); o.stop(t+dur+0.01); }
+  function _renderBossBgm(oCtx,loopDur,SR){ var BPM=75,beat=60/BPM; [0,2,4,6].forEach(function(b){ if(b%4===0||b%4===2){ var o=oCtx.createOscillator(),g=oCtx.createGain(); o.frequency.setValueAtTime(55,b*beat); o.frequency.exponentialRampToValueAtTime(18,b*beat+0.55); g.gain.setValueAtTime(0.65,b*beat); g.gain.exponentialRampToValueAtTime(0.001,b*beat+0.55); o.connect(g); g.connect(oCtx.destination); o.start(b*beat); o.stop(b*beat+0.56); } }); [[55,1.2],[65.4,1.8],[82.4,.9]].forEach(function(fc){ for(var d=0;d<3;d++) _tone(oCtx,0,fc[0]+d*fc[1],loopDur-0.05,'sine',0.09); }); [[0,110,1.8],[2,116.5,.6],[2.5,98,1.5],[4,110,1.8],[6,87.3,.9],[7,82.4,1.3]].forEach(function(n){ _tone(oCtx,n[0]*beat,n[1],n[2]*beat,'sawtooth',0.10); }); [[1,220,.5],[3,233,.5],[5,196,.8],[7,185,1.0]].forEach(function(n){ _tone(oCtx,n[0]*beat,n[1],n[2]*beat,'sine',0.05); }); }
+  function startNightBgm(){ _ensureBgm('boss', _renderBossBgm, 60/75*8); }
+
+  /* ================= day BGM ================= */
+  // 「100マス計算バトル」の「疾走ロック」パターンをそのまま移植(テンポは固定でアップしない)。
+  var dayNoiseBuf = null;
+  function _dayGetNoise(){
+    if (!dayNoiseBuf){
+      var ctx = audioCtx();
+      dayNoiseBuf = ctx.createBuffer(1, ctx.sampleRate*.2|0, ctx.sampleRate);
+      var d = dayNoiseBuf.getChannelData(0);
+      for (var i=0;i<d.length;i++) d[i] = Math.random()*2-1;
+    }
+    return dayNoiseBuf;
+  }
+  function _dayDrumHat(t, vol, dur){
+    vol = vol==null?.035:vol; dur = dur==null?.03:dur;
+    var ctx = audioCtx();
+    var s = ctx.createBufferSource(); s.buffer = _dayGetNoise();
+    var f = ctx.createBiquadFilter(); f.type='highpass'; f.frequency.value=6500;
+    var g = ctx.createGain();
+    g.gain.setValueAtTime(vol,t); g.gain.exponentialRampToValueAtTime(.001,t+dur);
+    s.connect(f); f.connect(g); g.connect(ctx.destination);
+    s.start(t); s.stop(t+dur);
+  }
+  function _dayDrumSnare(t, vol){
+    vol = vol==null?.07:vol;
+    var ctx = audioCtx();
+    var s = ctx.createBufferSource(); s.buffer = _dayGetNoise();
+    var f = ctx.createBiquadFilter(); f.type='bandpass'; f.frequency.value=2000;
+    var g = ctx.createGain();
+    g.gain.setValueAtTime(vol,t); g.gain.exponentialRampToValueAtTime(.001,t+.1);
+    s.connect(f); f.connect(g); g.connect(ctx.destination);
+    s.start(t); s.stop(t+.1);
+  }
+  function _dayDrumKick(t, vol){
+    vol = vol==null?.13:vol;
+    var ctx = audioCtx();
+    var o = ctx.createOscillator(), g = ctx.createGain();
+    o.type='sine';
+    o.frequency.setValueAtTime(150,t);
+    o.frequency.exponentialRampToValueAtTime(45,t+.12);
+    g.gain.setValueAtTime(vol,t); g.gain.exponentialRampToValueAtTime(.001,t+.15);
+    o.connect(g); g.connect(ctx.destination);
+    o.start(t); o.stop(t+.16);
+  }
+  function _dayNote(freq, t, dur, type, vol){
+    type = type||'square'; vol = vol==null?.045:vol;
+    var ctx = audioCtx();
+    var o = ctx.createOscillator(), g = ctx.createGain();
+    o.type = type; o.frequency.value = freq;
+    g.gain.setValueAtTime(vol,t); g.gain.exponentialRampToValueAtTime(.001,t+dur);
+    o.connect(g); g.connect(ctx.destination);
+    o.start(t); o.stop(t+dur);
+  }
+  var DAY_ROCK_RIFF = [82.41, 82.41, 98, 82.41, 110, 98, 82.41, 73.42];
+  var dayBgm = { playing:false, timer:null, nextTime:0, step:0 };
+  function _dayBgmStep(s, t, dt){
+    if(s % 2 === 0){
+      var f = DAY_ROCK_RIFF[(s/2)|0];
+      _dayNote(f, t, dt*1.6, 'sawtooth', .055);
+      _dayNote(f*1.5, t, dt*1.6, 'sawtooth', .035); // 5度重ねパワーコード
+    }
+    if(s % 4 === 0) _dayDrumKick(t, .11);
+    if(s === 4 || s === 12) _dayDrumSnare(t);
+    if(s % 2 === 0) _dayDrumHat(t, .025);
+  }
+  function _dayBgmTick(){
+    if(!dayBgm.playing) return;
+    var ctx = audioCtx();
+    var dt = 60/144/4; // 144BPMの16分音符
+    while(dayBgm.nextTime < ctx.currentTime + .12){
+      _dayBgmStep(dayBgm.step % 16, dayBgm.nextTime, dt);
+      dayBgm.nextTime += dt;
+      dayBgm.step++;
+    }
+  }
+  function startDayBgm(){
+    if (dayBgm.playing) return;
+    var ctx = audioCtx(); if (!ctx) return;
+    if (ctx.state==='suspended') ctx.resume();
+    dayBgm.playing = true; dayBgm.step = 0; dayBgm.nextTime = ctx.currentTime + .05;
+    dayBgm.timer = setInterval(_dayBgmTick, 25);
+  }
+  function stopDayBgm(){
+    dayBgm.playing = false;
+    if (dayBgm.timer){ clearInterval(dayBgm.timer); dayBgm.timer = null; }
+  }
+  function stopAllBgm(){ stopBgm(); stopDayBgm(); }
+
   function applyPhaseVisuals(){
     boardCard.classList.toggle('night-mode', state.phase === 'night');
     phaseBadge.textContent = state.phase === 'night' ? '🌙 よる' : '☀️ ひる';
+    updatePhaseCountdown();
+    if(state.phase === 'night'){ stopDayBgm(); startNightBgm(); }
+    else { stopBgm(); startDayBgm(); }
+  }
+
+  function updatePhaseCountdown(){
+    const threshold = (state.phase === 'day' ? DAY_ROLLS_PER_PLAYER : NIGHT_ROLLS_PER_PLAYER) * state.players.length;
+    const remaining = Math.max(0, threshold - state.phaseRollCount);
+    phaseCountdown.textContent = state.phase === 'day'
+      ? ('🌙 よるまで あと' + remaining + '回')
+      : ('☀️ あさまで あと' + remaining + '回');
   }
 
   function findNearestPlayer(){
@@ -1079,12 +1150,12 @@
   }
 
   function npcRelocateRandom(){
-    let pos, tries = 0;
-    do{
-      pos = 1 + Math.floor(Math.random() * (N - 2));
-      tries++;
-    } while(state.players.some(p=>!p.inCenter && p.pos===pos) && tries < 20);
-    npc.pos = pos;
+    const occupied = new Set(state.players.filter(p=>!p.inCenter).map(p=>p.pos));
+    const free = [];
+    for(let i=1; i<N-1; i++){ if(!occupied.has(i)) free.push(i); }
+    // 空きマスが必ずあればそこから選ぶ(プレイヤーの上に出現しないことを保証)。
+    // 全マスが埋まっている極端なケースのみ従来どおりランダムにフォールバック
+    npc.pos = free.length ? free[Math.floor(Math.random() * free.length)] : (1 + Math.floor(Math.random() * (N - 2)));
   }
 
   function syncRiders(carrier){
@@ -1274,6 +1345,9 @@
   /* ================= dice roll ================= */
   function rollDice(){
     if(state.rolling || state.moving || state.selecting || state.pendingChoice) return;
+    // タップ操作の中でAudioContextを生成/再開しておく(夜BGMを後から鳴らせるように解錠)
+    const _ctx = audioCtx();
+    if(_ctx && _ctx.state === 'suspended') _ctx.resume();
     const ce = cornerEls[state.current];
     if(!ce) return;
     const diceEl = ce.diceEl;
@@ -1297,6 +1371,7 @@
         if(state.phaseRollCount >= threshold){
           state.pendingPhaseSwitch = true;
         }
+        updatePhaseCountdown();
 
         setTimeout(()=>{
           const p = state.players[state.current];
@@ -1729,15 +1804,22 @@
     showBanner(sq.icon + ' ' + sq.label);
     setTimeout(()=>{
       let grantExtraRoll = false;
+      let relocated = false;
       switch(sq.type){
         case 'again': grantExtraRoll = true; break;
         case 'skip':  p.skip = true; break;
-        case 'warp':  p.pos = sq.target; syncRiders(p); renderPawns(); renderPlayerBar(); break;
-        case 'back3': moveBack(p, 3); renderPawns(); renderPlayerBar(); break;
+        case 'warp':  p.pos = sq.target; syncRiders(p); renderPawns(); renderPlayerBar(); relocated = true; break;
+        case 'back3': moveBack(p, 3); renderPawns(); renderPlayerBar(); relocated = true; break;
         case 'goal':  break;
       }
       hideBanner();
-      finishTurn(p, grantExtraRoll);
+      if(relocated){
+        // ワープ/後退で着地したマスも、通常の移動と同じく
+        // 他プレイヤーとの遭遇(相乗り/奪い合い)・オバケ遭遇・入口マス判定を行う
+        afterMove(p);
+      } else {
+        finishTurn(p, grantExtraRoll);
+      }
     }, 1300);
   }
 
@@ -1774,6 +1856,7 @@
 
   /* ================= win ================= */
   function handleWin(p){
+    stopAllBgm();
     winDot.style.background = p.colorHex;
     winTitle.textContent = p.name + ' の かち！';
     const richest = state.players.reduce((a,b)=> b.coins > a.coins ? b : a, state.players[0]);
@@ -1819,6 +1902,7 @@
   });
 
   backToSetupBtn.addEventListener('click', ()=>{
+    stopAllBgm();
     winOverlay.classList.remove('show');
     gameScreen.classList.remove('active');
     setupScreen.classList.add('active');
@@ -1835,8 +1919,6 @@
     updateTurnUI();
   }
 
-  /* ================= init ================= */
-  buildNameRows();
 
 })();
 </script>
