@@ -50,24 +50,18 @@
   .card{
     background:var(--panel);border:3px solid var(--line);border-radius:18px;
     padding:20px 18px;display:flex;flex-direction:column;gap:10px;
-    min-height:210px;position:relative;overflow:hidden;
+    min-height:130px;position:relative;overflow:hidden;
+    text-decoration:none;color:inherit;
   }
-  .card.play{border-color:var(--gold);}
+  .card.play{border-color:var(--gold);cursor:pointer;}
   .card .icon{font-size:38px;line-height:1;}
   .card h2{font-family:"DotGothic16";font-size:20px;color:var(--gold);letter-spacing:.05em;}
-  .card p{font-size:12.5px;line-height:1.6;opacity:.85;flex:1;}
-  .tags{display:flex;gap:6px;flex-wrap:wrap;}
+  .tags{display:flex;gap:6px;flex-wrap:wrap;margin-top:auto;}
   .tag{
     font-size:10px;font-weight:800;padding:3px 8px;border-radius:99px;
     background:var(--panel2);border:1.5px solid var(--line);
   }
-  a.playBtn{
-    display:block;text-align:center;text-decoration:none;
-    font-family:"DotGothic16";font-size:20px;color:#fff;
-    background:var(--orange);border:3px solid #000;border-radius:12px;
-    padding:12px;box-shadow:0 4px 0 #b35a1c;
-  }
-  a.playBtn:active{transform:translateY(3px);box-shadow:0 1px 0 #b35a1c;}
+  .card.play:active{transform:translateY(3px);}
   @media (hover:hover){
     .card.play:hover{transform:translateY(-4px);transition:transform .15s;box-shadow:0 10px 0 rgba(0,0,0,.4);}
   }
@@ -97,103 +91,85 @@
 
 <main>
   <!-- ① 半分半分（プレイ可能） -->
-  <div class="card play">
+  <a class="card play" href="games/hanbun-hanbun.html">
     <div class="icon">🔢</div>
     <h2>100マス計算バトル</h2>
-    <p>画面を半分こして向かい合って対戦！親子ガチンコ100マス計算バトル。ハンデ・お邪魔アタック・煽りBGMつき。</p>
     <div class="tags">
       <span class="tag">👥 2人対戦</span><span class="tag">➕ 計算</span><span class="tag">⏱ 1〜5分</span>
     </div>
-    <a class="playBtn" href="games/hanbun-hanbun.html">▶ あそぶ</a>
-  </div>
+  </a>
 
   <!-- ② Unison 7 spells（詠唱セブン！）（プレイ可能） -->
-  <div class="card play">
+  <a class="card play" href="games/choitashi-simon.html">
     <div class="icon">✨</div>
     <h2>Unison 7 spells（詠唱セブン！）</h2>
-    <p>光る「マナだま」を仲間から仲間へ受けわたす、見習い魔法使いたち。光のメロディを正しい順にとなえて1音ちょい足し、みんなで7つの詠唱をつなげて魔王をたおそう！</p>
     <div class="tags">
       <span class="tag">👥 2〜4人対戦</span><span class="tag">🧠 記憶</span><span class="tag">✨ 協力魔法</span>
     </div>
-    <a class="playBtn" href="games/choitashi-simon.html">▶ あそぶ</a>
-  </div>
+  </a>
 
   <!-- ③ Make 10!（プレイ可能） -->
-  <div class="card play">
+  <a class="card play" href="games/make10.html">
     <div class="icon">🔟</div>
     <h2>Make 10! スピードリンク</h2>
-    <p>ならんだ数字を2つタップして合計10をつくろう！コンボ＆スピードボーナスでハイスコアをねらえ。たしひきミックスモードもあるよ。</p>
     <div class="tags">
       <span class="tag">👤 1人プレイ</span><span class="tag">➕ 計算</span><span class="tag">⚡ スピード</span>
     </div>
-    <a class="playBtn" href="games/make10.html">▶ あそぶ</a>
-  </div>
+  </a>
 
   <!-- ④ ぶっとばす！（プレイ可能） -->
-  <div class="card play">
+  <a class="card play" href="games/reaction-duel.html">
     <div class="icon">⚡</div>
     <h2>ぶっとばす！</h2>
-    <p>合図の瞬間に自分のエリアを一番早くタップ！フライング2回でお墓入り。ボス戦モードでは1人が大魔王となり、パーティーと戦う。3〜5人対応。</p>
     <div class="tags">
       <span class="tag">👥 3〜5人対戦</span><span class="tag">⚡ 反射神経</span><span class="tag">⏱ 短期決戦</span>
     </div>
-    <a class="playBtn" href="games/reaction-duel.html">▶ あそぶ</a>
-  </div>
+  </a>
 
   <!-- ⑥ ナナナナ＋1（プレイ可能） -->
-  <div class="card play">
+  <a class="card play" href="games/friends-masu.html">
     <div class="icon">🔢</div>
     <h2>ナナナナ＋1</h2>
-    <p>タブレットを囲んでみんなで同時スタート！2〜4人が7×7マスのグリッドを解いてスコアを競う。全問クリアするとボス問題が出現！</p>
     <div class="tags">
       <span class="tag">👥 2〜4人対戦</span><span class="tag">➕ 計算</span><span class="tag">⏱ 1〜5分</span>
     </div>
-    <a class="playBtn" href="games/friends-masu.html">▶ あそぶ</a>
-  </div>
+  </a>
 
   <!-- ⑤ 7.77秒でぶっとばす！（プレイ可能） -->
-  <div class="card play">
+  <a class="card play" href="games/timing-duel.html">
     <div class="icon">⏱</div>
     <h2>7.77秒でぶっとばす！</h2>
-    <p>合図から7.77秒（スリーセブン）をめざしてタップ！タイマーは3秒で消える。誰が一番ちょうど7.77秒に近い？PERFECTはド派手演出。ボス戦モードも対応。3〜5人対応。</p>
     <div class="tags">
       <span class="tag">👥 3〜5人対戦</span><span class="tag">⏱ タイミング</span><span class="tag">🎯 度胸</span>
     </div>
-    <a class="playBtn" href="games/timing-duel.html">▶ あそぶ</a>
-  </div>
+  </a>
 
   <!-- ⑦ 3色協力弾幕STG ステージ1（チュートリアル） -->
-  <div class="card play">
+  <a class="card play" href="games/stg_stage1.html">
     <div class="icon">🚀</div>
     <h2>3色STG ステージ1</h2>
-    <p>赤・青・緑の3機を3人で操作！じゃんけんルールで敵弾を撃ち落とせ。ボスがあいこ→負け→勝ちの3フェーズで弾幕を変化させるチュートリアルステージ。</p>
     <div class="tags">
       <span class="tag">👥 3人協力</span><span class="tag">🎮 シューティング</span><span class="tag">✊ じゃんけん</span><span class="tag">📖 チュートリアル</span>
     </div>
-    <a class="playBtn" href="games/stg_stage1.html">▶ あそぶ</a>
-  </div>
+  </a>
 
   <!-- ⑧ 3色協力弾幕STG（フリープレイ・MVP） -->
-  <div class="card play">
+  <a class="card play" href="games/mvp_stg_v2.html">
     <div class="icon">🔥</div>
     <h2>3色協力弾幕STG</h2>
-    <p>赤・青・緑の3機を3人で同時操作！じゃんけんルールで敵弾を撃ち落とし、ボスに立ち向かえ。ダブルタップで発射、ドラッグで狙いを定めて連射。</p>
     <div class="tags">
       <span class="tag">👥 3人協力</span><span class="tag">🎮 シューティング</span><span class="tag">✊ じゃんけん</span>
     </div>
-    <a class="playBtn" href="games/mvp_stg_v2.html">▶ あそぶ</a>
-  </div>
+  </a>
 
   <!-- ⑨ ぐるぐるすごろく（プレイ可能） -->
-  <div class="card play">
+  <a class="card play" href="games/sugoroku.html">
     <div class="icon">🎲</div>
     <h2>ぐるぐるすごろく</h2>
-    <p>iPadを囲んで2〜4人ですごろく対決！他の人のマスに止まったら相乗りか奪い合いを選択。昼は大人しいオバケも夜になると追いかけてくる。コインをためて中央コースへの鍵をゲットし、いち早くゴールをめざせ。</p>
     <div class="tags">
       <span class="tag">👥 2〜4人対戦</span><span class="tag">🎲 すごろく</span><span class="tag">🎴 カード</span>
     </div>
-    <a class="playBtn" href="games/sugoroku.html">▶ あそぶ</a>
-  </div>
+  </a>
 </main>
 
 <footer>
