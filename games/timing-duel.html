@@ -277,11 +277,49 @@
     100%{ background:transparent; border-color:var(--accent); transform:scale(1); box-shadow:none; }
   }
   .hp-cell.damaged{ animation:hpDamage .7s ease-out forwards; }
+  /* キャラ立ち絵：足元に影を敷いた上で、常時「呼吸」ループさせる。
+     足を軸(transform-origin下寄り)に持ち上げることで頭でなく胴が伸びるように見せる。 */
+  .char-wrap{
+    position:relative;
+    display:flex; justify-content:center; align-items:flex-end;
+    margin:4px auto 2px;
+  }
+  .char-shadow{
+    position:absolute; left:50%; bottom:-1px;
+    width:34%; height:9px; transform:translateX(-50%);
+    background:radial-gradient(ellipse at center, rgba(0,0,0,.5) 0%, rgba(0,0,0,0) 72%);
+    border-radius:50%;
+    animation:charShadowPulse 2.6s ease-in-out infinite;
+  }
+  @keyframes charShadowPulse{
+    0%,100%{ transform:translateX(-50%) scale(1);    opacity:.55; }
+    50%    { transform:translateX(-50%) scale(.86);  opacity:.35; }
+  }
   .char-img{
     display:block; height:clamp(80px,18vmin,130px); width:auto;
-    margin:4px auto 2px; border-radius:6px;
+    margin:0; border-radius:6px;
     image-rendering:pixelated; image-rendering:crisp-edges;
     transition:filter .2s;
+    transform-origin:50% 88%; /* 足元寄り基準 */
+    animation:charBreathe 2.6s ease-in-out infinite;
+  }
+  @keyframes charBreathe{
+    0%,100%{ transform:translateY(0)   scale(1,1)       rotate(0deg); }
+    50%    { transform:translateY(-4%) scale(1.015,.985) rotate(.4deg); }
+  }
+  /* タメ→踏み込み→反動シェイクの3拍子。攻撃トリガー時のみ .attacking を付与し、
+     終了後は animationend で剥がして charBreathe のループに戻す。 */
+  .char-img.attacking{
+    animation:charAttackLunge .62s cubic-bezier(.22,.61,.36,1) both;
+  }
+  @keyframes charAttackLunge{
+    0%   { transform:translateX(0)   scale(1,1)        rotate(0deg); }
+    16%  { transform:translateX(-6%) scale(.95,1.06)    rotate(-3deg); }  /* タメ */
+    34%  { transform:translateX(9%)  scale(1.12,.92)    rotate(3deg); }   /* 踏み込み */
+    52%  { transform:translateX(4%)  scale(1.05,.97)    rotate(-1.5deg); }
+    68%  { transform:translateX(-2%) scale(1.02,1)      rotate(.8deg); }
+    84%  { transform:translateX(1%)  scale(1,1)         rotate(-.3deg); }
+    100% { transform:translateX(0)   scale(1,1)         rotate(0deg); }
   }
 
   /* ── confetti ── */
@@ -731,7 +769,10 @@
       zone.innerHTML =
         '<div class="rotor"><div class="zone-inner">' +
           '<div class="p-name" id="name'+cfg.id+'"><i class="dot"></i><span></span></div>' +
-          '<img class="char-img" id="charImg'+cfg.id+'" src="" alt="">' +
+          '<div class="char-wrap">' +
+            '<div class="char-shadow"></div>' +
+            '<img class="char-img" id="charImg'+cfg.id+'" src="" alt="">' +
+          '</div>' +
           '<div class="p-status" id="status'+cfg.id+'"></div>' +
           '<div class="p-sub" id="sub'+cfg.id+'"></div>' +
           '<div class="score" id="score'+cfg.id+'"></div>' +
@@ -785,12 +826,55 @@
     for(var i=newHp;i<oldHp&&i<cells.length;i++) cells[i].classList.add('damaged');
   }
   function setStatus(p, text, sub){ $('status'+p).textContent=text||''; $('sub'+p).textContent=sub||''; }
+  var ATTACK_LUNGE_MS = 620;         // .char-img.attacking (charAttackLunge) の秒数と揃える
+  var attackBusy = {};               // p -> bool。再生中の連打・多重発火防止
+  var attackTimers = {};             // p -> timeoutId。踏み込みタイミングで発火する処理の予約
+
   function setCharImg(p, st){
     var img=$('charImg'+p); if(!img) return;
     var pl=players.find(function(x){ return x.id===p; }); if(!pl) return;
     var c=CHARACTERS[pl.charIndex]; if(!c) return;
-    img.src = st==='atk' ? c.imgAtk : c.img;
+    if (st==='atk'){ playCharAttack(p, img, c); img.style.filter=''; return; }
+    // 通常/dim表示への切り替え：進行中のアタック演出があれば強制リセットしておく
+    clearTimeout(attackTimers[p]);
+    attackBusy[p] = false;
+    img.classList.remove('attacking');
+    img.src = c.img;
     img.style.filter = st==='dim' ? 'grayscale(1) brightness(.45)' : '';
+  }
+
+  // タメ→踏み込み→反動シェイクの3拍子。踏み込みの瞬間にATTACK画像へパキッと切替え、
+  // 自分の升目だけ小刻みに揺らし、炎の閃光(既存の.fx .flash)を重ねる。
+  function playCharAttack(p, img, c){
+    if (attackBusy[p]) return; // 連打防止：再生中は再トリガーしない
+    attackBusy[p] = true;
+
+    img.classList.remove('attacking');
+    void img.offsetWidth; // reflowで再トリガー可能にする
+    img.classList.add('attacking');
+
+    attackTimers[p] = setTimeout(function(){
+      img.src = c.imgAtk;
+      var zone = zoneEl(p);
+      var inner = zone && zone.querySelector('.zone-inner');
+      if (inner){ inner.classList.remove('shake'); void inner.offsetWidth; inner.classList.add('shake'); }
+      spawnAttackFlash(p);
+    }, ATTACK_LUNGE_MS * 0.30);
+
+    img.addEventListener('animationend', function handler(e){
+      if (e.target !== img) return;
+      img.classList.remove('attacking');
+      img.removeEventListener('animationend', handler);
+      attackBusy[p] = false;
+    });
+  }
+
+  function spawnAttackFlash(p){
+    var fx = $('fx'+p); if (!fx) return;
+    var flash = document.createElement('div');
+    flash.className = 'flash';
+    fx.appendChild(flash);
+    setTimeout(function(){ if (flash.parentNode) flash.parentNode.removeChild(flash); }, 650);
   }
   function renderGrave(p){
     var z=zoneEl(p); z.classList.remove('armed','go','flash','winner','foul','tapped','perfect-flash','great-flash');
