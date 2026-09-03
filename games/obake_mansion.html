@@ -407,7 +407,8 @@
   #hallRows{ display:grid; grid-template-columns:1fr 1fr; gap:3px 8px; }
   .hall-row{ display:flex; flex-direction:column; gap:2px; min-height:46px; }
   .hall-row .hall-name{ font-size:11px; font-weight:800; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-  .hall-row .hall-boys{ display:flex; gap:3px; flex-wrap:wrap; min-height:30px; }
+  .hall-row .hall-boys{ display:flex; align-items:center; gap:5px; min-height:30px; }
+  .hall-row .hall-count{ font-size:15px; font-weight:900; color:var(--ink); }
 
   #choiceBar{
     display:none;
@@ -788,10 +789,10 @@
   const VAULT = ROOMS[4];
 
   const PLAYER_COLORS = [
-    { key:'red',    hex:'#e4572e' },
-    { key:'blue',   hex:'#2e86ab' },
-    { key:'yellow', hex:'#f4b942' },
-    { key:'green',  hex:'#4fae73' }
+    { key:'red',   hex:'#e4572e', name:'チーム赤' },
+    { key:'blue',  hex:'#2e86ab', name:'チーム青' },
+    { key:'green', hex:'#4fae73', name:'チーム緑' },
+    { key:'black', hex:'#3a3a3a', name:'チーム黒' }
   ];
   const CORNER_CLASSES = ['corner-bl','corner-br','corner-tr','corner-tl'];
   const STACK_OFFSETS = [ {x:-10,y:-10}, {x:10,y:-10}, {x:-10,y:10}, {x:10,y:10} ];
@@ -822,18 +823,6 @@
   const playAgainBtn = $('playAgainBtn'), backToSetupBtn = $('backToSetupBtn');
 
   /* ================= setup ================= */
-  const NAME_POOL = [
-    'ピエトロ','ジェフ','サム','マイク','トム','ジョン','アレックス','カルロス',
-    'ルーカス','ディエゴ','マルコ','ネイト','ライアン','ケビン','ダニー',
-    'あきと','じゅんや','けいすけ','ようすけ','えいた','りょうた','しょうた',
-    'たくみ','かいと','はると','そうた','ゆうき','だいち','こうき','りく',
-    'たかひろ','こうせい','ゆうな'
-  ];
-  function randomName(exclude){
-    const pool = NAME_POOL.filter(n => exclude.indexOf(n) === -1);
-    return pool[Math.floor(Math.random()*pool.length)];
-  }
-
   countRow.addEventListener('click', (e)=>{
     const btn = e.target.closest('.count-btn');
     if(!btn) return;
@@ -843,21 +832,15 @@
 
   function boysPerPlayer(){ return state.playerCount === 2 ? 5 : 4; }
 
-  function freshPlayer(i, name){
+  function freshPlayer(i){
     const boys = [];
     for(let b=0;b<boysPerPlayer();b++) boys.push({ id:i+'-'+b, owner:i, state:'home', pos:0, room:null });
-    return { name, colorHex: PLAYER_COLORS[i].hex, gems:0, boys };
+    return { name: PLAYER_COLORS[i].name, colorHex: PLAYER_COLORS[i].hex, gems:0, boys };
   }
 
-  function resetGame(keepNames){
-    const used = [];
-    const old = state.players;
+  function resetGame(){
     state.players = [];
-    for(let i=0;i<state.playerCount;i++){
-      const name = (keepNames && old[i]) ? old[i].name : randomName(used);
-      used.push(name);
-      state.players.push(freshPlayer(i, name));
-    }
+    for(let i=0;i<state.playerCount;i++) state.players.push(freshPlayer(i));
     state.current = 0;
     state.phase = 'roll';
     state.rollValue = 0;
@@ -868,7 +851,10 @@
   }
 
   startBtn.addEventListener('click', ()=>{
-    resetGame(false);
+    const ctx = audioCtx();
+    if(ctx && ctx.state === 'suspended') ctx.resume();
+    startBgm();
+    resetGame();
     buildCornerControls();
     goToGameScreen();
   });
@@ -1075,11 +1061,15 @@
       const row = document.createElement('div'); row.className = 'hall-row';
       const nm = document.createElement('div'); nm.className = 'hall-name'; nm.textContent = p.name; nm.style.color = p.colorHex;
       const bs = document.createElement('div'); bs.className = 'hall-boys';
-      p.boys.filter(b=>b.state==='home').forEach(b=>{
-        const el = makeBoyEl(b, p, 'hall-boy');
+      const home = p.boys.filter(b=>b.state==='home');
+      if(home.length){
+        // ホールの少年はまとめて1つのアイコン＋「×人数」で表示（タップで先頭の少年が出発）
+        const el = makeBoyEl(home[0], p, 'hall-boy');
         bs.appendChild(el);
-        boyElById[b.id] = el;
-      });
+        home.forEach(b => { boyElById[b.id] = el; });
+        const cnt = document.createElement('span'); cnt.className = 'hall-count'; cnt.textContent = '× ' + home.length;
+        bs.appendChild(cnt);
+      }
       row.appendChild(nm); row.appendChild(bs);
       hallRows.appendChild(row);
     });
@@ -1571,7 +1561,7 @@
 
   playAgainBtn.addEventListener('click', ()=>{
     winOverlay.classList.remove('show');
-    resetGame(true);
+    resetGame();
     buildCornerControls();
     updateTurnUI();
   });
