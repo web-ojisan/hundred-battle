@@ -1,0 +1,1578 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>おばけやしきの宝石あつめ</title>
+<link rel="manifest" href="../manifest.json">
+<meta name="theme-color" content="#1a1330">
+<link rel="apple-touch-icon" href="../icons/apple-touch-icon.png">
+<link rel="icon" href="../icons/favicon-32.png" sizes="32x32">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@400;500;700;900&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --night:#1a1330;
+    --night-deep:#0d0a1a;
+    --floor:#3a2b52;
+    --floor-edge:#241a38;
+    --wall:#5a4675;
+    --tile:#efe4cc;
+    --tile-edge:#cdbb96;
+    --ink:#2a1d3b;
+    --ink-soft:#8c7aa8;
+    --cream:#f7efe0;
+    --gold:#f4c542;
+    --gem:#6fd3ff;
+    --ghost:#e9e4ff;
+    --red:#e4572e;
+    --blue:#2e86ab;
+    --yellow:#f4b942;
+    --green:#4fae73;
+  }
+
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{height:100%;}
+  body{
+    margin:0;
+    min-height:100%;
+    font-family:'Zen Maru Gothic', sans-serif;
+    color:var(--ink);
+    background:
+      radial-gradient(ellipse at 50% 10%, rgba(180,160,255,0.10), transparent 55%),
+      linear-gradient(170deg, var(--night), var(--night-deep));
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:18px;
+    user-select:none;
+  }
+
+  #app{ width:100%; max-width:1000px; }
+  .screen{ display:none; }
+  .screen.active{ display:flex; flex-direction:column; align-items:center; }
+
+  /* ---------- setup screen ---------- */
+  .card{
+    background:var(--cream);
+    border-radius:28px;
+    padding:30px 30px;
+    width:100%;
+    max-width:600px;
+    box-shadow: 0 14px 0 #cdbb96, 0 22px 40px rgba(0,0,0,0.55);
+    border:3px solid var(--ink);
+  }
+  .title{
+    font-weight:900;
+    font-size:clamp(24px,5vw,34px);
+    text-align:center;
+    margin:0 0 6px;
+    letter-spacing:1px;
+  }
+  .story{
+    font-size:13px;
+    line-height:1.7;
+    color:#4a3a60;
+    background:#fff;
+    border:2.5px solid var(--ink);
+    border-radius:14px;
+    padding:12px 14px;
+    margin:14px 0 0;
+  }
+  .section-label{
+    font-weight:700;
+    font-size:14px;
+    color:var(--ink-soft);
+    margin:16px 0 8px;
+  }
+  .rule-grid{
+    display:grid;
+    grid-template-columns:repeat(2,1fr);
+    gap:7px 14px;
+    background:#fff;
+    border:2.5px solid var(--ink);
+    border-radius:14px;
+    padding:12px 14px;
+  }
+  .rule-item{
+    display:flex;
+    align-items:center;
+    gap:7px;
+    font-size:12px;
+    font-weight:700;
+    color:#4a3a60;
+  }
+  .rule-item span{ font-size:16px; }
+
+  .count-row{ display:flex; gap:10px; justify-content:center; }
+  .count-btn{
+    flex:1;
+    padding:12px 0;
+    border-radius:16px;
+    border:3px solid var(--ink);
+    background:#fff;
+    font-family:inherit;
+    font-weight:700;
+    font-size:16px;
+    cursor:pointer;
+    transition:transform .12s ease;
+  }
+  .count-btn:active{ transform:scale(0.94); }
+  .count-btn.active{ background:var(--gold); }
+
+  .start-btn{
+    width:100%;
+    margin-top:20px;
+    padding:16px 0;
+    border-radius:18px;
+    border:3px solid var(--ink);
+    background:var(--gold);
+    font-family:inherit;
+    font-weight:900;
+    font-size:18px;
+    cursor:pointer;
+    box-shadow:0 6px 0 #c99a1f;
+  }
+  .start-btn:active{ transform:translateY(4px); box-shadow:0 2px 0 #c99a1f; }
+
+  /* ---------- game screen ---------- */
+  #gameScreen.active{
+    position:fixed;
+    inset:0;
+    display:block;
+    background:
+      radial-gradient(ellipse at 50% 10%, rgba(180,160,255,0.10), transparent 55%),
+      linear-gradient(170deg, var(--night), var(--night-deep));
+    z-index:5;
+  }
+
+  #settingsBtn{
+    position:absolute;
+    top:10px;
+    left:50%;
+    transform:translateX(-50%);
+    z-index:9;
+    background:rgba(255,255,255,0.14);
+    border:2px solid rgba(255,255,255,0.4);
+    color:#fdf6e3;
+    border-radius:12px;
+    padding:6px 12px;
+    font-family:inherit;
+    font-weight:700;
+    font-size:12px;
+    cursor:pointer;
+  }
+  #settingsBtn:active{ transform:translateX(-50%) scale(0.95); }
+
+  #boardCard{
+    position:absolute;
+    inset:16px;
+    background:
+      repeating-linear-gradient(90deg, rgba(255,255,255,0.025) 0 2px, transparent 2px 34px),
+      repeating-linear-gradient(0deg, rgba(0,0,0,0.12) 0 2px, transparent 2px 34px),
+      linear-gradient(160deg, var(--floor), #2c2040);
+    border-radius:28px;
+    border:3px solid var(--wall);
+    box-shadow:0 14px 0 var(--floor-edge), 0 22px 40px rgba(0,0,0,0.6), inset 0 0 80px rgba(0,0,0,0.45);
+    overflow:hidden;
+  }
+  #trackSvg{ position:absolute; inset:0; width:100%; height:100%; }
+  #squareLayer, #pawnLayer{ position:absolute; inset:0; width:100%; height:100%; }
+  #squareLayer{ z-index:3; pointer-events:none; }
+  #pawnLayer{ z-index:7; pointer-events:none; }
+
+  .square{
+    position:absolute;
+    width:clamp(36px,5.8vw,62px);
+    height:clamp(36px,5.8vw,62px);
+    transform:translate(-50%,-50%);
+    background:var(--tile);
+    border:2.5px solid var(--ink);
+    border-radius:8px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:clamp(16px,2.6vw,26px);
+    box-shadow:0 3px 0 rgba(0,0,0,0.35);
+  }
+  .square .idx{
+    position:absolute;
+    top:1px; left:4px;
+    font-size:7px;
+    font-weight:700;
+    color:var(--ink-soft);
+  }
+  .square.entrance{ background:var(--gold); }
+  .square.door{ background:#ffd9a8; }
+  .square.door::after{
+    content:'';
+    position:absolute;
+    width:11px; height:11px;
+    border-radius:50%;
+    background:#e4572e;
+    right:3px; bottom:3px;
+  }
+  .square.vault-door{ background:#bfe9ff; }
+  .square.ghost-here{ box-shadow:0 0 0 4px rgba(233,228,255,0.45), 0 3px 0 rgba(0,0,0,0.35); }
+
+  /* rooms outside the track */
+  .room{
+    position:absolute;
+    transform:translate(-50%,-50%);
+    width:clamp(68px,9.4vw,96px);
+    min-height:clamp(52px,7vw,72px);
+    background:#f5e9d3;
+    border:2.5px solid var(--ink);
+    border-radius:12px;
+    padding:4px 5px 5px;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:2px;
+    box-shadow:0 4px 0 rgba(0,0,0,0.4);
+    pointer-events:none;
+    z-index:4;
+  }
+  .room.r1{ background:#e8dcc4; }
+  .room.r2{ background:#f3d6c0; }
+  .room.r3{ background:#d9d3ef; }
+  .room.r4{ background:#cfe3d5; }
+  .room.empty{ opacity:.7; }
+  .room.empty .room-gems{ color:#b44; }
+  .room.vault{ background:#cfe8f6; border-color:#1c4a6e; box-shadow:0 0 0 4px rgba(111,211,255,0.28), 0 4px 0 rgba(0,0,0,0.4); }
+  .room .room-name{ font-size:clamp(9px,1.3vw,12px); font-weight:900; white-space:nowrap; }
+  .room .room-gems{ font-size:clamp(9px,1.3vw,12px); font-weight:700; color:#1c4a6e; white-space:nowrap; }
+  .room .room-boys{ display:flex; flex-wrap:wrap; gap:2px; justify-content:center; max-width:100%; min-height:10px; }
+  .room .mini{ width:12px; height:12px; border-radius:50%; border:1.5px solid var(--ink); }
+  .room-link{ position:absolute; stroke:#ffd9a8; stroke-width:3; stroke-dasharray:3 5; fill:none; }
+
+  /* boys */
+  .boy{
+    position:absolute;
+    width:clamp(24px,3.6vw,38px);
+    height:clamp(24px,3.6vw,38px);
+    border-radius:50%;
+    border:3px solid var(--ink);
+    box-shadow:0 3px 0 rgba(0,0,0,0.4);
+    transform:translate(-50%,-50%);
+    transition:left .18s ease, top .18s ease;
+    display:flex; align-items:center; justify-content:center;
+    font-size:18px; line-height:1;
+    pointer-events:auto;
+  }
+  .boy::before{ content:'👦'; font-size:0.9em; filter:drop-shadow(0 0 1px rgba(0,0,0,.4)); }
+  .boy.pickable{ animation:boyBounce .5s ease-in-out infinite; cursor:pointer; z-index:8; }
+  .boy.pickable::after{
+    content:'';
+    position:absolute; inset:-6px;
+    border-radius:50%;
+    border:2.5px solid var(--gold);
+    animation:ringPulse .9s ease-out infinite;
+  }
+  .boy.moving{ z-index:9; }
+  @keyframes boyBounce{ 0%,100%{ margin-top:0; } 50%{ margin-top:-7px; } }
+  @keyframes ringPulse{ 0%{ transform:scale(.8); opacity:1; } 100%{ transform:scale(1.5); opacity:0; } }
+
+  .hall-boy{
+    position:relative;
+    transform:none;
+    transition:none;
+    width:28px; height:28px; font-size:14px;
+  }
+
+  .ghost{
+    position:absolute;
+    transform:translate(-50%,-56%);
+    font-size:clamp(38px,6vw,60px);
+    filter:drop-shadow(0 0 10px rgba(233,228,255,0.75)) drop-shadow(0 4px 2px rgba(0,0,0,.5));
+    transition:left .32s ease, top .32s ease;
+    z-index:9;
+    animation:ghostFloat 1.6s ease-in-out infinite;
+  }
+  @keyframes ghostFloat{ 0%,100%{ margin-top:0; } 50%{ margin-top:-6px; } }
+  .ghost.lunge{ animation:ghostLunge .32s ease-in-out; }
+  @keyframes ghostLunge{ 50%{ transform:translate(-50%,-56%) scale(1.35) rotate(-8deg); } }
+
+  /* center: turn info + entrance hall */
+  #centerPanel{
+    position:absolute;
+    left:50%; top:40%;
+    transform:translate(-50%,-50%);
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:6px;
+    width:min(56%,340px);
+    z-index:6;
+  }
+  #hallWrap{
+    position:absolute;
+    left:50%; top:68%;
+    transform:translate(-50%,-50%);
+    width:min(48%,330px);
+    z-index:6;
+  }
+
+  /* roulette */
+  #roulette{
+    position:relative;
+    width:clamp(120px,21vw,190px);
+    height:clamp(120px,21vw,190px);
+  }
+  #rouletteWheel{
+    width:100%; height:100%;
+    transform:rotate(0deg);
+    filter:drop-shadow(0 6px 0 rgba(0,0,0,0.45));
+  }
+  #rouletteWheel.spinning{ transition:transform 3s cubic-bezier(.1,.75,.15,1); }
+  #roulettePointer{
+    position:absolute;
+    left:50%; top:-6px;
+    transform:translateX(-50%);
+    width:0; height:0;
+    border-left:13px solid transparent;
+    border-right:13px solid transparent;
+    border-top:26px solid #e4572e;
+    filter:drop-shadow(0 2px 0 var(--ink));
+    z-index:2;
+  }
+  #roulettePointer::after{
+    content:'';
+    position:absolute;
+    left:-7px; top:-30px;
+    width:14px; height:14px;
+    border-radius:50%;
+    background:#fff;
+    border:2.5px solid var(--ink);
+  }
+  #roulette.armed{ animation:wheelGlow 1s ease-in-out infinite; border-radius:50%; }
+  @keyframes wheelGlow{
+    0%,100%{ box-shadow:0 0 0 4px rgba(244,197,66,0.4); }
+    50%{ box-shadow:0 0 0 12px rgba(244,197,66,0.1); }
+  }
+  .wedge-label{ font-family:'Zen Maru Gothic',sans-serif; font-weight:900; font-size:30px; fill:var(--ink); }
+  #ghostBadge{
+    font-weight:700;
+    font-size:10px;
+    color:var(--ghost);
+    background:rgba(0,0,0,0.35);
+    padding:3px 10px;
+    border-radius:999px;
+    white-space:nowrap;
+  }
+  #turnLabel{
+    font-weight:900;
+    font-size:clamp(12px,2.1vw,15px);
+    padding:6px 14px;
+    border-radius:999px;
+    border:2.5px solid var(--ink);
+    background:#fff;
+    white-space:nowrap;
+  }
+  #hintLabel{
+    font-weight:700;
+    font-size:clamp(10px,1.7vw,12px);
+    color:var(--cream);
+    text-shadow:0 1px 2px rgba(0,0,0,.6);
+    min-height:16px;
+    text-align:center;
+  }
+  #hallBox{
+    width:100%;
+    background:#f5e9d3;
+    border:2.5px solid var(--ink);
+    border-radius:14px;
+    padding:6px 8px 7px;
+    box-shadow:0 5px 0 rgba(0,0,0,0.4);
+  }
+  #hallBox .hall-title{ font-size:11px; font-weight:900; text-align:center; margin-bottom:3px; }
+  #hallRows{ display:grid; grid-template-columns:1fr 1fr; gap:3px 8px; }
+  .hall-row{ display:flex; flex-direction:column; gap:2px; min-height:46px; }
+  .hall-row .hall-name{ font-size:11px; font-weight:800; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .hall-row .hall-boys{ display:flex; gap:3px; flex-wrap:wrap; min-height:30px; }
+
+  #choiceBar{
+    display:none;
+    flex-direction:column;
+    gap:6px;
+    width:100%;
+    position:absolute;
+    left:0; top:50%;
+    transform:translateY(-50%);
+    z-index:3;
+  }
+  #choiceBar.show{ display:flex; }
+  .choice-btn{
+    padding:9px 10px;
+    border-radius:13px;
+    border:2.5px solid var(--ink);
+    background:#fff;
+    font-family:inherit;
+    font-weight:800;
+    font-size:clamp(11px,2vw,13px);
+    cursor:pointer;
+    box-shadow:0 4px 0 #cdbb96;
+  }
+  .choice-btn:active{ transform:translateY(2px); box-shadow:none; }
+  .choice-btn.primary{ background:var(--gold); }
+
+  /* dice */
+  .dot{ border-radius:50%; background:var(--ink); opacity:0; justify-self:center; align-self:center; width:100%; height:100%; }
+  .dice{
+    position:relative;
+    display:grid;
+    grid-template-columns:repeat(3,1fr);
+    grid-template-rows:repeat(3,1fr);
+    background:#fff;
+    border:3px solid var(--ink);
+  }
+  .dice .ghost-face{
+    position:absolute; inset:0;
+    display:none;
+    align-items:center; justify-content:center;
+    font-size:26px;
+    background:#e9e4ff;
+    border-radius:8px;
+  }
+  .dice.shake{ animation:diceShake .09s linear infinite; }
+  @keyframes diceShake{
+    0%{ transform:rotate(0deg) scale(1); }
+    20%{ transform:rotate(-14deg) scale(1.06); }
+    40%{ transform:rotate(11deg) scale(0.95); }
+    60%{ transform:rotate(-9deg) scale(1.05); }
+    80%{ transform:rotate(7deg) scale(0.97); }
+    100%{ transform:rotate(0deg) scale(1); }
+  }
+  .dice[data-value="1"] .dot-5{opacity:1;}
+  .dice[data-value="2"] .dot-1,.dice[data-value="2"] .dot-9{opacity:1;}
+  .dice[data-value="3"] .dot-1,.dice[data-value="3"] .dot-5,.dice[data-value="3"] .dot-9{opacity:1;}
+  .dice[data-value="4"] .dot-1,.dice[data-value="4"] .dot-3,.dice[data-value="4"] .dot-7,.dice[data-value="4"] .dot-9{opacity:1;}
+  .dice[data-value="5"] .ghost-face,.dice[data-value="6"] .ghost-face{ display:flex; }
+
+  #banner{
+    position:absolute;
+    left:50%; top:21.5%;
+    transform:translate(-50%,-14px);
+    background:var(--ink);
+    color:#fdf6e3;
+    font-weight:700;
+    font-size:clamp(11px,2vw,14px);
+    padding:9px 16px;
+    border-radius:999px;
+    white-space:nowrap;
+    max-width:70%;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    opacity:0;
+    pointer-events:none;
+    transition:opacity .2s ease, transform .2s ease;
+    z-index:12;
+    border:2px solid rgba(255,255,255,0.25);
+  }
+  #banner.show{ opacity:1; transform:translate(-50%,0); }
+
+  /* corner player controls */
+  #cornerLayer{ position:absolute; inset:0; pointer-events:none; z-index:8; }
+  .corner-player{
+    position:absolute;
+    pointer-events:auto;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:6px;
+    padding:9px 10px;
+    background:var(--cream);
+    border:3px solid var(--ink);
+    border-radius:18px;
+    box-shadow:0 6px 0 #cdbb96, 0 10px 16px rgba(0,0,0,0.45);
+    width:110px;
+    opacity:0.55;
+    transition:opacity .2s ease, box-shadow .2s ease;
+    cursor:pointer;
+  }
+  .corner-player.active-turn{
+    opacity:1;
+    border-color:var(--gold);
+    animation:cornerGlow 1.1s ease-in-out infinite;
+  }
+  .corner-player.out{ opacity:0.35; }
+  @keyframes cornerGlow{
+    0%,100%{ box-shadow:0 6px 0 #cdbb96, 0 0 0 4px rgba(244,197,66,0.35), 0 10px 16px rgba(0,0,0,0.4); }
+    50%{ box-shadow:0 6px 0 #cdbb96, 0 0 0 10px rgba(244,197,66,0.12), 0 10px 16px rgba(0,0,0,0.4); }
+  }
+  .corner-bl{ left:12px; bottom:12px; }
+  .corner-br{ right:12px; bottom:12px; }
+  .corner-tr{ right:12px; top:12px; transform:rotate(180deg); }
+  .corner-tl{ left:12px; top:12px; transform:rotate(180deg); }
+
+  .corner-top{ display:flex; align-items:center; gap:6px; }
+  .corner-avatar{
+    width:24px; height:24px;
+    border-radius:50%;
+    border:2.5px solid var(--ink);
+    flex-shrink:0;
+    display:flex; align-items:center; justify-content:center;
+    font-size:13px;
+  }
+  .corner-name{
+    font-size:11px; font-weight:800;
+    max-width:60px;
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  }
+  .corner-stats{ display:flex; gap:8px; font-size:11px; font-weight:800; }
+  .corner-stats .stat-gems{ color:#1c4a6e; }
+  .corner-stats .stat-boys{ color:#6a4a10; }
+  .spin-btn{
+    width:100%;
+    padding:9px 0;
+    border-radius:12px;
+    border:2.5px solid var(--ink);
+    background:var(--gold);
+    font-family:inherit;
+    font-weight:900;
+    font-size:13px;
+    cursor:pointer;
+    box-shadow:0 4px 0 #c99a1f;
+  }
+  .spin-btn:active{ transform:translateY(2px); box-shadow:0 2px 0 #c99a1f; }
+  .corner-player:not(.active-turn) .spin-btn{ background:#ddd; box-shadow:0 4px 0 #aaa; }
+  .last-roll{ font-size:11px; font-weight:800; color:var(--ink-soft); min-height:14px; }
+
+  /* ghost flash overlay */
+  #ghostFlash{
+    position:fixed; inset:0;
+    display:none;
+    align-items:center; justify-content:center;
+    flex-direction:column;
+    z-index:40;
+    pointer-events:none;
+    background:
+      radial-gradient(ellipse at 50% 55%, rgba(120,90,200,0.35), rgba(10,5,25,0.9) 70%);
+    overflow:hidden;
+  }
+  #ghostFlash.show{ display:flex; animation:gfFade 2.8s ease-in-out forwards; }
+  @keyframes gfFade{ 0%{ opacity:0; } 8%{ opacity:1; } 82%{ opacity:1; } 100%{ opacity:0; } }
+  #ghostFlash .gf-fog{
+    position:absolute; inset:-20%;
+    background:
+      radial-gradient(circle at 20% 30%, rgba(200,190,255,0.18), transparent 35%),
+      radial-gradient(circle at 75% 60%, rgba(200,190,255,0.15), transparent 40%),
+      radial-gradient(circle at 50% 85%, rgba(200,190,255,0.12), transparent 35%);
+    animation:gfFog 2.8s ease-in-out infinite;
+  }
+  @keyframes gfFog{ 0%,100%{ transform:translate(0,0) scale(1); } 50%{ transform:translate(3%,-2%) scale(1.08); } }
+  #ghostFlash .gf-ghost{
+    font-size:min(42vw,42vh);
+    line-height:1;
+    filter:drop-shadow(0 0 40px rgba(233,228,255,0.9)) drop-shadow(0 0 90px rgba(180,160,255,0.7));
+    animation:gfGhost 2.8s ease-in-out forwards;
+    transform-origin:50% 60%;
+  }
+  @keyframes gfGhost{
+    0%{ transform:scale(.2) translateY(30%) rotate(-10deg); opacity:0; }
+    15%{ transform:scale(1.15) translateY(0) rotate(6deg); opacity:1; }
+    30%{ transform:scale(1) rotate(-6deg); }
+    45%{ transform:scale(1.08) rotate(5deg); }
+    60%{ transform:scale(1) rotate(-4deg); }
+    75%{ transform:scale(1.05) rotate(3deg); }
+    100%{ transform:scale(1.3) translateY(-10%) rotate(0deg); opacity:0; }
+  }
+  #ghostFlash .gf-text{
+    margin-top:8px;
+    font-weight:900;
+    font-size:min(7vw,44px);
+    color:#e9e4ff;
+    letter-spacing:4px;
+    text-shadow:0 0 18px rgba(200,190,255,0.9), 0 4px 0 #1a1330;
+    animation:gfText 2.8s ease-in-out forwards;
+  }
+  @keyframes gfText{ 0%,15%{ opacity:0; transform:translateY(20px); } 30%{ opacity:1; transform:translateY(0); } 85%{ opacity:1; } 100%{ opacity:0; } }
+  .gf-eye{
+    position:absolute; width:10px; height:10px; border-radius:50%;
+    background:#fff; box-shadow:0 0 12px 4px rgba(255,255,255,0.7);
+    animation:gfBlink 1.4s ease-in-out infinite;
+  }
+  @keyframes gfBlink{ 0%,100%{ opacity:0; } 50%{ opacity:1; } }
+  #gameScreen.shake{ animation:screenShake .5s ease-in-out; }
+  @keyframes screenShake{ 0%,100%{ transform:translate(0,0); } 20%{ transform:translate(-6px,3px); } 40%{ transform:translate(6px,-3px); } 60%{ transform:translate(-4px,2px); } 80%{ transform:translate(4px,-2px); } }
+
+  /* result overlay */
+  #winOverlay{
+    position:fixed; inset:0;
+    background:rgba(8,5,20,0.78);
+    display:none;
+    align-items:center;
+    justify-content:center;
+    z-index:50;
+    overflow:hidden;
+  }
+  #winOverlay.show{ display:flex; }
+  .confetti{
+    position:absolute;
+    top:-10px;
+    width:9px; height:14px;
+    opacity:0.9;
+    animation:fall linear forwards;
+  }
+  @keyframes fall{ to{ transform:translateY(115vh) rotate(540deg); } }
+  .win-card{
+    background:var(--cream);
+    border:3px solid var(--ink);
+    border-radius:26px;
+    padding:30px 32px;
+    text-align:center;
+    box-shadow:0 16px 0 #cdbb96, 0 26px 40px rgba(0,0,0,0.6);
+    z-index:2;
+    width:min(92vw,420px);
+  }
+  .win-avatar{ width:52px; height:52px; border-radius:50%; border:3.5px solid var(--ink); margin:0 auto 12px; display:flex; align-items:center; justify-content:center; font-size:26px; }
+  .win-title{ font-weight:900; font-size:24px; margin:0 0 4px; }
+  .win-sub{ color:var(--ink-soft); font-weight:700; margin:0 0 14px; font-size:13px; }
+  .rank-list{ display:flex; flex-direction:column; gap:6px; margin:0 0 18px; }
+  .rank-row{
+    display:flex; align-items:center; gap:8px;
+    background:#fff; border:2.5px solid var(--ink); border-radius:12px;
+    padding:6px 10px; font-weight:800; font-size:14px;
+  }
+  .rank-row .rk{ width:22px; color:var(--ink-soft); }
+  .rank-row .rdot{ width:18px; height:18px; border-radius:50%; border:2px solid var(--ink); }
+  .rank-row .rname{ flex:1; text-align:left; }
+  .rank-row .rgems{ color:#1c4a6e; }
+  .win-btns{ display:flex; gap:10px; }
+  .win-btns button{
+    flex:1;
+    padding:12px 0;
+    border-radius:14px;
+    border:2.5px solid var(--ink);
+    font-family:inherit;
+    font-weight:800;
+    font-size:14px;
+    cursor:pointer;
+  }
+  #playAgainBtn{ background:var(--gold); box-shadow:0 5px 0 #c99a1f; }
+  #backToSetupBtn{ background:#fff; }
+
+  @media (max-width:520px){
+    .card{ padding:24px 18px; }
+    .corner-player{ width:82px; padding:7px 8px; }
+  }
+</style>
+</head>
+<body>
+
+<div id="app">
+
+  <!-- ============ SETUP SCREEN ============ -->
+  <div class="screen active" id="setupScreen">
+    <div class="card">
+      <p class="title">👻 おばけやしきの宝石あつめ</p>
+
+      <p class="story">
+        森のおくにある古い洋館。少年たちは知っている——<b>おくの部屋にいくほど、たくさんの宝石がかくされている</b>ことを。
+        でも、この館にはおばけがすんでいて、少年たちのあとを追いかけてくる…。つかまる前に部屋にかくれて、宝石を手にいれよう！
+      </p>
+
+      <p class="section-label">あそびかた</p>
+      <div class="rule-grid">
+        <div class="rule-item"><span>🎡</span>ルーレット（2・3・4・5・👻・👻）で少年を1人すすめる</div>
+        <div class="rule-item"><span>👻</span>おばけが出たら少年1マス→おばけもすすむ</div>
+        <div class="rule-item"><span>🚪</span>部屋のまえの赤丸マス2つから入れる（入るのに1マスぶん使う）</div>
+        <div class="rule-item"><span>💎</span>部屋の宝石は4こずつ。おくほど大きい（1・2・3・4・6）</div>
+        <div class="rule-item"><span>😱</span>おばけにおいつかれる・追いぬかれると少年はいなくなる</div>
+        <div class="rule-item"><span>🏠</span>おばけが玄関を通るとホールの少年もつかまる</div>
+        <div class="rule-item"><span>💨</span>おばけは館を1周すると2マスずつすすむ</div>
+        <div class="rule-item"><span>🧍</span>1マスに少年は4人まで。いっぱいなら1マスもどる</div>
+      </div>
+
+      <p class="section-label">にんずう</p>
+      <div class="count-row" id="countRow">
+        <button class="count-btn" data-count="2">2人（少年5人）</button>
+        <button class="count-btn" data-count="3">3人</button>
+        <button class="count-btn active" data-count="4">4人</button>
+      </div>
+
+      <button class="start-btn" id="startBtn">館にはいる！</button>
+    </div>
+  </div>
+
+  <!-- ============ GAME SCREEN ============ -->
+  <div class="screen" id="gameScreen">
+    <button id="settingsBtn">⏸ ポーズ</button>
+
+    <div id="boardCard">
+      <svg id="trackSvg"></svg>
+      <div id="squareLayer"></div>
+      <div id="pawnLayer"></div>
+    </div>
+
+    <div id="centerPanel">
+      <div id="ghostBadge">👻 おばけのはやさ 1</div>
+      <div id="turnLabel">じゅんび中…</div>
+      <div id="roulette">
+        <div id="roulettePointer"></div>
+        <svg id="rouletteWheel" viewBox="-100 -100 200 200"></svg>
+      </div>
+      <div id="hintLabel"></div>
+      <div id="choiceBar"></div>
+    </div>
+    <div id="hallWrap">
+      <div id="hallBox">
+        <div class="hall-title">🏠 玄関ホール</div>
+        <div id="hallRows"></div>
+      </div>
+    </div>
+
+    <div id="banner"></div>
+    <div id="cornerLayer"></div>
+  </div>
+
+</div>
+
+<!-- ============ GHOST FLASH ============ -->
+<div id="ghostFlash">
+  <div class="gf-fog"></div>
+  <div class="gf-ghost">👻</div>
+  <div class="gf-text">おばけが きた…！</div>
+</div>
+
+<!-- ============ RESULT OVERLAY ============ -->
+<div id="winOverlay">
+  <div id="confettiLayer"></div>
+  <div class="win-card">
+    <div class="win-avatar" id="winAvatar">👦</div>
+    <p class="win-title" id="winTitle">〇〇のかち！</p>
+    <p class="win-sub" id="winSub">いちばん宝石をあつめた！💎</p>
+    <div class="rank-list" id="rankList"></div>
+    <div class="win-btns">
+      <button id="playAgainBtn">もう一度あそぶ</button>
+      <button id="backToSetupBtn">せっていへ</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ---------------- config ---------------- */
+  // 元ゲームにあわせて：廊下28マス、各部屋の入口は角の前後2マス、宝石は各部屋4こ
+  const N = 28;
+  const MAX_PER_SQUARE = 4;
+  const GEMS_PER_ROOM = 4;
+  const GHOST_START = { 2:14, 3:11, 4:7 };   // 人数ごとのおばけスタート位置（少年より先にいる）
+  const ROOMS = [
+    { key:'r1',    name:'書斎',        icon:'📚', gems:1, corner:'br' },
+    { key:'r2',    name:'食堂',        icon:'🍽️', gems:2, corner:'bl' },
+    { key:'r3',    name:'寝室',        icon:'🛏️', gems:3, corner:'tl' },
+    { key:'r4',    name:'ひみつの部屋', icon:'🗝️', gems:4, corner:'tr' },
+    { key:'vault', name:'宝物庫',      icon:'👑', gems:6, corner:'vault' }
+  ];
+  const VAULT = ROOMS[4];
+
+  const PLAYER_COLORS = [
+    { key:'red',    hex:'#e4572e' },
+    { key:'blue',   hex:'#2e86ab' },
+    { key:'yellow', hex:'#f4b942' },
+    { key:'green',  hex:'#4fae73' }
+  ];
+  const CORNER_CLASSES = ['corner-bl','corner-br','corner-tr','corner-tl'];
+  const STACK_OFFSETS = [ {x:-10,y:-10}, {x:10,y:-10}, {x:-10,y:10}, {x:10,y:10} ];
+
+  /* ---------------- state ---------------- */
+  let state = {
+    playerCount: 4,
+    players: [],
+    current: 0,
+    phase: 'roll',    // 'roll' | 'pick' | 'busy' | 'over'
+    rollValue: 0,
+    rollGhost: false
+  };
+  let ghost = { pos:7, traveled:0, passedEntrance:false };
+  let roomGems = {};      // key -> のこり宝石
+  let trackPoints = [];
+  let roomBoxes = {};
+  let bannerTimer = null;
+  let cornerEls = [];
+  let boyElById = {};
+
+  const $ = id => document.getElementById(id);
+  const setupScreen = $('setupScreen'), gameScreen = $('gameScreen'), countRow = $('countRow'), startBtn = $('startBtn');
+  const boardCard = $('boardCard'), trackSvg = $('trackSvg'), squareLayer = $('squareLayer'), pawnLayer = $('pawnLayer');
+  const ghostBadge = $('ghostBadge'), rouletteEl = $('roulette'), wheelEl = $('rouletteWheel'), turnLabel = $('turnLabel'), hintLabel = $('hintLabel'), hallRows = $('hallRows'), choiceBar = $('choiceBar');
+  const bannerEl = $('banner'), cornerLayer = $('cornerLayer');
+  const winOverlay = $('winOverlay'), winAvatar = $('winAvatar'), winTitle = $('winTitle'), winSub = $('winSub'), rankList = $('rankList'), confettiLayer = $('confettiLayer');
+  const playAgainBtn = $('playAgainBtn'), backToSetupBtn = $('backToSetupBtn');
+
+  /* ================= setup ================= */
+  const NAME_POOL = [
+    'ピエトロ','ジェフ','サム','マイク','トム','ジョン','アレックス','カルロス',
+    'ルーカス','ディエゴ','マルコ','ネイト','ライアン','ケビン','ダニー',
+    'あきと','じゅんや','けいすけ','ようすけ','えいた','りょうた','しょうた',
+    'たくみ','かいと','はると','そうた','ゆうき','だいち','こうき','りく',
+    'たかひろ','こうせい','ゆうな'
+  ];
+  function randomName(exclude){
+    const pool = NAME_POOL.filter(n => exclude.indexOf(n) === -1);
+    return pool[Math.floor(Math.random()*pool.length)];
+  }
+
+  countRow.addEventListener('click', (e)=>{
+    const btn = e.target.closest('.count-btn');
+    if(!btn) return;
+    state.playerCount = parseInt(btn.dataset.count,10);
+    countRow.querySelectorAll('.count-btn').forEach(b=>b.classList.toggle('active', b===btn));
+  });
+
+  function boysPerPlayer(){ return state.playerCount === 2 ? 5 : 4; }
+
+  function freshPlayer(i, name){
+    const boys = [];
+    for(let b=0;b<boysPerPlayer();b++) boys.push({ id:i+'-'+b, owner:i, state:'home', pos:0, room:null });
+    return { name, colorHex: PLAYER_COLORS[i].hex, gems:0, boys };
+  }
+
+  function resetGame(keepNames){
+    const used = [];
+    const old = state.players;
+    state.players = [];
+    for(let i=0;i<state.playerCount;i++){
+      const name = (keepNames && old[i]) ? old[i].name : randomName(used);
+      used.push(name);
+      state.players.push(freshPlayer(i, name));
+    }
+    state.current = 0;
+    state.phase = 'roll';
+    state.rollValue = 0;
+    state.rollGhost = false;
+    ghost = { pos: GHOST_START[state.playerCount] || 7, traveled:0, passedEntrance:false };
+    roomGems = {};
+    ROOMS.forEach(r => roomGems[r.key] = GEMS_PER_ROOM);
+  }
+
+  startBtn.addEventListener('click', ()=>{
+    resetGame(false);
+    buildCornerControls();
+    goToGameScreen();
+  });
+
+  /* ================= corner controls ================= */
+  function buildCornerControls(){
+    cornerLayer.innerHTML = '';
+    cornerEls = [];
+    state.players.forEach((p,i)=>{
+      const root = document.createElement('div');
+      root.className = 'corner-player ' + CORNER_CLASSES[i];
+      const top = document.createElement('div'); top.className = 'corner-top';
+      const avatar = document.createElement('div'); avatar.className = 'corner-avatar'; avatar.style.background = p.colorHex; avatar.textContent = '👦';
+      const nameEl = document.createElement('div'); nameEl.className = 'corner-name'; nameEl.textContent = p.name;
+      top.appendChild(avatar); top.appendChild(nameEl);
+      const stats = document.createElement('div'); stats.className = 'corner-stats';
+      const gemsEl = document.createElement('span'); gemsEl.className = 'stat-gems';
+      const boysEl = document.createElement('span'); boysEl.className = 'stat-boys';
+      stats.appendChild(gemsEl); stats.appendChild(boysEl);
+      const spinBtn = document.createElement('button'); spinBtn.className = 'spin-btn'; spinBtn.textContent = '🎡 まわす！';
+      const lastEl = document.createElement('div'); lastEl.className = 'last-roll';
+      root.appendChild(top); root.appendChild(stats); root.appendChild(spinBtn); root.appendChild(lastEl);
+      root.addEventListener('click', ()=>{ if(i === state.current) rollDice(); });
+      cornerLayer.appendChild(root);
+      cornerEls.push({ root, spinBtn, lastEl, gemsEl, boysEl });
+    });
+  }
+
+  /* ================= board layout ================= */
+  function computeLayout(){
+    const rect = boardCard.getBoundingClientRect();
+    const w = Math.max(rect.width, 100), h = Math.max(rect.height, 100);
+    trackSvg.setAttribute('viewBox', '0 0 ' + w + ' ' + h);
+    trackSvg.innerHTML = '';
+
+    const shortSide = Math.min(w,h);
+    const margin = shortSide * 0.16;
+    const r = shortSide * 0.22;
+    const x0 = margin, y0 = margin, x1 = w - margin, y1 = h - margin;
+    const NS = "http://www.w3.org/2000/svg";
+
+    // 玄関（右中央）から時計まわり：右辺を下→下辺→左辺→上辺→右辺を下って玄関へ
+    const d = `M ${x1} ${h/2} L ${x1} ${y1-r} A ${r} ${r} 0 0 1 ${x1-r} ${y1} ` +
+              `L ${x0+r} ${y1} A ${r} ${r} 0 0 1 ${x0} ${y1-r} ` +
+              `L ${x0} ${y0+r} A ${r} ${r} 0 0 1 ${x0+r} ${y0} ` +
+              `L ${x1-r} ${y0} A ${r} ${r} 0 0 1 ${x1} ${y0+r} Z`;
+
+    const carpet = document.createElementNS(NS,'path');
+    carpet.setAttribute('d', d); carpet.setAttribute('fill','none');
+    carpet.setAttribute('stroke','#6b1f2e'); carpet.setAttribute('stroke-width', Math.max(14, shortSide*0.062));
+    carpet.setAttribute('stroke-linejoin','round');
+    trackSvg.appendChild(carpet);
+    const carpetIn = document.createElementNS(NS,'path');
+    carpetIn.setAttribute('d', d); carpetIn.setAttribute('fill','none');
+    carpetIn.setAttribute('stroke','#8e2a3b'); carpetIn.setAttribute('stroke-width', Math.max(8, shortSide*0.04));
+    carpetIn.setAttribute('stroke-dasharray','2 16'); carpetIn.setAttribute('stroke-linecap','round');
+    trackSvg.appendChild(carpetIn);
+
+    const measure = document.createElementNS(NS,'path');
+    measure.setAttribute('d', d);
+    trackSvg.appendChild(measure);
+    const len = measure.getTotalLength();
+    const pts = [], raw = [];
+    for(let i=0;i<N;i++){
+      const p = measure.getPointAtLength((len*i)/N);
+      raw.push({x:p.x, y:p.y});
+      pts.push({ x:(p.x/w)*100, y:(p.y/h)*100 });
+    }
+    trackSvg.removeChild(measure);
+
+    // 角の部屋：角の弧の中心から内側へ。入口は角の前後2マス
+    const out = r * 0.3;   // 弧の中心から角のほうへ少し寄せる
+    const cornerInfo = {
+      br: { box:{x:x1-r+out, y:y1-r+out}, ci:1 },
+      bl: { box:{x:x0+r-out, y:y1-r+out}, ci:3 },
+      tl: { box:{x:x0+r-out, y:y0+r-out}, ci:5 },
+      tr: { box:{x:x1-r+out, y:y0+r-out}, ci:7 }
+    };
+    roomBoxes = {};
+    ROOMS.forEach(room=>{
+      if(room.corner === 'vault'){
+        room.doors = [N-2, N-1];
+        roomBoxes.vault = { x:((x1 - r*0.62)/w)*100, y:((h/2 - r*0.22)/h)*100 };
+      } else {
+        const ci = cornerInfo[room.corner];
+        const cornerPos = (ci.ci * N) / 8;   // 角は 3.5, 10.5, 17.5, 24.5 マス目
+        room.doors = [Math.floor(cornerPos), Math.ceil(cornerPos)];
+        roomBoxes[room.key] = { x:(ci.box.x/w)*100, y:(ci.box.y/h)*100 };
+      }
+      const bx = roomBoxes[room.key].x/100*w, by = roomBoxes[room.key].y/100*h;
+      room.doors.forEach(di=>{
+        const link = document.createElementNS(NS,'line');
+        link.setAttribute('x1', raw[di].x); link.setAttribute('y1', raw[di].y);
+        link.setAttribute('x2', bx); link.setAttribute('y2', by);
+        link.setAttribute('class','room-link');
+        trackSvg.appendChild(link);
+      });
+    });
+
+    // 玄関ホール → マス0
+    const hallLink = document.createElementNS(NS,'line');
+    hallLink.setAttribute('x1', w/2 + Math.min(w*0.24, 165)); hallLink.setAttribute('y1', h*0.68);
+    hallLink.setAttribute('x2', raw[0].x); hallLink.setAttribute('y2', raw[0].y);
+    hallLink.setAttribute('class','room-link');
+    trackSvg.appendChild(hallLink);
+
+    return pts;
+  }
+
+  function roomByDoor(idx){ return ROOMS.find(r => r.doors.indexOf(idx) !== -1); }
+
+  function buildSquares(){
+    squareLayer.innerHTML = '';
+    for(let i=0;i<N;i++){
+      const sq = document.createElement('div');
+      const room = roomByDoor(i);
+      sq.className = 'square' + (i===0 ? ' entrance' : '') + (room ? (room.key==='vault' ? ' vault-door' : ' door') : '');
+      sq.id = 'sq-' + i;
+      sq.style.left = trackPoints[i].x + '%';
+      sq.style.top = trackPoints[i].y + '%';
+      const idx = document.createElement('span'); idx.className = 'idx'; idx.textContent = i;
+      sq.appendChild(idx);
+      const icon = document.createElement('span');
+      icon.textContent = i===0 ? '🚪' : (room ? room.icon : '');
+      sq.appendChild(icon);
+      squareLayer.appendChild(sq);
+    }
+    ROOMS.forEach(room=>{
+      const box = document.createElement('div');
+      box.className = 'room ' + room.key;
+      box.id = 'room-' + room.key;
+      box.style.left = roomBoxes[room.key].x + '%';
+      box.style.top = roomBoxes[room.key].y + '%';
+      box.innerHTML = '<div class="room-name">' + room.icon + ' ' + room.name + '</div>' +
+                      '<div class="room-gems"></div>' +
+                      '<div class="room-boys"></div>';
+      squareLayer.appendChild(box);
+    });
+  }
+
+  let resizeTimer = null;
+  window.addEventListener('resize', ()=>{
+    if(!gameScreen.classList.contains('active')) return;
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(()=>{ trackPoints = computeLayout(); buildSquares(); renderAll(); }, 200);
+  });
+
+  /* ================= rendering ================= */
+  function ghostSpeed(){ return ghost.traveled >= N ? 2 : 1; }
+  function boysOnSquare(idx, except){
+    const list = [];
+    state.players.forEach(p => p.boys.forEach(b => { if(b.state==='track' && b.pos===idx && b!==except) list.push(b); }));
+    return list;
+  }
+
+  function isPickable(boy){
+    return state.phase === 'pick' && boy.owner === state.current && (boy.state === 'home' || boy.state === 'track');
+  }
+
+  function makeBoyEl(boy, p, extraClass){
+    const el = document.createElement('div');
+    el.className = 'boy' + (extraClass ? ' ' + extraClass : '') + (isPickable(boy) ? ' pickable' : '');
+    el.style.background = p.colorHex;
+    el.dataset.id = boy.id;
+    el.addEventListener('click', ()=>onBoyTap(boy));
+    return el;
+  }
+
+  function renderTokens(){
+    pawnLayer.innerHTML = '';
+    boyElById = {};
+    const bySquare = {};
+    state.players.forEach(p => p.boys.forEach(b => {
+      if(b.state !== 'track') return;
+      (bySquare[b.pos] = bySquare[b.pos] || []).push(b);
+    }));
+    Object.keys(bySquare).forEach(k=>{
+      bySquare[k].forEach((b, j)=>{
+        const p = state.players[b.owner];
+        const el = makeBoyEl(b, p);
+        const pt = trackPoints[b.pos];
+        const off = STACK_OFFSETS[j % STACK_OFFSETS.length];
+        el.style.left = pt.x + '%'; el.style.top = pt.y + '%';
+        el.style.marginLeft = off.x + 'px'; el.style.marginTop = off.y + 'px';
+        pawnLayer.appendChild(el);
+        boyElById[b.id] = el;
+      });
+    });
+    const g = document.createElement('div');
+    g.className = 'ghost'; g.id = 'ghostEl'; g.textContent = '👻';
+    const gp = trackPoints[ghost.pos];
+    g.style.left = gp.x + '%'; g.style.top = gp.y + '%';
+    pawnLayer.appendChild(g);
+    document.querySelectorAll('.square').forEach((s,i)=> s.classList.toggle('ghost-here', i === ghost.pos));
+
+    hallRows.innerHTML = '';
+    state.players.forEach(p=>{
+      const row = document.createElement('div'); row.className = 'hall-row';
+      const nm = document.createElement('div'); nm.className = 'hall-name'; nm.textContent = p.name; nm.style.color = p.colorHex;
+      const bs = document.createElement('div'); bs.className = 'hall-boys';
+      p.boys.filter(b=>b.state==='home').forEach(b=>{
+        const el = makeBoyEl(b, p, 'hall-boy');
+        bs.appendChild(el);
+        boyElById[b.id] = el;
+      });
+      row.appendChild(nm); row.appendChild(bs);
+      hallRows.appendChild(row);
+    });
+
+    ROOMS.forEach(room=>{
+      const boxEl = $('room-' + room.key); if(!boxEl) return;
+      const left = roomGems[room.key];
+      boxEl.classList.toggle('empty', left === 0);
+      boxEl.querySelector('.room-gems').textContent = left > 0 ? ('💎' + room.gems + ' のこり' + left) : '💎 うりきれ';
+      const box = boxEl.querySelector('.room-boys');
+      box.innerHTML = '';
+      state.players.forEach(p => p.boys.forEach(b=>{
+        if(b.state === 'room' && b.room === room.key){
+          const m = document.createElement('div'); m.className = 'mini'; m.style.background = p.colorHex;
+          box.appendChild(m);
+        }
+      }));
+    });
+  }
+
+  function renderCorners(){
+    state.players.forEach((p,i)=>{
+      const ce = cornerEls[i]; if(!ce) return;
+      const alive = p.boys.filter(b=>b.state==='home'||b.state==='track').length;
+      ce.gemsEl.textContent = '💎' + p.gems;
+      ce.boysEl.textContent = '👦' + alive;
+      ce.root.classList.toggle('active-turn', i === state.current && state.phase === 'roll');
+      ce.root.classList.toggle('out', alive === 0);
+    });
+    ghostBadge.textContent = '👻 おばけのはやさ ' + ghostSpeed() + (ghost.traveled >= N ? '（2しゅうめ！）' : '');
+  }
+
+  function renderAll(){ renderTokens(); renderCorners(); }
+
+  function updateTurnUI(){
+    const p = state.players[state.current];
+    turnLabel.textContent = p.name + ' の ばん';
+    turnLabel.style.borderColor = p.colorHex;
+    hintLabel.textContent = state.phase === 'roll' ? '🎡 手元のルーレットボタンをタップ！' : (state.phase === 'pick' ? '👦 うごかす少年をタップ！' : '');
+    rouletteEl.classList.toggle('armed', state.phase === 'roll');
+    renderAll();
+  }
+
+  /* ================= audio ================= */
+  var actx = null;
+  function audioCtx(){
+    if(!actx){ var AC = window.AudioContext || window.webkitAudioContext; if(AC) actx = new AC(); }
+    return actx;
+  }
+  var bgmSource = null, bgmBuf = null;
+  function stopBgm(){ if(bgmSource){ try{ bgmSource.stop(); }catch(e){} bgmSource = null; } }
+  function _playBgm(buf){
+    var ctx = audioCtx(); if(!ctx||!buf) return;
+    if(ctx.state==='suspended') ctx.resume();
+    stopBgm();
+    var g = ctx.createGain(); g.gain.value = 0.22; g.connect(ctx.destination);
+    var src = ctx.createBufferSource(); src.buffer = buf; src.loop = true; src.connect(g); src.start();
+    bgmSource = src;
+  }
+  function _tone(oCtx,t,freq,dur,type,vol){
+    var o=oCtx.createOscillator(),g=oCtx.createGain(); o.type=type||'sine'; o.frequency.value=freq;
+    g.gain.setValueAtTime(0.0001,t); g.gain.linearRampToValueAtTime(vol,t+Math.min(0.08,dur*0.3));
+    g.gain.setValueAtTime(vol,t+dur-0.08); g.gain.linearRampToValueAtTime(0.0001,t+dur);
+    o.connect(g); g.connect(oCtx.destination); o.start(t); o.stop(t+dur+0.01);
+  }
+  function _renderMansionBgm(oCtx, loopDur){
+    var beat = 0.6;
+    [[55,0],[55,0.7],[82.4,0.3]].forEach(function(f){ _tone(oCtx,0,f[0]+f[1],loopDur-0.05,'triangle',0.06); });
+    var mel = [[0,440],[1,523.3],[2,493.9],[3,440],[4,392],[5,415.3],[6,440],[7,349.2],
+               [8,440],[9,523.3],[10,622.3],[11,587.3],[12,523.3],[13,493.9],[14,440],[15,415.3]];
+    mel.forEach(function(n){ _tone(oCtx,n[0]*beat,n[1],beat*0.9,'sine',0.09); _tone(oCtx,n[0]*beat,n[1]*2,beat*0.5,'sine',0.02); });
+    for(var b=0;b<16;b+=2){ var o=oCtx.createOscillator(),g=oCtx.createGain(); o.frequency.setValueAtTime(70,b*beat); o.frequency.exponentialRampToValueAtTime(35,b*beat+0.3); g.gain.setValueAtTime(0.35,b*beat); g.gain.exponentialRampToValueAtTime(0.001,b*beat+0.35); o.connect(g); g.connect(oCtx.destination); o.start(b*beat); o.stop(b*beat+0.36); }
+  }
+  function startBgm(){
+    if(bgmSource) return;
+    if(bgmBuf){ _playBgm(bgmBuf); return; }
+    var SR = 44100, loopDur = 0.6*16;
+    var oCtx = new OfflineAudioContext(1, Math.ceil(loopDur*SR), SR);
+    _renderMansionBgm(oCtx, loopDur);
+    oCtx.startRendering().then(function(buf){ bgmBuf = buf; _playBgm(buf); });
+  }
+  function sfxDiceTick(){
+    const ctx = audioCtx(); if(!ctx) return; const t = ctx.currentTime;
+    const o = ctx.createOscillator(), g = ctx.createGain();
+    o.type='square'; o.frequency.value = 650 + Math.random()*350;
+    g.gain.setValueAtTime(.05,t); g.gain.exponentialRampToValueAtTime(.001,t+.04);
+    o.connect(g); g.connect(ctx.destination); o.start(t); o.stop(t+.05);
+  }
+  function sfxDiceLand(){
+    const ctx = audioCtx(); if(!ctx) return; const t = ctx.currentTime;
+    const o = ctx.createOscillator(), g = ctx.createGain();
+    o.type='triangle'; o.frequency.setValueAtTime(300,t); o.frequency.exponentialRampToValueAtTime(110,t+.12);
+    g.gain.setValueAtTime(.1,t); g.gain.exponentialRampToValueAtTime(.001,t+.16);
+    o.connect(g); g.connect(ctx.destination); o.start(t); o.stop(t+.17);
+  }
+  function sfxStep(){
+    const ctx = audioCtx(); if(!ctx) return; const t = ctx.currentTime;
+    const o = ctx.createOscillator(), g = ctx.createGain();
+    o.type='sine'; o.frequency.setValueAtTime(520,t); o.frequency.exponentialRampToValueAtTime(720,t+.06);
+    g.gain.setValueAtTime(.06,t); g.gain.exponentialRampToValueAtTime(.001,t+.08);
+    o.connect(g); g.connect(ctx.destination); o.start(t); o.stop(t+.09);
+  }
+  function sfxGhostStep(){
+    const ctx = audioCtx(); if(!ctx) return; const t = ctx.currentTime;
+    const o = ctx.createOscillator(), g = ctx.createGain();
+    o.type='sawtooth'; o.frequency.setValueAtTime(160,t); o.frequency.exponentialRampToValueAtTime(90,t+.25);
+    g.gain.setValueAtTime(.07,t); g.gain.exponentialRampToValueAtTime(.001,t+.3);
+    o.connect(g); g.connect(ctx.destination); o.start(t); o.stop(t+.31);
+  }
+  function sfxGhostFace(){
+    const ctx = audioCtx(); if(!ctx) return; const t = ctx.currentTime;
+    const o = ctx.createOscillator(), g = ctx.createGain(), l = ctx.createOscillator(), lg = ctx.createGain();
+    o.type='sine'; o.frequency.setValueAtTime(330,t); o.frequency.linearRampToValueAtTime(220,t+.7);
+    l.frequency.value = 7; lg.gain.value = 25; l.connect(lg); lg.connect(o.frequency);
+    g.gain.setValueAtTime(.09,t); g.gain.exponentialRampToValueAtTime(.001,t+.75);
+    o.connect(g); g.connect(ctx.destination); o.start(t); l.start(t); o.stop(t+.76); l.stop(t+.76);
+  }
+  // おどろおどろしい効果音（うなり＋風＋「いーひっひっひっ」）
+  function sfxGhostScare(){
+    const ctx = audioCtx(); if(!ctx) return; const t = ctx.currentTime;
+    // 低いうなり
+    const dr = ctx.createOscillator(), dg = ctx.createGain(), dl = ctx.createOscillator(), dlg = ctx.createGain();
+    dr.type='sawtooth'; dr.frequency.setValueAtTime(48,t); dr.frequency.linearRampToValueAtTime(38,t+2.6);
+    dl.frequency.value = 5.5; dlg.gain.value = 6; dl.connect(dlg); dlg.connect(dr.frequency);
+    const df = ctx.createBiquadFilter(); df.type='lowpass'; df.frequency.value = 220;
+    dg.gain.setValueAtTime(.0001,t); dg.gain.linearRampToValueAtTime(.22,t+.3); dg.gain.setValueAtTime(.22,t+2.0); dg.gain.linearRampToValueAtTime(.0001,t+2.8);
+    dr.connect(df); df.connect(dg); dg.connect(ctx.destination); dr.start(t); dl.start(t); dr.stop(t+2.85); dl.stop(t+2.85);
+    // 風（ノイズ）
+    const len = Math.ceil(ctx.sampleRate*2.8), buf = ctx.createBuffer(1,len,ctx.sampleRate), ch = buf.getChannelData(0);
+    for(let i=0;i<len;i++) ch[i] = (Math.random()*2-1);
+    const ns = ctx.createBufferSource(); ns.buffer = buf;
+    const nf = ctx.createBiquadFilter(); nf.type='bandpass'; nf.Q.value = 1.2;
+    nf.frequency.setValueAtTime(300,t); nf.frequency.exponentialRampToValueAtTime(1400,t+1.0); nf.frequency.exponentialRampToValueAtTime(250,t+2.6);
+    const ng = ctx.createGain(); ng.gain.setValueAtTime(.0001,t); ng.gain.linearRampToValueAtTime(.12,t+.6); ng.gain.linearRampToValueAtTime(.0001,t+2.7);
+    ns.connect(nf); nf.connect(ng); ng.connect(ctx.destination); ns.start(t); ns.stop(t+2.8);
+    // 「いー」＋「ひっひっひっひっ」の笑い声
+    function ha(st, freq, dur, vol){
+      const o = ctx.createOscillator(), o2 = ctx.createOscillator(), g = ctx.createGain(), f = ctx.createBiquadFilter();
+      o.type='sawtooth'; o2.type='square';
+      o.frequency.setValueAtTime(freq,st); o.frequency.exponentialRampToValueAtTime(freq*0.82,st+dur);
+      o2.frequency.setValueAtTime(freq*1.01,st); o2.frequency.exponentialRampToValueAtTime(freq*0.83,st+dur);
+      f.type='bandpass'; f.frequency.value = freq*3.2; f.Q.value = 2.5;   // 「ひ」っぽい鼻声
+      g.gain.setValueAtTime(.0001,st); g.gain.linearRampToValueAtTime(vol,st+.02); g.gain.exponentialRampToValueAtTime(.0001,st+dur);
+      const o2g = ctx.createGain(); o2g.gain.value = .35;
+      o.connect(f); o2.connect(o2g); o2g.connect(f); f.connect(g); g.connect(ctx.destination);
+      o.start(st); o2.start(st); o.stop(st+dur+.02); o2.stop(st+dur+.02);
+    }
+    let st = t + 0.45;
+    // いーーー（上ずる）
+    const e = ctx.createOscillator(), eg = ctx.createGain(), ef = ctx.createBiquadFilter(), ev = ctx.createOscillator(), evg = ctx.createGain();
+    e.type='sawtooth'; e.frequency.setValueAtTime(520,st); e.frequency.linearRampToValueAtTime(760,st+.55);
+    ev.frequency.value = 9; evg.gain.value = 18; ev.connect(evg); evg.connect(e.frequency);
+    ef.type='bandpass'; ef.frequency.value = 2400; ef.Q.value = 2;
+    eg.gain.setValueAtTime(.0001,st); eg.gain.linearRampToValueAtTime(.16,st+.08); eg.gain.setValueAtTime(.16,st+.45); eg.gain.exponentialRampToValueAtTime(.0001,st+.6);
+    e.connect(ef); ef.connect(eg); eg.connect(ctx.destination); e.start(st); ev.start(st); e.stop(st+.62); ev.stop(st+.62);
+    st += 0.62;
+    // ひっひっひっひっひっ（だんだん高く、最後に落ちる）
+    const laugh = [820, 880, 940, 1000, 1060, 980, 880];
+    laugh.forEach((fq,i)=>{ ha(st + i*0.16, fq, 0.12, .2); });
+    st += laugh.length*0.16 + 0.05;
+    // 最後の「はぁ〜」
+    ha(st, 620, 0.45, .14);
+  }
+  function showGhostFlash(cb){
+    const gf = $('ghostFlash');
+    gf.querySelectorAll('.gf-eye').forEach(e=>e.remove());
+    for(let i=0;i<7;i++){
+      const eye = document.createElement('div'); eye.className = 'gf-eye';
+      eye.style.left = (5 + Math.random()*90) + '%'; eye.style.top = (5 + Math.random()*90) + '%';
+      eye.style.animationDelay = (Math.random()*1.2) + 's';
+      gf.appendChild(eye);
+    }
+    gf.classList.remove('show'); void gf.offsetWidth; gf.classList.add('show');
+    gameScreen.classList.remove('shake'); void gameScreen.offsetWidth; gameScreen.classList.add('shake');
+    sfxGhostScare();
+    setTimeout(()=>{ gf.classList.remove('show'); gameScreen.classList.remove('shake'); if(cb) cb(); }, 2800);
+  }
+  function sfxCaught(){
+    const ctx = audioCtx(); if(!ctx) return; const t = ctx.currentTime;
+    const o = ctx.createOscillator(), g = ctx.createGain();
+    o.type='sawtooth'; o.frequency.setValueAtTime(260,t); o.frequency.exponentialRampToValueAtTime(60,t+.5);
+    g.gain.setValueAtTime(.1,t); g.gain.exponentialRampToValueAtTime(.001,t+.55);
+    o.connect(g); g.connect(ctx.destination); o.start(t); o.stop(t+.56);
+  }
+  function sfxGem(n){
+    const ctx = audioCtx(); if(!ctx) return; const t = ctx.currentTime;
+    const notes = [1046.5,1318.5,1568,2093,2637,3136];
+    for(let i=0;i<Math.min(Math.max(n,1),6);i++){
+      const o = ctx.createOscillator(), g = ctx.createGain();
+      o.type='sine'; o.frequency.value = notes[i];
+      g.gain.setValueAtTime(.0001,t+i*.09); g.gain.linearRampToValueAtTime(.07,t+i*.09+.02); g.gain.exponentialRampToValueAtTime(.0001,t+i*.09+.35);
+      o.connect(g); g.connect(ctx.destination); o.start(t+i*.09); o.stop(t+i*.09+.4);
+    }
+  }
+
+  /* ================= banner / choice ================= */
+  function showBanner(text, autoHideMs){
+    clearTimeout(bannerTimer);
+    bannerEl.textContent = text;
+    bannerEl.classList.add('show');
+    if(autoHideMs) bannerTimer = setTimeout(hideBanner, autoHideMs);
+  }
+  function hideBanner(){ bannerEl.classList.remove('show'); }
+  function showChoice(buttons){
+    choiceBar.innerHTML = '';
+    buttons.forEach((b,idx)=>{
+      const btn = document.createElement('button');
+      btn.className = 'choice-btn' + (idx===0 ? ' primary' : '');
+      btn.textContent = b.label;
+      btn.addEventListener('click', b.onClick);
+      choiceBar.appendChild(btn);
+    });
+    choiceBar.classList.add('show');
+  }
+  function hideChoice(){ choiceBar.classList.remove('show'); choiceBar.innerHTML = ''; }
+
+  /* ================= roulette ================= */
+  // 元ゲームのサイコロ（1・1・2・3・4・5、1はネコ）にあわせて 6分割：2・👻・3・4・👻・5
+  const WEDGES = [
+    { label:'2', value:2, ghost:false, fill:'#f7efe0' },
+    { label:'👻', value:1, ghost:true,  fill:'#cfc6ff' },
+    { label:'3', value:3, ghost:false, fill:'#f4c542' },
+    { label:'4', value:4, ghost:false, fill:'#f7efe0' },
+    { label:'👻', value:1, ghost:true,  fill:'#cfc6ff' },
+    { label:'5', value:5, ghost:false, fill:'#f4c542' }
+  ];
+  let wheelAngle = 0;
+
+  function buildRoulette(){
+    const NS = "http://www.w3.org/2000/svg";
+    wheelEl.innerHTML = '';
+    const R = 96, step = 360/WEDGES.length;
+    WEDGES.forEach((wd,i)=>{
+      const a0 = (i*step - 90) * Math.PI/180, a1 = ((i+1)*step - 90) * Math.PI/180;
+      const path = document.createElementNS(NS,'path');
+      path.setAttribute('d', `M 0 0 L ${R*Math.cos(a0)} ${R*Math.sin(a0)} A ${R} ${R} 0 0 1 ${R*Math.cos(a1)} ${R*Math.sin(a1)} Z`);
+      path.setAttribute('fill', wd.fill); path.setAttribute('stroke', '#2a1d3b'); path.setAttribute('stroke-width', '3'); path.setAttribute('stroke-linejoin', 'round');
+      wheelEl.appendChild(path);
+      const am = ((i+0.5)*step - 90) * Math.PI/180;
+      const t = document.createElementNS(NS,'text');
+      t.setAttribute('x', 62*Math.cos(am)); t.setAttribute('y', 62*Math.sin(am));
+      t.setAttribute('text-anchor','middle'); t.setAttribute('dominant-baseline','central'); t.setAttribute('class','wedge-label');
+      t.setAttribute('transform', `rotate(${(i+0.5)*step} ${62*Math.cos(am)} ${62*Math.sin(am)})`);
+      t.textContent = wd.label;
+      wheelEl.appendChild(t);
+    });
+    const hub = document.createElementNS(NS,'circle'); hub.setAttribute('r','14'); hub.setAttribute('fill','#2a1d3b'); wheelEl.appendChild(hub);
+    const hub2 = document.createElementNS(NS,'circle'); hub2.setAttribute('r','7'); hub2.setAttribute('fill','#f4c542'); wheelEl.appendChild(hub2);
+  }
+
+  function rollDice(){
+    if(state.phase !== 'roll') return;
+    const ctx = audioCtx();
+    if(ctx && ctx.state === 'suspended') ctx.resume();
+    startBgm();
+    const ce = cornerEls[state.current]; if(!ce) return;
+
+    state.phase = 'busy';
+    hintLabel.textContent = '🎡 ルーレット回転中…';
+    renderCorners();
+    rouletteEl.classList.remove('armed');
+
+    const idx = Math.floor(Math.random()*WEDGES.length);
+    const step = 360/WEDGES.length;
+    const jitter = (Math.random()-0.5) * step * 0.7;
+    const target = -((idx+0.5)*step + jitter);
+    const spins = 4 + Math.floor(Math.random()*2);
+    const current = ((wheelAngle % 360) + 360) % 360;
+    const delta = ((target - current) % 360 + 360) % 360;
+    wheelAngle += spins*360 + delta;
+    wheelEl.classList.add('spinning');
+    wheelEl.style.transform = 'rotate(' + wheelAngle + 'deg)';
+
+    let t = 0, gap = 40;
+    (function tick(){ if(t > 2700) return; sfxDiceTick(); t += gap; gap = Math.min(260, gap * 1.13); setTimeout(tick, gap); })();
+
+    setTimeout(()=>{
+      const wd = WEDGES[idx];
+      sfxDiceLand();
+      state.rollGhost = wd.ghost;
+      state.rollValue = wd.value;
+      ce.lastEl.textContent = 'けっか：' + wd.label;
+      const p = state.players[state.current];
+      const hasMove = playerHasMove(p);
+
+      if(wd.ghost){
+        showGhostFlash(()=>{
+          if(hasMove){
+            showBanner('👻 おばけ！ 少年を1マスすすめてから、おばけがうごく', 1800);
+            state.phase = 'pick'; updateTurnUI();
+          } else {
+            showBanner('👻 おばけ！ ' + p.name + ' の少年はもういないので、おばけだけうごく', 1500);
+            setTimeout(()=>moveGhost(ghostSpeed(), endTurn), 1500);
+          }
+        });
+      } else {
+        if(hasMove){
+          showBanner('🎡 ' + wd.label + ' が出た！', 1000);
+          setTimeout(()=>{ state.phase = 'pick'; updateTurnUI(); }, 400);
+        } else {
+          showBanner('🎡 ' + wd.label + '… ' + p.name + ' の少年はもういない。なにもおこらない', 1400);
+          setTimeout(endTurn, 1500);
+        }
+      }
+    }, 3100);
+  }
+
+  /* ================= boy movement ================= */
+  function onBoyTap(boy){
+    if(!isPickable(boy)) return;
+    const k = state.rollValue;
+    const from = boy.state === 'home' ? 0 : boy.pos;
+    const p = state.players[state.current];
+
+    // 入れる部屋：入口マス d に (d-from) 歩でつき、部屋に入るのに +1 歩 → d-from+1 <= k
+    const options = [];
+    ROOMS.forEach(room=>{
+      const ds = room.doors.filter(d => d >= from && (d - from + 1) <= k && (boy.state !== 'home' || d > 0));
+      if(!ds.length) return;
+      if(room.key === 'vault' && ds.indexOf(from) === -1 && from + k <= N - 1 && false) return;
+      options.push({ room, door: ds[0] });
+    });
+    // 宝物庫のさきには行けない：入口をこえるぶんは宝物庫に入る
+    const forcedVault = (from + k) > (N - 1);
+    const plainSteps = Math.min(k, (N - 1) - from);
+
+    state.phase = 'busy';
+    renderTokens();
+
+    if(forcedVault){
+      const vd = from >= N-2 ? from : N-2;
+      moveBoy(boy, vd - from, VAULT);
+      return;
+    }
+    if(!options.length){ moveBoy(boy, plainSteps, null); return; }
+
+    const buttons = options.map(o => ({
+      label: o.room.icon + ' ' + o.room.name + 'にはいる（' + (roomGems[o.room.key] > 0 ? '💎' + o.room.gems : '宝石なし') + '）',
+      onClick: ()=>{ hideChoice(); hideBanner(); moveBoy(boy, o.door - from, o.room); }
+    }));
+    buttons.push({ label:'🏃 そのまま ' + plainSteps + ' マスすすむ', onClick:()=>{ hideChoice(); hideBanner(); moveBoy(boy, plainSteps, null); } });
+    showBanner('🚪 ' + p.name + '：部屋にはいる？ それともすすむ？');
+    showChoice(buttons);
+  }
+
+  function moveBoy(boy, steps, room){
+    const p = state.players[boy.owner];
+    if(boy.state === 'home'){ boy.state = 'track'; boy.pos = 0; }
+    let remaining = steps;
+    renderTokens();
+    const iv = setInterval(()=>{
+      if(remaining <= 0){
+        clearInterval(iv);
+        if(room){ enterRoom(boy, room); return; }
+        // おばけのマスにとまったらつかまる
+        if(boy.pos === ghost.pos){
+          boy.state = 'caught';
+          sfxCaught(); renderAll();
+          showBanner('😱 ' + p.name + ' の少年はおばけのマスにとびこんでしまった！', 1600);
+          setTimeout(afterBoyMove, 1600);
+          return;
+        }
+        // 1マス4人まで：いっぱいなら手前にもどる
+        let back = 0;
+        while(boysOnSquare(boy.pos, boy).length >= MAX_PER_SQUARE && boy.pos > 0){ boy.pos--; back++; }
+        renderAll();
+        if(back > 0){
+          showBanner('🧍 マスがいっぱい！ ' + back + ' マスもどった', 1400);
+          setTimeout(afterBoyMove, 1400);
+        } else {
+          afterBoyMove();
+        }
+        return;
+      }
+      boy.pos = boy.pos + 1;
+      remaining--;
+      sfxStep();
+      renderTokens();
+      const el = boyElById[boy.id]; if(el) el.classList.add('moving');
+    }, 220);
+  }
+
+  function enterRoom(boy, room){
+    const p = state.players[boy.owner];
+    boy.state = 'room'; boy.room = room.key;
+    const got = roomGems[room.key] > 0 ? room.gems : 0;
+    if(got > 0){ roomGems[room.key]--; p.gems += got; }
+    sfxGem(got);
+    renderAll();
+    showBanner(got > 0
+      ? '💎 ' + p.name + ' の少年が' + room.name + 'で宝石を' + got + 'こ手にいれた！'
+      : '🚪 ' + p.name + ' の少年は' + room.name + 'にかくれた。でも宝石はもうなかった…', 1500);
+    setTimeout(afterBoyMove, 1500);
+  }
+
+  function afterBoyMove(){
+    if(state.rollGhost) moveGhost(ghostSpeed(), endTurn);
+    else endTurn();
+  }
+
+  /* ================= ghost ================= */
+  function moveGhost(steps, cb){
+    let remaining = steps;
+    showBanner('👻 おばけがちかづいてくる…');
+    const step = ()=>{
+      if(remaining <= 0){ setTimeout(()=>{ hideBanner(); cb(); }, 500); return; }
+      remaining--;
+      ghost.pos = (ghost.pos + 1) % N;
+      ghost.traveled++;
+      sfxGhostStep();
+      renderAll();
+      const gEl = $('ghostEl'); if(gEl){ gEl.classList.remove('lunge'); void gEl.offsetWidth; gEl.classList.add('lunge'); }
+
+      const msgs = [];
+      if(ghost.pos === 0 && !ghost.passedEntrance){
+        ghost.passedEntrance = true;
+        let n = 0;
+        state.players.forEach(p => p.boys.forEach(b => { if(b.state === 'home'){ b.state = 'caught'; n++; } }));
+        msgs.push(n > 0 ? '🏠 おばけが玄関にきた！ ホールにいた少年' + n + '人がつかまった…' : '🏠 おばけが玄関を通りすぎた！');
+      }
+      if(ghost.traveled === N) msgs.push('💨 おばけが館を1周した！ これから2マスずつすすむ！');
+      const caught = [];
+      state.players.forEach(p => p.boys.forEach(b => {
+        if(b.state === 'track' && b.pos === ghost.pos){ b.state = 'caught'; caught.push(p.name); }
+      }));
+      if(caught.length){ sfxCaught(); msgs.push('😱 ' + caught.join('と') + ' の少年がおばけにつかまった！'); }
+      renderAll();
+      if(msgs.length){ showBanner(msgs.join('　')); setTimeout(step, 1600); }
+      else setTimeout(step, 420);
+    };
+    setTimeout(step, 500);
+  }
+
+  /* ================= turn flow ================= */
+  function playerHasMove(p){ return p.boys.some(b => b.state === 'home' || b.state === 'track'); }
+  function anyBoysLeft(){ return state.players.some(playerHasMove); }
+
+  function endTurn(){
+    state.rollGhost = false;
+    state.rollValue = 0;
+    if(!anyBoysLeft()){ handleGameOver(); return; }
+    state.current = (state.current + 1) % state.players.length;   // 少年がいない人もルーレットはまわす（元ルール）
+    state.phase = 'roll';
+    updateTurnUI();
+  }
+
+  /* ================= game over ================= */
+  function handleGameOver(){
+    state.phase = 'over';
+    stopBgm();
+    const sorted = state.players.slice().sort((a,b)=> b.gems - a.gems);
+    const top = sorted[0];
+    const tied = sorted.filter(p => p.gems === top.gems);
+    winAvatar.style.background = top.colorHex;
+    if(tied.length > 1){
+      winTitle.textContent = tied.map(p=>p.name).join('と') + ' のひきわけ！';
+      winSub.textContent = '💎' + top.gems + 'こでならんだ！';
+    } else {
+      winTitle.textContent = top.name + ' の かち！';
+      winSub.textContent = 'いちばん宝石をあつめた！💎' + top.gems + 'こ';
+    }
+    rankList.innerHTML = '';
+    sorted.forEach((p,i)=>{
+      const row = document.createElement('div'); row.className = 'rank-row';
+      const safe = p.boys.filter(b=>b.state==='room').length;
+      row.innerHTML = '<span class="rk">' + (i+1) + '</span><span class="rdot" style="background:' + p.colorHex + '"></span>' +
+                      '<span class="rname">' + p.name + '</span><span class="rgems">💎' + p.gems + '</span>' +
+                      '<span style="font-size:11px;color:#8c7aa8">にげた👦' + safe + '</span>';
+      rankList.appendChild(row);
+    });
+    spawnConfetti();
+    setTimeout(()=>winOverlay.classList.add('show'), 600);
+  }
+
+  function spawnConfetti(){
+    confettiLayer.innerHTML = '';
+    const colors = ['#6fd3ff','#f4c542','#ff8fd1','#b8ff9e','#e9e4ff'];
+    for(let i=0;i<50;i++){
+      const c = document.createElement('div');
+      c.className = 'confetti';
+      c.style.left = (Math.random()*100) + '%';
+      c.style.background = colors[i % colors.length];
+      c.style.animationDuration = (1.6 + Math.random()*1.4) + 's';
+      c.style.animationDelay = (Math.random()*0.6) + 's';
+      c.style.borderRadius = (Math.random()<0.5) ? '50%' : '2px';
+      confettiLayer.appendChild(c);
+    }
+  }
+
+  playAgainBtn.addEventListener('click', ()=>{
+    winOverlay.classList.remove('show');
+    resetGame(true);
+    buildCornerControls();
+    updateTurnUI();
+  });
+  backToSetupBtn.addEventListener('click', ()=>{
+    stopBgm();
+    winOverlay.classList.remove('show');
+    gameScreen.classList.remove('active');
+    setupScreen.classList.add('active');
+  });
+
+  function goToGameScreen(){
+    setupScreen.classList.remove('active');
+    gameScreen.classList.add('active');
+    trackPoints = computeLayout();
+    buildSquares();
+    buildRoulette();
+    updateTurnUI();
+  }
+})();
+</script>
+<script>window.PAUSE_UI_CONFIG = { trigger: '#settingsBtn' };</script>
+<script src="../pause-ui.js"></script>
+</body>
+</html>
