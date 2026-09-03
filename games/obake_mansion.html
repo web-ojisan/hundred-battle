@@ -206,7 +206,21 @@
     font-weight:700;
     color:var(--ink-soft);
   }
-  .square.entrance{ background:var(--gold); }
+  .square.entrance{ background:var(--gold); box-shadow:0 0 0 3px rgba(244,197,66,0.55), 0 3px 0 rgba(0,0,0,0.35); }
+  .square.entrance::before{
+    content:'スタート';
+    position:absolute;
+    left:50%; top:100%;
+    transform:translate(-50%,4px);
+    background:var(--gold);
+    color:var(--ink);
+    font-size:10px;
+    font-weight:900;
+    padding:1px 7px;
+    border-radius:8px;
+    border:1.5px solid var(--ink);
+    white-space:nowrap;
+  }
   .square.door{ background:#ffd9a8; }
   .square.door::after{
     content:'';
@@ -759,16 +773,16 @@
   "use strict";
 
   /* ---------------- config ---------------- */
-  // 元ゲームにあわせて：廊下28マス、各部屋の入口は角の前後2マス、宝石は各部屋4こ
-  const N = 28;
+  // 廊下20マス（スタート＝下段まんなか、時計まわり）、各部屋の入口は角の前後2マス、宝石は各部屋4こ
+  const N = 20;
   const MAX_PER_SQUARE = 4;
   const GEMS_PER_ROOM = 4;
-  const GHOST_START = { 2:14, 3:11, 4:7 };   // 人数ごとのおばけスタート位置（少年より先にいる）
+  const GHOST_START = { 2:10, 3:8, 4:5 };    // 人数ごとのおばけスタート位置（少年より先にいる）
   const ROOMS = [
-    { key:'r1',    name:'書斎',        icon:'📚', gems:1, corner:'br' },
-    { key:'r2',    name:'食堂',        icon:'🍽️', gems:2, corner:'bl' },
-    { key:'r3',    name:'寝室',        icon:'🛏️', gems:3, corner:'tl' },
-    { key:'r4',    name:'ひみつの部屋', icon:'🗝️', gems:4, corner:'tr' },
+    { key:'r1',    name:'書斎',        icon:'📚', gems:1, corner:'bl' },
+    { key:'r2',    name:'食堂',        icon:'🍽️', gems:2, corner:'tl' },
+    { key:'r3',    name:'寝室',        icon:'🛏️', gems:3, corner:'tr' },
+    { key:'r4',    name:'ひみつの部屋', icon:'🗝️', gems:4, corner:'br' },
     { key:'vault', name:'宝物庫',      icon:'👑', gems:6, corner:'vault' }
   ];
   const VAULT = ROOMS[4];
@@ -791,7 +805,7 @@
     rollValue: 0,
     rollGhost: false
   };
-  let ghost = { pos:7, traveled:0, passedEntrance:false };
+  let ghost = { pos:5, traveled:0, passedEntrance:false };
   let roomGems = {};      // key -> のこり宝石
   let trackPoints = [];
   let roomBoxes = {};
@@ -848,7 +862,7 @@
     state.phase = 'roll';
     state.rollValue = 0;
     state.rollGhost = false;
-    ghost = { pos: GHOST_START[state.playerCount] || 7, traveled:0, passedEntrance:false };
+    ghost = { pos: GHOST_START[state.playerCount] || 5, traveled:0, passedEntrance:false };
     roomGems = {};
     ROOMS.forEach(r => roomGems[r.key] = GEMS_PER_ROOM);
   }
@@ -896,11 +910,11 @@
     const x0 = margin, y0 = margin, x1 = w - margin, y1 = h - margin;
     const NS = "http://www.w3.org/2000/svg";
 
-    // 玄関（右中央）から時計まわり：右辺を下→下辺→左辺→上辺→右辺を下って玄関へ
-    const d = `M ${x1} ${h/2} L ${x1} ${y1-r} A ${r} ${r} 0 0 1 ${x1-r} ${y1} ` +
-              `L ${x0+r} ${y1} A ${r} ${r} 0 0 1 ${x0} ${y1-r} ` +
+    // 玄関（下段まんなか）から時計まわり：下辺を左へ→左辺を上→上辺を右へ→右辺を下→下辺を左へ戻って玄関へ
+    const d = `M ${w/2} ${y1} L ${x0+r} ${y1} A ${r} ${r} 0 0 1 ${x0} ${y1-r} ` +
               `L ${x0} ${y0+r} A ${r} ${r} 0 0 1 ${x0+r} ${y0} ` +
-              `L ${x1-r} ${y0} A ${r} ${r} 0 0 1 ${x1} ${y0+r} Z`;
+              `L ${x1-r} ${y0} A ${r} ${r} 0 0 1 ${x1} ${y0+r} ` +
+              `L ${x1} ${y1-r} A ${r} ${r} 0 0 1 ${x1-r} ${y1} Z`;
 
     const carpet = document.createElementNS(NS,'path');
     carpet.setAttribute('d', d); carpet.setAttribute('fill','none');
@@ -928,20 +942,26 @@
     // 角の部屋：角の弧の中心から内側へ。入口は角の前後2マス
     const out = r * 0.3;   // 弧の中心から角のほうへ少し寄せる
     const cornerInfo = {
-      br: { box:{x:x1-r+out, y:y1-r+out}, ci:1 },
-      bl: { box:{x:x0+r-out, y:y1-r+out}, ci:3 },
-      tl: { box:{x:x0+r-out, y:y0+r-out}, ci:5 },
-      tr: { box:{x:x1-r+out, y:y0+r-out}, ci:7 }
+      bl: { box:{x:x0+r-out, y:y1-r+out}, ci:1 },
+      tl: { box:{x:x0+r-out, y:y0+r-out}, ci:3 },
+      tr: { box:{x:x1-r+out, y:y0+r-out}, ci:5 },
+      br: { box:{x:x1-r+out, y:y1-r+out}, ci:7 }
     };
     roomBoxes = {};
     ROOMS.forEach(room=>{
       if(room.corner === 'vault'){
         room.doors = [N-2, N-1];
-        roomBoxes.vault = { x:((x1 - r*0.62)/w)*100, y:((h/2 - r*0.22)/h)*100 };
+        // 入口2マスの上あたり。縦長画面で右下の角部屋と横に近いときは、かぶらないよう上にずらす
+        const vx = raw[N-1].x + (raw[N-2].x - raw[N-1].x) * 0.6;
+        const brCx = x1 - r + out, brCy = y1 - r + out;
+        const vy = (brCx - vx) < 110 ? Math.min(y1 - r*0.95, brCy - 84) : y1 - r*0.95;
+        roomBoxes.vault = { x:(vx/w)*100, y:(vy/h)*100 };
       } else {
         const ci = cornerInfo[room.corner];
-        const cornerPos = (ci.ci * N) / 8;   // 角は 3.5, 10.5, 17.5, 24.5 マス目
-        room.doors = [Math.floor(cornerPos), Math.ceil(cornerPos)];
+        const cornerPos = (ci.ci * N) / 8;   // 角は 2.5, 7.5, 12.5, 17.5 マス目
+        let d0 = Math.floor(cornerPos), d1 = Math.ceil(cornerPos);
+        while(d1 >= N-2){ d0--; d1--; }   // 宝物庫の入口（N-2, N-1）とかぶらないよう手前へずらす
+        room.doors = [d0, d1];
         roomBoxes[room.key] = { x:(ci.box.x/w)*100, y:(ci.box.y/h)*100 };
       }
       const bx = roomBoxes[room.key].x/100*w, by = roomBoxes[room.key].y/100*h;
@@ -956,7 +976,7 @@
 
     // 玄関ホール → マス0
     const hallLink = document.createElementNS(NS,'line');
-    hallLink.setAttribute('x1', w/2 + Math.min(w*0.24, 165)); hallLink.setAttribute('y1', h*0.68);
+    hallLink.setAttribute('x1', w/2); hallLink.setAttribute('y1', h*0.68);
     hallLink.setAttribute('x2', raw[0].x); hallLink.setAttribute('y2', raw[0].y);
     hallLink.setAttribute('class','room-link');
     trackSvg.appendChild(hallLink);
