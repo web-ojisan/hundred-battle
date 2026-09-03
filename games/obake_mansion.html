@@ -334,9 +334,9 @@
   }
   #hallWrap{
     position:absolute;
-    left:50%; top:66.5%;
+    left:45%; top:66.5%;
     transform:translate(-50%,-50%);
-    width:min(48%,330px);
+    width:min(36%,230px);
     z-index:6;
   }
 
@@ -709,7 +709,7 @@
         <div class="rule-item"><span>🚪</span>部屋のまえの赤丸マス2つから入れる（入るのに1マスぶん使う）</div>
         <div class="rule-item"><span>💎</span>部屋の宝石は4こずつ。おくほど大きい（1・2・3・4・6）</div>
         <div class="rule-item"><span>😱</span>おばけにおいつかれる・追いぬかれると少年はいなくなる</div>
-        <div class="rule-item"><span>🏠</span>おばけが玄関を通るとホールの少年もつかまる</div>
+        <div class="rule-item"><span>🌳</span>おばけが門を通ると門の前の少年もつかまる</div>
         <div class="rule-item"><span>💨</span>おばけは館を1周すると2マスずつすすむ</div>
         <div class="rule-item"><span>🧍</span>1マスに少年は4人まで。いっぱいなら1マスもどる</div>
       </div>
@@ -738,16 +738,16 @@
     <div id="centerPanel">
       <div id="ghostBadge">👻 おばけのはやさ 1</div>
       <div id="turnLabel">じゅんび中…</div>
+      <div id="hintLabel"></div>
       <div id="roulette">
         <div id="roulettePointer"></div>
         <svg id="rouletteWheel" viewBox="-100 -100 200 200"></svg>
       </div>
-      <div id="hintLabel"></div>
       <div id="choiceBar"></div>
     </div>
     <div id="hallWrap">
       <div id="hallBox">
-        <div class="hall-title">🏠 玄関ホール</div>
+        <div class="hall-title">🌳 門の前</div>
         <div id="hallRows"></div>
       </div>
     </div>
@@ -979,9 +979,9 @@
       });
     });
 
-    // 玄関ホール → マス0
+    // 門の前（待機場所） → マス0（門）
     const hallLink = document.createElementNS(NS,'line');
-    hallLink.setAttribute('x1', w/2); hallLink.setAttribute('y1', h*0.665);
+    hallLink.setAttribute('x1', w*0.45); hallLink.setAttribute('y1', h*0.665);
     hallLink.setAttribute('x2', raw[0].x); hallLink.setAttribute('y2', raw[0].y);
     hallLink.setAttribute('class','room-link');
     trackSvg.appendChild(hallLink);
@@ -1509,7 +1509,7 @@
         ghost.passedEntrance = true;
         let n = 0;
         state.players.forEach(p => p.boys.forEach(b => { if(b.state === 'home'){ b.state = 'caught'; n++; } }));
-        msgs.push(n > 0 ? '🏠 おばけが玄関にきた！ ホールにいた少年' + n + '人がつかまった…' : '🏠 おばけが玄関を通りすぎた！');
+        msgs.push(n > 0 ? '🌳 おばけが門にきた！ 門の前にいた少年' + n + '人がつかまった…' : '🌳 おばけが門を通りすぎた！');
       }
       if(ghost.traveled === N) msgs.push('💨 おばけが館を1周した！ これから2マスずつすすむ！');
       const caught = [];
