@@ -681,6 +681,18 @@
   }
   #playAgainBtn{ background:var(--gold); box-shadow:0 5px 0 #c99a1f; }
   #backToSetupBtn{ background:#fff; }
+  /* 他ゲームと共通の「ゲームせんたくへ」導線（せってい画面のリンク／結果画面のボタン） */
+  .back-link{
+    display:block; margin:16px auto 0; text-align:center;
+    font-size:.75rem; color:var(--ink-soft); font-weight:700; text-decoration:none; opacity:.8;
+  }
+  .back-link:hover{ opacity:1; }
+  .win-home{
+    display:block; width:100%; margin-top:10px; padding:10px 0;
+    border-radius:14px; border:2.5px solid var(--ink);
+    background:#fff; color:var(--ink); text-align:center; text-decoration:none;
+    font-family:inherit; font-weight:800; font-size:13px;
+  }
 
   @media (max-width:520px){
     .card{ padding:24px 18px; }
@@ -722,6 +734,7 @@
       </div>
 
       <button class="start-btn" id="startBtn">館にはいる！</button>
+      <a href="../index.html" class="back-link">← ゲームせんたくにもどる</a>
     </div>
   </div>
 
@@ -777,6 +790,7 @@
       <button id="playAgainBtn">もう一度あそぶ</button>
       <button id="backToSetupBtn">せっていへ</button>
     </div>
+    <a href="../index.html" class="win-home">🏠 ゲームせんたくへ</a>
   </div>
 </div>
 
