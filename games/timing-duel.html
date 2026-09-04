@@ -322,6 +322,17 @@
     100% { transform:translateX(0)   scale(1,1)         rotate(0deg); }
   }
 
+  /* スプライトシート型キャラ（例: ガンナー KSKMN.png）。
+     <img> は透明SVGで枠だけ確保し、background-image にシートを敷いて
+     background-position でコマを切り替える。発砲コマでは .recoil の小反動を重ねる。 */
+  .char-img.sprite{ background-repeat:no-repeat; }
+  .char-img.recoil{ animation:charRecoil .14s ease-out both; }
+  @keyframes charRecoil{
+    0%  { transform:translateX(0)                          scale(1,1); }
+    35% { transform:translateX(calc(-1.2% * var(--kick,1))) scale(1.03,.97); }
+    100%{ transform:translateX(0)                          scale(1,1); }
+  }
+
   /* ── confetti ── */
   .confetti-wrap{ position:absolute; inset:0; z-index:5; pointer-events:none; overflow:hidden; }
   .confetti-piece{
@@ -503,6 +514,33 @@
     for (var i=0;i<bufferSize;i++) data[i] = (Math.random()*2-1) * Math.pow(1-i/bufferSize, p);
     return buffer;
   }
+
+  // ガンナーの銃声。ノイズのバースト＋低音のドンを合成する（shots=2 で「ドドン」の二連射）
+  function playGunshot(shots){
+    var ctx = audioCtx(); if (!ctx) return;
+    if (ctx.state === 'suspended') ctx.resume();
+    var n = shots || 1;
+    for (var k=0;k<n;k++){
+      var t0 = ctx.currentTime + k * 0.075, dur = 0.22;
+      var noise = ctx.createBufferSource(); noise.buffer = createNoiseBuffer(ctx, dur, 3);
+      var lp = ctx.createBiquadFilter(); lp.type = 'lowpass';
+      lp.frequency.setValueAtTime(3200, t0);
+      lp.frequency.exponentialRampToValueAtTime(180, t0 + dur);
+      var g = ctx.createGain();
+      g.gain.setValueAtTime(0.42, t0);
+      g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+      noise.connect(lp); lp.connect(g); g.connect(ctx.destination);
+      noise.start(t0);
+      var osc = ctx.createOscillator(), og = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(160, t0);
+      osc.frequency.exponentialRampToValueAtTime(45, t0 + 0.18);
+      og.gain.setValueAtTime(0.3, t0);
+      og.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.2);
+      osc.connect(og); og.connect(ctx.destination);
+      osc.start(t0); osc.stop(t0 + 0.22);
+    }
+  }
   function playExplosion(){
     var ctx = audioCtx(); if (!ctx) return;
     if (ctx.state === 'suspended') ctx.resume();
@@ -648,7 +686,8 @@
     function(){ playSfxBuffer(sfxBuffers.sword); },
     function(){ playSfxBuffer(sfxBuffers.magic); },
     function(){ playSfxBuffer(sfxBuffers.fire);  },
-    function(){ playSfxBuffer(sfxBuffers.sword); }
+    function(){ playSfxBuffer(sfxBuffers.sword); },
+    function(){}  // ガンナーはスプライト再生側(playSpriteAttack)で発砲音を鳴らす
   ];
 
   /* ── BGM ── */
@@ -723,7 +762,22 @@
     {name:'剣士',   sub:'剣',       img:'img/fighter.png',  imgAtk:'img/fighter_atack.png'},
     {name:'魔法使い',sub:'杖で魔法', img:'img/magic.png',    imgAtk:'img/magic_atack.png'},
     {name:'魔物',   sub:'怪力',     img:'img/dragon.png',   imgAtk:'img/dragon_atack.png'},
-    {name:'戦士',   sub:'大剣',     img:'img/warrior.png',  imgAtk:'img/warrior_atack.png'}
+    {name:'戦士',   sub:'大剣',     img:'img/warrior.png',  imgAtk:'img/warrior_atack.png'},
+    {name:'ガンナー', sub:'光線銃',
+      // スプライトシート: 3列×4行、1コマ 164×116px
+      sprite:{ src:'img/KSKMN.png', cols:3, rows:4, w:164, h:116, idle:0, speed:1,
+        // [コマ番号, 表示ms, 衝撃]  衝撃: 0=なし / 1=小反動 / 3=発砲(シェイク+閃光+銃声) / 4=連射(二連銃声)
+        attack:[
+          [0,600,0],[1,320,0],[2,700,0],      // 構え → 照準 → タメ
+          [3,60,1],[4,100,3],[5,60,1],        // ドン
+          [2,420,0],                          // 、、、
+          [3,60,1],[4,100,3],[5,60,1],        // ドン
+          [6,380,0],                          // 、、、
+          [7,90,1],[8,120,4],                 // ドドン
+          [6,240,0],[7,80,1],[8,120,4],       // ドドン
+          [9,420,0],[10,420,0],[11,420,0],    // 煙 → かがむ → 座り込む
+          [11,900,0]                          // 余韻
+        ] } }
   ];
   var NAME_POOL = ['ピエトロ','ジェフ','サム','マイク','トム','ジョン','アレックス','カルロス',
     'ルーカス','ディエゴ','マルコ','ネイト','ライアン','ケビン','ダニー',
@@ -833,14 +887,90 @@
   function setCharImg(p, st){
     var img=$('charImg'+p); if(!img) return;
     var pl=players.find(function(x){ return x.id===p; }); if(!pl) return;
-    var c=CHARACTERS[pl.charIndex]; if(!c) return;
-    if (st==='atk'){ playCharAttack(p, img, c); img.style.filter=''; return; }
+    var c=CHARACTERS[pl.charIndex]; if(!c || !(c.img || c.sprite)) return;
+    if (st==='atk'){
+      if (c.sprite) playSpriteAttack(p, img, c); else playCharAttack(p, img, c);
+      img.style.filter=''; return;
+    }
     // 通常/dim表示への切り替え：進行中のアタック演出があれば強制リセットしておく
     clearTimeout(attackTimers[p]);
+    clearTimeout(recoilTimers[p]);
     attackBusy[p] = false;
-    img.classList.remove('attacking');
-    img.src = c.img;
+    img.classList.remove('attacking','recoil');
+    applyCharBase(img, c);
     img.style.filter = st==='dim' ? 'grayscale(1) brightness(.45)' : '';
+  }
+
+  /* ---------- スプライトシート型キャラ（CHARACTERS[i].sprite）の表示 ---------- */
+  var recoilTimers = {};             // p -> timeoutId。.recoil を剥がす予約
+  var spriteBlankCache = {};
+
+  // 1コマと同じ縦横比の透明SVGを <img> に入れて枠だけ確保する（実際の絵は background-image）
+  function spriteBlank(s){
+    var key = s.w + 'x' + s.h;
+    if (!spriteBlankCache[key]){
+      spriteBlankCache[key] = 'data:image/svg+xml,' + encodeURIComponent(
+        '<svg xmlns="http://www.w3.org/2000/svg" width="' + s.w + '" height="' + s.h + '"></svg>');
+    }
+    return spriteBlankCache[key];
+  }
+
+  // コマ番号（左上=0、行方向に増える）→ background-position
+  function spriteSetFrame(img, s, frame){
+    var col = frame % s.cols, row = Math.floor(frame / s.cols);
+    var x = s.cols > 1 ? col * 100 / (s.cols - 1) : 0;
+    var y = s.rows > 1 ? row * 100 / (s.rows - 1) : 0;
+    img.style.backgroundPosition = x + '% ' + y + '%';
+  }
+
+  // 立ち絵の初期表示（通常/dim 用）。スプライト型か1枚絵型かで切り替える
+  function applyCharBase(img, c){
+    if (c.sprite){
+      var s = c.sprite;
+      img.classList.add('sprite');
+      img.src = spriteBlank(s);
+      img.style.backgroundImage = 'url(' + s.src + ')';
+      img.style.backgroundSize = (s.cols * 100) + '% ' + (s.rows * 100) + '%';
+      spriteSetFrame(img, s, s.idle || 0);
+    } else {
+      img.classList.remove('sprite');
+      img.style.backgroundImage = '';
+      img.style.backgroundSize = '';
+      img.style.backgroundPosition = '';
+      img.src = c.img;
+    }
+  }
+
+  // スプライト型キャラの攻撃演出。sprite.attack の [コマ番号, 表示ms, 衝撃] を順に再生し、
+  // 最後のコマで止める（次ラウンドの 'normal' で構えに戻る）。sprite.speed で全体の再生速度を調整できる。
+  // 衝撃: 0=なし / 1=小さな反動 / 3=発砲（升目シェイク+閃光+銃声） / 4=連射（二連銃声）
+  function playSpriteAttack(p, img, c){
+    if (attackBusy[p]) return; // 連打防止：再生中は再トリガーしない
+    attackBusy[p] = true;
+    img.classList.remove('attacking');
+    applyCharBase(img, c);
+    var s = c.sprite, seq = s.attack || [], speed = s.speed || 1, i = 0;
+    function step(){
+      if (i >= seq.length){ attackBusy[p] = false; return; }
+      var f = seq[i++];
+      spriteSetFrame(img, s, f[0]);
+      var kick = f[2] || 0;
+      if (kick > 0){
+        img.style.setProperty('--kick', kick);
+        img.classList.remove('recoil'); void img.offsetWidth; img.classList.add('recoil');
+        clearTimeout(recoilTimers[p]);
+        recoilTimers[p] = setTimeout(function(){ img.classList.remove('recoil'); }, 160);
+      }
+      if (kick >= 3){
+        var zone = zoneEl(p);
+        var inner = zone && zone.querySelector('.zone-inner');
+        if (inner){ inner.classList.remove('shake'); void inner.offsetWidth; inner.classList.add('shake'); }
+        spawnAttackFlash(p);
+        playGunshot(kick >= 4 ? 2 : 1);
+      }
+      attackTimers[p] = setTimeout(step, f[1] / speed);
+    }
+    step();
   }
 
   // タメ→踏み込み→反動シェイクの3拍子。踏み込みの瞬間にATTACK画像へパキッと切替え、
