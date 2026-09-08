@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>マイクラ算</title>
+<link href="https://fonts.googleapis.com/css2?family=DotGothic16&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --sky:#8ECBF0;
+    --grass:#5FA83B;
+    --grass-dark:#3F7D26;
+    --dirt:#6E4A2B;
+    --dirt-dark:#4B3119;
+    --stone:#9A9A9A;
+    --paper:#F3E9C9;
+    --ink:#2A2016;
+    --gem:#4FE3EC;
+    --gem-dark:#1FA9B4;
+    --gold:#F2C94C;
+    --unit:4px;
+  }
+  *{box-sizing:border-box}
+  html{background:var(--sky)}
+  body{
+    margin:0;
+    font-family:"DotGothic16","Hiragino Maru Gothic ProN","Yu Gothic",monospace;
+    color:var(--ink);
+    font-size:18px;
+    line-height:1.7;
+    image-rendering:pixelated;
+  }
+  .world{max-width:520px;margin:0 auto;padding:0 12px 80px}
+
+  /* ---- hero: grass band ---- */
+  .hero{
+    margin:24px -12px 0;
+    padding:32px 16px 0;
+    text-align:center;
+  }
+  .hero h1{
+    font-size:56px;
+    line-height:1;
+    margin:0;
+    color:#fff;
+    text-shadow:
+      4px 4px 0 var(--grass-dark),
+      8px 8px 0 var(--dirt-dark);
+    letter-spacing:.04em;
+  }
+  .hero p{margin:14px auto 0;max-width:340px;font-size:16px}
+  .ground{
+    height:56px;
+    margin-top:22px;
+    background:
+      linear-gradient(var(--grass) 0 16px, var(--grass-dark) 16px 22px, var(--dirt) 22px 100%);
+    position:relative;
+  }
+  .ground::after{
+    content:"";position:absolute;inset:0;
+    background-image:
+      linear-gradient(90deg, rgba(0,0,0,.07) 25%, transparent 25% 50%, rgba(0,0,0,.07) 50% 75%, transparent 75%);
+    background-size:32px 32px;
+    mix-blend-mode:multiply;
+  }
+
+  /* ---- recipe strip ---- */
+  .recipe{
+    display:flex;gap:12px;justify-content:center;
+    margin:-20px 0 28px;
+  }
+  .recipe .slot{
+    background:var(--stone);
+    border:4px solid var(--dirt-dark);
+    box-shadow:4px 4px 0 var(--dirt-dark);
+    padding:10px 12px 8px;
+    min-width:120px;text-align:center;
+    color:#fff;font-size:15px;
+  }
+  .recipe .slot svg{display:block;margin:0 auto 4px}
+  .gemline{display:inline-flex;gap:2px;vertical-align:middle}
+
+  /* ---- stages ---- */
+  h2{
+    font-size:26px;margin:36px 0 6px;
+    display:flex;align-items:center;gap:10px;
+  }
+  h2 .badge{
+    display:inline-block;background:var(--dirt);color:#fff;
+    padding:2px 12px;border:4px solid var(--dirt-dark);font-size:18px;
+  }
+  .lead{margin:0 0 18px;font-size:16px}
+
+  .q{
+    background:var(--paper);
+    border:4px solid var(--dirt-dark);
+    box-shadow:6px 6px 0 var(--dirt-dark);
+    padding:16px;margin-bottom:28px;
+  }
+  .q .title{font-size:20px;margin:0 0 8px}
+  .q .text{margin:0 0 14px}
+  .q .text b{color:var(--gem-dark)}
+
+  table{width:100%;border-collapse:collapse;font-size:17px;margin:8px 0}
+  th,td{padding:6px 4px;text-align:center;border-bottom:2px dashed rgba(42,32,22,.25)}
+  th{font-weight:normal;color:var(--dirt);font-size:15px}
+  tr.hit td{background:var(--gold);font-weight:bold}
+  tr.new td{animation:pop .25s steps(3)}
+  @keyframes pop{from{transform:translateY(-6px);opacity:0}to{transform:none;opacity:1}}
+
+  .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:10px}
+  button{
+    font:inherit;font-size:17px;
+    background:var(--grass);color:#fff;
+    border:4px solid var(--grass-dark);
+    box-shadow:4px 4px 0 var(--dirt-dark);
+    padding:8px 16px;cursor:pointer;
+  }
+  button:active{transform:translate(2px,2px);box-shadow:2px 2px 0 var(--dirt-dark)}
+  button.ghost{background:var(--stone);border-color:#666}
+  button:disabled{opacity:.45;cursor:default}
+  button:focus-visible{outline:4px solid var(--gem);outline-offset:2px}
+  input[type=number]{
+    font:inherit;font-size:20px;width:80px;text-align:center;
+    border:4px solid var(--dirt-dark);background:#fff;padding:6px;
+  }
+  .msg{margin-top:10px;min-height:1.7em}
+  .msg.ok{color:var(--grass-dark);font-weight:bold}
+  .msg.ng{color:#B23A2B}
+  .msg.ng b{font-size:22px}
+
+  /* stage 2 steps */
+  .steps{list-style:none;padding:0;margin:10px 0 0}
+  .steps li{
+    border-left:6px solid var(--stone);
+    padding:6px 12px;margin-bottom:8px;
+    background:rgba(255,255,255,.5);
+    display:none;
+  }
+  .steps li.show{display:block;border-color:var(--gem-dark)}
+  .steps li .big{font-size:24px;display:block}
+  .hint{font-size:15px;color:var(--dirt);margin-top:8px}
+
+  .back-link{
+    display:inline-block;margin-top:40px;font-size:15px;color:var(--dirt-dark);
+    text-decoration:none;border-bottom:2px dashed var(--dirt-dark);
+  }
+  .back-link:focus-visible{outline:4px solid var(--gem);outline-offset:2px}
+
+  @media (prefers-reduced-motion: reduce){
+    tr.new td{animation:none}
+  }
+  @media (max-width:380px){
+    .hero h1{font-size:46px}
+    .recipe .slot{min-width:0;flex:1}
+  }
+</style>
+</head>
+<body>
+<div class="world">
+
+  <header class="hero">
+    <h1>マイクラ算</h1>
+    <p>ダイヤの数から、剣とつるはしを何本作ったかをあてる問題。<br>棒は十分にある。</p>
+    <div class="ground"></div>
+  </header>
+
+  <div class="recipe">
+    <div class="slot">
+      <svg width="40" height="40" viewBox="0 0 10 10" aria-label="剣">
+        <rect x="6" y="1" width="1" height="1" fill="#e8e8e8"/><rect x="7" y="1" width="1" height="1" fill="#e8e8e8"/>
+        <rect x="5" y="2" width="1" height="1" fill="#e8e8e8"/><rect x="6" y="2" width="1" height="1" fill="#bcbcbc"/><rect x="7" y="2" width="1" height="1" fill="#e8e8e8"/>
+        <rect x="4" y="3" width="1" height="1" fill="#e8e8e8"/><rect x="5" y="3" width="1" height="1" fill="#bcbcbc"/>
+        <rect x="3" y="4" width="1" height="1" fill="#e8e8e8"/><rect x="4" y="4" width="1" height="1" fill="#bcbcbc"/>
+        <rect x="2" y="5" width="1" height="1" fill="#e8e8e8"/><rect x="3" y="5" width="1" height="1" fill="#bcbcbc"/>
+        <rect x="1" y="6" width="1" height="1" fill="#6E4A2B"/><rect x="2" y="6" width="1" height="1" fill="#6E4A2B"/><rect x="3" y="6" width="1" height="1" fill="#6E4A2B"/>
+        <rect x="2" y="7" width="1" height="1" fill="#6E4A2B"/><rect x="1" y="7" width="1" height="1" fill="#4B3119"/>
+        <rect x="1" y="8" width="1" height="1" fill="#4B3119"/>
+      </svg>
+      剣 ＝ ダイヤ2個
+    </div>
+    <div class="slot">
+      <svg width="40" height="40" viewBox="0 0 10 10" aria-label="つるはし">
+        <rect x="3" y="1" width="1" height="1" fill="#4FE3EC"/><rect x="4" y="1" width="1" height="1" fill="#4FE3EC"/><rect x="5" y="1" width="1" height="1" fill="#4FE3EC"/><rect x="6" y="1" width="1" height="1" fill="#4FE3EC"/>
+        <rect x="2" y="2" width="1" height="1" fill="#4FE3EC"/><rect x="7" y="2" width="1" height="1" fill="#4FE3EC"/>
+        <rect x="1" y="3" width="1" height="1" fill="#1FA9B4"/><rect x="8" y="3" width="1" height="1" fill="#1FA9B4"/>
+        <rect x="1" y="4" width="1" height="1" fill="#1FA9B4"/><rect x="8" y="4" width="1" height="1" fill="#1FA9B4"/>
+        <rect x="4" y="2" width="2" height="7" fill="#6E4A2B"/>
+        <rect x="4" y="8" width="2" height="1" fill="#4B3119"/>
+      </svg>
+      つるはし ＝ ダイヤ3個
+    </div>
+  </div>
+
+  <h2><span class="badge">段階1</span>1本ずつすり替える</h2>
+  <p class="lead">まず「全部つるはし」から始めて、つるはしを1本減らして剣を1本増やす、をくり返す。ダイヤの数がぴったりになったら正解。</p>
+  <div id="stage1"></div>
+
+  <h2><span class="badge">段階2</span>並べて、引いて、割る</h2>
+  <p class="lead">本数が多いと表を書くのがつらい。仮の結果と本当の結果を並べて、差を「1本入れかえたときの差」で割る。</p>
+  <div id="stage2"></div>
+
+  <p style="text-align:center"><a href="../index.html" class="back-link">← ゲームせんたくにもどる</a></p>
+
+</div>
+
+<script>
+const GEM = '<svg class="gem" width="14" height="14" viewBox="0 0 7 7" aria-hidden="true"><rect x="3" y="0" width="1" height="1" fill="#4FE3EC"/><rect x="2" y="1" width="3" height="1" fill="#4FE3EC"/><rect x="1" y="2" width="5" height="1" fill="#4FE3EC"/><rect x="0" y="3" width="7" height="1" fill="#1FA9B4"/><rect x="1" y="4" width="5" height="1" fill="#1FA9B4"/><rect x="2" y="5" width="3" height="1" fill="#1FA9B4"/><rect x="3" y="6" width="1" height="1" fill="#1FA9B4"/></svg>';
+
+const stage1 = [
+  {a:'剣', ac:2, b:'つるはし', bc:3, total:3, target:7},
+  {a:'剣', ac:2, b:'斧', bc:3, total:4, target:10},
+  {a:'シャベル', ac:1, b:'つるはし', bc:3, total:5, target:11},
+];
+
+function gems(n){ return '<span class="gemline">' + GEM.repeat(Math.min(n,12)) + (n>12?'…':'') + '</span>'; }
+
+function buildStage1(){
+  const root = document.getElementById('stage1');
+  stage1.forEach((p,i)=>{
+    const q = document.createElement('section');
+    q.className='q';
+    q.innerHTML = `
+      <p class="title">問${i+1}</p>
+      <p class="text">${p.a}（ダイヤ${p.ac}個）と${p.b}（ダイヤ${p.bc}個）を合わせて<b>${p.total}本</b>作ったら、ダイヤをちょうど<b>${p.target}個</b>使った。<br>${p.a}は何本？</p>
+      <table>
+        <thead><tr><th>${p.b}</th><th>${p.a}</th><th>ダイヤ</th></tr></thead>
+        <tbody></tbody>
+      </table>
+      <div class="row">
+        <button class="swap">${p.b}を1本減らして${p.a}を1本増やす</button>
+        <button class="ghost reset">最初から</button>
+      </div>
+      <p class="msg"></p>`;
+    root.appendChild(q);
+
+    const tbody = q.querySelector('tbody');
+    const swapBtn = q.querySelector('.swap');
+    const resetBtn = q.querySelector('.reset');
+    const msg = q.querySelector('.msg');
+    let aCount = 0;
+
+    function render(){
+      const bCount = p.total - aCount;
+      const gem = aCount*p.ac + bCount*p.bc;
+      const tr = document.createElement('tr');
+      tr.className='new';
+      tr.innerHTML = `<td>${bCount}</td><td>${aCount}</td><td>${gem}</td>`;
+      tbody.appendChild(tr);
+      if(gem===p.target){
+        tr.classList.add('hit');
+        msg.className='msg ok';
+        msg.textContent = `ぴったり${p.target}個。${p.a}は${aCount}本、${p.b}は${bCount}本。`;
+        swapBtn.disabled=true;
+      } else {
+        msg.className='msg';
+        const diff = gem - p.target;
+        msg.textContent = diff>0 ? `あと${diff}個多い。${p.b}を1本減らして${p.a}を1本増やすと${p.bc-p.ac}個減る。` : '';
+      }
+      if(aCount===p.total) swapBtn.disabled=true;
+    }
+    function reset(){
+      tbody.innerHTML=''; aCount=0; swapBtn.disabled=false; render();
+      msg.textContent = `全部${p.b}なら ${p.bc}×${p.total}＝${p.bc*p.total}個。`;
+    }
+    swapBtn.addEventListener('click',()=>{ aCount++; render(); });
+    resetBtn.addEventListener('click',reset);
+    reset();
+  });
+}
+
+const stage2 = {a:'剣', ac:2, b:'チェストプレート', bc:8, total:20, target:76};
+
+function buildStage2(){
+  const p = stage2;
+  const root = document.getElementById('stage2');
+  const allB = p.bc*p.total;
+  const diff = allB - p.target;
+  const per = p.bc - p.ac;
+  const ans = diff/per;
+  const q = document.createElement('section');
+  q.className='q';
+  q.innerHTML = `
+    <p class="title">問4</p>
+    <p class="text">${p.a}（ダイヤ${p.ac}個）と${p.b}（ダイヤ${p.bc}個）を合わせて<b>${p.total}個</b>作ったら、ダイヤを<b>${p.target}個</b>使った。<br>${p.a}は何個？</p>
+    <div class="row">
+      <label>${p.a} <input type="number" min="0" max="${p.total}" inputmode="numeric"> 個</label>
+      <button class="check">こたえあわせ</button>
+    </div>
+    <p class="msg"></p>
+    <div class="row">
+      <button class="ghost next">ヒントを1つ見る</button>
+    </div>
+    <ol class="steps">
+      <li><strong>並べる</strong><br>全部${p.b}なら <span class="big">${p.bc}×${p.total}＝${allB}個</span> 本当は <span class="big">${p.target}個</span></li>
+      <li><strong>引く</strong><br><span class="big">${allB}－${p.target}＝${diff}個</span> 多い</li>
+      <li><strong>割る</strong><br>${p.b}を1個減らして${p.a}を1個増やすと、ダイヤは ${p.bc}－${p.ac}＝${per}個 減る<br><span class="big">${diff}÷${per}＝${ans}</span> → ${p.a}は${ans}個、${p.b}は${p.total-ans}個</li>
+      <li><strong>検算</strong><br>${p.ac}×${ans}＋${p.bc}×${p.total-ans}＝${p.ac*ans}＋${p.bc*(p.total-ans)}＝${p.target} ✓</li>
+    </ol>
+    <p class="hint">表を書くなら${p.total}行。並べて割れば3行で終わる。</p>`;
+  root.appendChild(q);
+
+  const input = q.querySelector('input');
+  const msg = q.querySelector('.msg');
+  const steps = q.querySelectorAll('.steps li');
+  let shown = 0;
+  q.querySelector('.check').addEventListener('click',()=>{
+    const v = Number(input.value);
+    if(input.value===''){ msg.className='msg'; msg.textContent='数を入れてね。'; return; }
+    if(v===ans){ msg.className='msg ok'; msg.textContent=`正解。${p.a}${ans}個、${p.b}${p.total-ans}個。`; steps.forEach(s=>s.classList.add('show')); }
+    else {
+      const bv = p.total - v;
+      const used = p.ac*v + p.bc*bv;
+      const d = used - p.target;
+      msg.className='msg ng';
+      msg.innerHTML = `${p.a}${v}個・${p.b}${bv}個だと、ダイヤは ${p.ac}×${v}＋${p.bc}×${bv}＝<b>${used}個</b>。<br>${p.target}個より${Math.abs(d)}個${d>0?'多い':'少ない'}。${p.a}は${d>0?'もっと多い':'もっと少ない'}。`;
+    }
+  });
+  q.querySelector('.next').addEventListener('click',(e)=>{
+    if(shown<steps.length){ steps[shown].classList.add('show'); shown++; }
+    if(shown===steps.length) e.target.disabled=true;
+  });
+}
+
+buildStage1();
+buildStage2();
+</script>
+<script src="../pause-ui.js"></script>
+</body>
+</html>
