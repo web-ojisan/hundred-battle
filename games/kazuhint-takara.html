@@ -90,12 +90,24 @@ body{transition:box-shadow .3s}
 .gem{display:block;width:62%}
 .cell.multi .gem{width:44%}
 @media (prefers-reduced-motion:reduce){.cell.ring{animation:none}.btn:active{transform:none}}
+/* 席の向きへ画面ごと回す。#rot が回転し、#app は中でいつも通りレイアウトする */
+body{overflow:hidden}
+#rot{position:fixed;left:50%;top:50%;width:100vw;height:100vh;height:100dvh;
+  transform:translate(-50%,-50%) rotate(0deg);transition:transform .7s cubic-bezier(.3,.9,.3,1)}
+#rot.side{width:100vh;width:100dvh;height:100vw}
+@media (prefers-reduced-motion:reduce){#rot{transition:none}}
+.seats{flex:1;min-height:0;display:grid;gap:10px;grid-template-columns:96px 1fr 96px;grid-template-rows:96px 1fr 96px;
+  grid-template-areas:". t ." "l c r" ". b ."}
+.seat{position:relative;border:3px dashed var(--ink-dim);background:rgba(255,255,255,.06);border-radius:16px;color:var(--ink);font-size:22px}
+.seat span{position:absolute;left:50%;top:50%;white-space:nowrap;display:flex;gap:6px;align-items:center}
+.seat i{width:.9em;height:.9em;border-radius:50%;display:block}
+.seatc{display:flex;flex-direction:column;gap:16px;align-items:center;justify-content:center;text-align:center;min-height:0;overflow:auto}
 a.small{text-decoration:none;display:inline-block}
 .homebar{display:flex;justify-content:flex-end}
 </style>
 </head>
 <body>
-<div id="app"></div>
+<div id="rot"><div id="app"></div></div>
 <span id="pauseTrigger" hidden></span>
 <script>
 const P=[{name:'あか',c:'var(--p0)'},{name:'あお',c:'var(--p1)'},{name:'きいろ',c:'var(--p2)'},{name:'みどり',c:'var(--p3)'},{name:'むらさき',c:'var(--p4)'}];
@@ -103,7 +115,7 @@ function per(){return S.n>=5?2:3;}
 let S, ringAt=-1, askReset=false, ac;
 const app=document.getElementById('app');
 
-function fresh(n){return {phase:'setup',n:n||3,size:6,cur:0,hides:[],pick:[],open:[],score:[],msg:'',last:-1};}
+function fresh(n){return {phase:'setup',n:n||3,size:6,cur:0,hides:[],pick:[],open:[],score:[],msg:'',last:-1,seat:[]};}
 function el(tag,attrs,...kids){
   const e=document.createElement(tag);
   for(const k in (attrs||{})){
@@ -151,11 +163,11 @@ function allFound(){
 }
 function pop(text,color,bad){
   const e=el('div',{class:'pop',style:'--c:'+color},text);
-  document.body.append(e);
+  rot.append(e);
   setTimeout(()=>e.remove(),1000);
   if(bad){
     const f=el('div',{class:'flash'});
-    document.body.append(f);
+    rot.append(f);
     setTimeout(()=>f.remove(),650);
     app.classList.remove('shake');void app.offsetWidth;app.classList.add('shake');
     setTimeout(()=>app.classList.remove('shake'),500);
@@ -167,6 +179,30 @@ function home(direct){
     :el('button',{class:'small',type:'button',id:'home',on:()=>document.getElementById('pauseTrigger').dispatchEvent(new Event('pointerdown'))},'🏠 ゲームせんたく');
 }
 function homebar(){return el('div',{class:'homebar'},home());}
+
+/* 席と回転: 0=てまえ 1=ひだり 2=むこう 3=みぎ */
+const rot=document.getElementById('rot');
+const SIDE_DEG=[0,90,180,-90];
+let SEAT=[], faceP=0, rotDeg=0;
+function setRot(target){
+  rotDeg+=((target-rotDeg)%360+540)%360-180;
+  rot.style.transform='translate(-50%,-50%) rotate('+rotDeg+'deg)';
+  rot.classList.toggle('side',Math.abs(target)===90);
+}
+function face(p){faceP=p;setRot(SIDE_DEG[S.seat[p]]||0);}
+function seatView(go){
+  const p=S.seat.length,pl=P[p];
+  const sb=(side,area)=>el('button',{class:'seat',type:'button',id:'seat'+side,style:'grid-area:'+area,'aria-label':['てまえ','ひだり','むこう','みぎ'][side],
+    on:()=>{S.seat.push(side);beep([660]);if(S.seat.length>=S.n){SEAT=S.seat.slice();go();}else render();}},
+    el('span',{style:'transform:translate(-50%,-50%) rotate('+SIDE_DEG[side]+'deg)'},
+      S.seat.map((s,q)=>s===side?el('i',{style:'background:'+P[q].c}):null),'ここ'));
+  return el('div',{class:'seats'},sb(2,'t'),sb(1,'l'),sb(3,'r'),sb(0,'b'),
+    el('div',{class:'seatc',style:'grid-area:c'},
+      el('p',{class:'big',style:'color:'+pl.c},pl.name+' さんの せきは どこ?'),
+      el('p',{class:'sub'},'タブレットを まんなかに おいて、じぶんが すわる がわを おしてね'),
+      (SEAT.length===S.n&&p===0)?el('button',{class:'btn',type:'button',id:'sameseat',on:()=>{S.seat=SEAT.slice();go();}},'まえと おなじ せき'):null,
+      el('button',{class:'small',type:'button',id:'seatback',on:()=>{S.seat=[];S.phase='setup';render();}},'もどる')));
+}
 
 /* actions */
 function begin(){
@@ -236,8 +272,8 @@ function showTurn(p,delay){
   document.querySelectorAll('.turnfx').forEach(e=>e.remove());
   const band=el('div',{style:'--c:'+P[p].c+';animation-delay:'+delay+'ms'},'つぎは '+P[p].name+' さん!');
   const fx=el('div',{class:'turnfx','aria-live':'polite'},band);
-  document.body.append(fx);
-  setTimeout(()=>beep([440,587,784]),delay);
+  rot.append(fx);
+  setTimeout(()=>{beep([440,587,784]);face(p);},delay);
   setTimeout(()=>fx.remove(),delay+1350);
 }
 
@@ -273,6 +309,7 @@ function board(mode){
 }
 function render(){
   app.textContent='';
+  setRot((S.phase==='play'||S.phase==='boom')?(SIDE_DEG[S.seat[faceP]]||0):0);
   const pl=P[S.cur];
   document.body.style.boxShadow=S.phase==='play'?'inset 0 0 0 8px '+pl.c:'none';
   if(S.phase==='setup'){
@@ -285,9 +322,12 @@ function render(){
         el('li',null,'じゅんばんに マスを ほる。ともだちの たからが でたら 1てんで、もう 1かい。かさなっていたら ボーナス +1てん。'),
         el('li',null,'じぶんの たからを ほると 1てん へる。'),
         el('li',null,'どこかに スーパーダイヤが 1こ ある。みつけたら 3てん!'),
-        el('li',null,'ハズレで でる すうじは、まわりの 8マスで、たからの ある マスが いくつ あるか。')),
-      el('button',{class:'btn',type:'button',id:'start',on:begin},'はじめる'),
+        el('li',null,'ハズレで でる すうじは、まわりの 8マスで、たからの ある マスが いくつ あるか。'),
+        el('li',null,'じぶんの ばんに なると、がめんが じぶんの せきの ほうを むくよ。')),
+      el('button',{class:'btn',type:'button',id:'start',on:()=>{S.seat=[];S.phase='seat';beep([523]);render();}},'はじめる'),
       home(true)));
+  }else if(S.phase==='seat'){
+    app.append(homebar(),seatView(begin));
   }else if(S.phase==='pass'){
     app.append(homebar(),el('div',{class:'center pass'},
       gem(S.cur),
