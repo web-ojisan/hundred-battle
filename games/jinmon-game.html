@@ -1,0 +1,837 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>尋問ゲーム</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho+B1:wght@600;800&family=Zen+Kaku+Gothic+New:wght@400;500;700&family=Zen+Maru+Gothic:wght@500;700&display=swap" rel="stylesheet">
+<style>
+/* 一画面の法廷。上=状況、中央=証言台の人物、下=生成りの紙に書かれた発言と操作。朱は「矛盾」の印だけに使う。 */
+:root{
+  color-scheme:dark;
+  --ink:#151a2d;      /* 藍墨の地 */
+  --panel:#222a46;    /* 一段明るい藍 */
+  --line:#3a4468;
+  --paper:#f3ecdc;    /* 生成りの紙 */
+  --sumi:#1e1b17;     /* 紙の上の墨 */
+  --shu:#d1432b;      /* 朱印 */
+  --matcha:#55793a;   /* 証言のしるし */
+  --gold:#d9b25f;     /* 名札 */
+  --muted:#a3acc6;--wood:#5b422b;--wood-hi:#7a5a3a;
+  --display:"Shippori Mincho B1","Hiragino Mincho ProN","Yu Mincho",serif;
+  --body:"Zen Kaku Gothic New","Hiragino Sans","Yu Gothic",sans-serif;
+}
+*{box-sizing:border-box;margin:0}
+[hidden]{display:none!important}
+html,body{height:100%}
+body{background:var(--ink);color:var(--paper);font-family:var(--body);font-size:16px;line-height:1.7;-webkit-tap-highlight-color:transparent}
+button{font:inherit;color:inherit;cursor:pointer;border:0;background:none}
+button:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+#app{height:100%;max-width:760px;margin:0 auto;display:flex;flex-direction:column;position:relative;overflow:hidden}
+
+/* HUD */
+header{display:flex;align-items:center;gap:12px;padding:6px 16px;border-bottom:1px solid var(--line)}
+.ttl{flex:1;min-width:0}
+.ttl{display:flex;align-items:baseline;gap:10px}
+.ttl small{display:block;font-size:11px;letter-spacing:.18em;color:var(--muted)}
+.ttl b{display:block;font-family:var(--display);font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+/* 舞台 */
+#stage{flex:1;min-height:270px;position:relative;overflow:hidden;display:flex;flex-direction:column}
+/* 上のコマ=法廷を見上げる引きの絵、下のコマ=証言台の寄り。間の帯で別カメラに見せる */
+#upper{flex:58;position:relative;overflow:hidden;
+  background:repeating-linear-gradient(90deg,transparent 0 46px,rgba(255,255,255,.035) 46px 48px),linear-gradient(#161c36,#252e52);}
+.gutter{flex:0 0 7px;background:var(--ink);border-top:1px solid rgba(243,236,220,.55);border-bottom:1px solid rgba(243,236,220,.55)}
+#lower{flex:42;min-height:120px;position:relative;overflow:hidden;
+  background:radial-gradient(120% 90% at 50% 100%,#3b4674,#1f2747 70%);}
+/* 裁判長まわりの飾り: 月の丸窓、行灯、柱、幕。話者の明暗とは別の層 */
+.deco{position:absolute;inset:0}
+.deco i{position:absolute;display:block}
+.valance{top:0;left:0;right:0;height:16px;background:radial-gradient(circle at 50% 0,#4a2f63 0 11px,transparent 12px) 0 6px/24px 16px repeat-x,linear-gradient(#4a2f63 0 7px,transparent 7px);border-top:2px solid var(--gold);z-index:1}
+.pillar{top:0;bottom:0;width:5%;background:linear-gradient(90deg,#2c2015,#6d4f33 45%,#3b2a1b);box-shadow:0 0 0 1px rgba(0,0,0,.3)}
+.pillar::before{content:"";position:absolute;left:-18%;right:-18%;top:16px;height:9px;background:var(--gold);border-radius:2px;opacity:.8}
+.pl{left:19%}.pr{right:19%}
+.moon{left:50%;top:calc(17% + 34px);width:32%;aspect-ratio:1;transform:translate(-50%,-50%);border-radius:50%;
+  background:
+   repeating-linear-gradient(90deg,transparent 0 24%,rgba(58,42,27,.75) 24% 26%),
+   repeating-linear-gradient(0deg,transparent 0 24%,rgba(58,42,27,.75) 24% 26%),
+   radial-gradient(circle at 50% 45%,#fff3c9,#e7c873 70%,#c79f45);
+  border:6px solid #6d4f33;box-shadow:0 0 0 2px var(--gold),0 0 34px rgba(240,214,140,.45);filter:brightness(.72);transition:filter .25s}
+#upper:has(#judge.on) .moon{filter:none}
+.andon{top:21%;width:7.5%;height:38px;border-radius:5px;background:linear-gradient(#fff0b8,#f0b455);border-top:5px solid #2a1e14;border-bottom:5px solid #2a1e14;box-shadow:0 0 18px rgba(255,214,120,.75)}
+.andon::before{content:"";position:absolute;left:50%;bottom:100%;width:2px;height:60px;margin-bottom:5px;background:#2a1e14}
+.al{left:27%}.ar{right:27%}
+
+.seat{position:absolute;display:flex;flex-direction:column;align-items:center;transition:transform .25s}
+/* 話していない人は人物だけ暗く。机は飾りが読める明るさを残す */
+.seat .bust{filter:brightness(.45) saturate(.6);transition:filter .25s}
+.seat .desk,.seat .desk3{filter:brightness(.78);transition:filter .25s}
+.seat.on .bust,.seat.on .desk,.seat.on .desk3{filter:none}
+.seat svg{display:block;width:100%;height:auto}
+.bust{position:relative}
+.desk{background:var(--wood);border-top:3px solid var(--wood-hi);position:relative;z-index:1}
+
+#judge{top:17%;bottom:0;left:50%;width:50%;transform:translateX(-50%)}
+#judge .bust{width:34%}
+/* 裁判長の机はコマの下まで続く。見上げるほど高い壇 */
+#judge .desk{flex:1;width:100%;margin-top:-8px;border-radius:4px 4px 0 0;border-top:4px solid var(--gold);display:flex;align-items:flex-start;justify-content:center;gap:8px;padding-top:9px;
+  background:repeating-linear-gradient(90deg,transparent 0 31%,rgba(0,0,0,.18) 31% 32%),linear-gradient(#6d4f33,#3b2a1b 85%)}
+#judge .desk span{font-size:10px;color:#e9d9b8;letter-spacing:.1em;line-height:11px}
+.pips{display:flex;gap:5px}
+.pips i{width:11px;height:11px;border-radius:50%;background:var(--gold);box-shadow:0 0 6px rgba(217,178,95,.7);transition:.3s}
+.pips i.off{background:transparent;box-shadow:inset 0 0 0 2px #8a6c48}
+
+#pros,#def{top:39%;bottom:0;width:40%;z-index:1}
+#pros{left:0}#def{right:0}
+#pros .bust,#def .bust{width:80%}
+/* 斜めの机: 外側が手前、中央側が奥。前面はコマの下の帯まで伸びる */
+.desk3{flex:1;width:108%;margin-top:-26px;position:relative;z-index:1}
+.desk3 i{position:absolute;inset:0}
+.desk3 .top{background:var(--d-top);clip-path:polygon(0 20px,86% 0,100% 10px,8% 32px)}
+.desk3 .front{background:var(--d-front);clip-path:polygon(8% 32px,100% 10px,100% 100%,8% 100%)}
+.desk3 .sidef{background:var(--d-side);clip-path:polygon(0 20px,8.2% 32px,8.2% 100%,0 100%)}
+/* 検事席=黒漆に銀の縁と書類の束。被告人席=白木の格子に朱の縁と湯のみ */
+.desk3 .trim{background:var(--d-trim);clip-path:polygon(8% 32px,100% 10px,100% 15px,8% 37px)}
+.desk3 .tag{position:absolute;left:36%;top:41px;padding:0 9px 1px;font-family:var(--display);font-weight:800;font-size:13px;line-height:1.5;letter-spacing:.2em;border:1px solid var(--d-trim);border-radius:2px;background:var(--d-tagbg);color:var(--d-tagfg);transform:skewY(-8deg)}
+.desk3 .item{position:absolute}
+.papers{left:34%;top:9px;width:26%;height:9px;background:#f3ecdc;transform:skewY(-8deg) skewX(-32deg);box-shadow:2px -3px 0 #cfc5ae,0 -6px 0 #f3ecdc,3px -9px 0 #cfc5ae}
+.cup{left:52%;top:0;width:13px;height:15px;background:#55793a;border-radius:2px 2px 5px 5px;border-top:3px solid #7fa05a}
+#pros .desk3{--d-top:#4a5270;--d-front:linear-gradient(#262c40,#10131c);--d-side:linear-gradient(#171b28,#0b0d14);--d-trim:#b9c7dc;--d-tagbg:#10131c;--d-tagfg:#d7e3f2}
+#def .desk3{--d-top:#d2a86e;--d-front:repeating-linear-gradient(90deg,transparent 0 13px,rgba(60,36,14,.42) 13px 16px),linear-gradient(#b0834f,#7a5630);--d-side:linear-gradient(#7a5630,#4e3519);--d-trim:#c9432b;--d-tagbg:#f3ecdc;--d-tagfg:#7a2a1c}
+#def .desk3 .tag{transform:skewY(-8deg) scaleX(-1)}
+#pros .desk3{align-self:flex-start}
+#def .desk3{align-self:flex-end;transform:scaleX(-1)}
+
+#wit{bottom:0;left:50%;width:min(44%,210px);transform:translateX(-50%);z-index:2}
+#wit.on{transform:translateX(-50%) scale(1.04);transform-origin:50% 100%}
+#wit .bust{width:100%}
+#wit .desk{width:124%;height:26px;margin-top:-14px;border-radius:60px 60px 0 0}
+
+/* 汗 */
+.drop{position:absolute;width:9px;height:13px;background:#bfe1ff;border-radius:50% 50% 50% 50%/65% 65% 35% 35%;opacity:0}
+.d1{left:22%;top:26%}.d2{right:20%;top:34%}.d3{left:30%;top:10%}
+#wit[data-sweat="1"] .d1,#wit[data-sweat="2"] .d1,#wit[data-sweat="2"] .d2,#wit[data-sweat="3"] .drop{opacity:1;animation:drip 1.3s infinite ease-in}
+.d2{animation-delay:.4s!important}.d3{animation-delay:.8s!important}
+#wit[data-sweat="3"] .bust{animation:tremble .18s infinite}
+@keyframes drip{0%{transform:translateY(-4px);opacity:0}25%{opacity:1}100%{transform:translateY(16px);opacity:0}}
+@keyframes tremble{0%,100%{transform:translateX(-1.5px)}50%{transform:translateX(1.5px)}}
+
+/* 反応 */
+#wit.shock{animation:wshake .5s}
+@keyframes wshake{0%,100%{margin-left:0}20%{margin-left:-10px}40%{margin-left:9px}60%{margin-left:-6px}80%{margin-left:4px}}
+#pros.recoil .bust{animation:recoil 1.1s cubic-bezier(.2,1.4,.4,1)}
+@keyframes recoil{0%{transform:none}18%,70%{transform:translate(-9%,-8%) rotate(-20deg)}100%{transform:none}}
+.mark{position:absolute;right:-4%;top:-6%;font-family:var(--display);font-weight:800;font-size:32px;color:var(--shu);opacity:0}
+#pros.recoil .mark{animation:pop 1.1s}
+@keyframes pop{0%{opacity:0;transform:scale(.3)}18%,70%{opacity:1;transform:scale(1)}100%{opacity:0}}
+
+/* 右の席=弁護側。手前に弁護人、奥に被告 */
+#def .b-def{position:absolute;width:50%;right:-6%;top:2%}
+#def .b-you{z-index:1}
+#def[data-on="you"] .b-you,#def[data-on="def"] .b-def,#def[data-on="you"] .desk3,#def[data-on="def"] .desk3{filter:none}
+#def .b-you.lean{animation:lean .7s}
+@keyframes lean{0%,100%{transform:none}25%,75%{transform:translate(-9%,3%) rotate(-9deg)}}
+/* 事件ファイル: 肩を軸に振りかぶり、机へ叩きつける。当たる瞬間に机が揺れ、湯のみが跳ね、紙が舞い、朱印が出る */
+#def .b-you.strike{animation:strike 1.3s;filter:none}
+@keyframes strike{0%,100%{transform:none}30%,44%{transform:translate(5%,-3%) rotate(7deg)}54%,82%{transform:translate(-8%,5%) rotate(-9deg)}}
+.swing{position:absolute;left:47%;top:4%;width:30%;height:66%;transform-origin:50% 100%;opacity:0;pointer-events:none}
+.swing i{position:absolute;display:block}
+.fl-arm{left:30%;width:40%;top:38%;height:62%;background:var(--arm,#2f6f5e);border-radius:8px}
+.fl-file{left:-14%;width:128%;top:0;height:50%;background:#d9a441;border:2px solid #1e1b17;border-radius:3px;box-shadow:inset 8px 0 0 #f3ecdc,inset 10px 0 0 #1e1b17}
+.fl-file::after{content:"";position:absolute;right:12%;top:20%;width:40%;height:30%;background:#f3ecdc;border-top:3px solid var(--shu)}
+.b-you.strike .swing{animation:swing 1.3s}
+@keyframes swing{0%{opacity:0;transform:rotate(0)}8%{opacity:1;transform:rotate(0)}30%,44%{opacity:1;transform:rotate(32deg)}54%,82%{opacity:1;transform:rotate(-100deg)}100%{opacity:0;transform:rotate(-100deg)}}
+#def.slam .desk3{animation:jolt .35s}
+@keyframes jolt{0%,100%{translate:0 0}30%{translate:0 6px}60%{translate:0 -2px}}
+#def.slam .cup{animation:cuphop .5s}
+@keyframes cuphop{0%,100%{translate:0 0;rotate:0deg}40%{translate:0 -16px;rotate:14deg}}
+.fly{position:absolute;left:2%;top:58%;width:12px;height:15px;background:#f3ecdc;border:1px solid #1e1b17;opacity:0;z-index:3;pointer-events:none}
+#def.slam .fly{animation:fly .85s ease-out}
+#def.slam .f1{--fx:-46px;--fy:-64px;--fr:-220deg}
+#def.slam .f2{--fx:14px;--fy:-82px;--fr:160deg}
+#def.slam .f3{--fx:-78px;--fy:-30px;--fr:-140deg}
+@keyframes fly{0%{opacity:1;transform:none}100%{opacity:0;transform:translate(var(--fx),var(--fy)) rotate(var(--fr))}}
+#def .b-def.droop{animation:droop 1.3s}
+@keyframes droop{0%,100%{transform:none}25%,80%{transform:translateY(12%) rotate(10deg)}}
+#def.joy .b-def{animation:hop .7s}
+@keyframes hop{0%,50%,100%{transform:none}25%,75%{transform:translateY(-12%)}}
+
+#note{position:absolute;top:10px;left:50%;transform:translateX(-50%);z-index:6;background:var(--matcha);color:#fff;font-size:13px;font-weight:700;padding:4px 14px;border-radius:99px;white-space:nowrap}
+@keyframes shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-10px)}40%{transform:translateX(9px)}60%{transform:translateX(-6px)}80%{transform:translateX(4px)}}
+
+/* 発言 */
+#box{background:var(--paper);color:var(--sumi);padding:14px 16px 12px;min-height:150px;border-top:4px solid var(--line);display:flex;flex-direction:column;gap:6px;text-align:left;width:100%}
+#box.testi{border-top-color:var(--matcha)}
+#tag{font-size:12px;font-weight:700;letter-spacing:.08em;color:#6b6252;display:flex;gap:8px;align-items:center;min-height:20px}
+#box.testi #tag{color:var(--matcha)}
+#tag .done{font-weight:500;color:#8a8170}
+#text{font-size:17px;line-height:1.75;font-weight:500;flex:1}
+#box.testi #text{font-family:var(--display);font-weight:600;font-size:18px}
+#text.think{color:#4a5f8a}
+#dots{display:flex;gap:6px;justify-content:center}
+#dots i{width:22px;height:4px;border-radius:2px;background:#cfc5ae}
+#dots i.on{background:var(--matcha)}
+
+/* 操作 */
+/* 下段は常に同じ4マス。法廷記録は会話中も尋問中も右から2番目 */
+#ctl{display:grid;grid-template-columns:52px 1fr 1fr 52px;gap:8px;padding:10px 16px 16px;background:var(--ink)}
+#ctl button{min-height:52px;border-radius:8px;font-weight:700;font-size:16px;background:var(--panel);border:1px solid var(--line)}
+#ctl .nav{flex:0 0 52px;font-size:20px}
+#ctl .act{flex:1}
+#ctl .press{background:#2f4f86;border-color:#4d72b5}
+#ctl .show{background:var(--shu);border-color:#e8674f;color:#fff}
+#ctl.two{grid-template-columns:34% 1fr}
+#ctl.one{grid-template-columns:1fr}
+#ctl .span2{grid-column:span 2}
+#ctl .recb{background:transparent;border:2px solid var(--paper);color:var(--paper)}
+#ctl .close{flex:0 0 34%}
+#ctl .next{flex:1;background:var(--paper);color:var(--sumi);border-color:var(--paper)}
+#ctl button:disabled{opacity:.35;cursor:default}
+
+/* 矛盾の演出: 白い閃光 → 朱の帯が斜めに走る → 左から「矛」、右から「盾」が突っ込み、中央でぶつかって火花 */
+#stamp{position:absolute;inset:0;z-index:20;overflow:hidden;pointer-events:none;background:rgba(21,26,45,.5)}
+#stamp i,#stamp b{position:absolute;display:block}
+.flash{inset:0;background:#fff;opacity:0;animation:flash .28s both}
+@keyframes flash{from{opacity:.95}to{opacity:0}}
+.slash{position:absolute;left:-20%;right:-20%;top:50%;height:0;transform:rotate(-8deg);animation:slashout .16s 1.02s both}
+@keyframes slashout{from{opacity:1;scale:1}to{opacity:0;scale:1.25}}
+.band{left:0;right:0;top:0;height:min(42vw,190px);transform:translateY(-50%);transform-origin:0 50%;
+  background:repeating-linear-gradient(0deg,transparent 0 13px,rgba(30,27,23,.16) 13px 15px),linear-gradient(90deg,#b3321d,var(--shu) 30%,#e8674f 50%,var(--shu) 70%,#b3321d);
+  border-top:5px solid var(--paper);border-bottom:5px solid var(--paper);box-shadow:0 0 0 3px var(--sumi),0 0 40px rgba(209,67,43,.6);animation:band .2s .03s both cubic-bezier(.2,.9,.3,1)}
+@keyframes band{from{scale:0 1}to{scale:1 1}}
+.k{top:0;font-family:var(--display);font-weight:800;font-size:min(30vw,150px);line-height:1;color:var(--paper);-webkit-text-stroke:2px var(--sumi);text-shadow:5px 6px 0 var(--sumi);transform:translateY(-52%) skewX(-8deg)}
+.k1{right:50%;margin-right:2px;animation:k1 .2s .15s both cubic-bezier(.3,1.5,.5,1)}
+.k2{left:50%;margin-left:2px;animation:k2 .2s .25s both cubic-bezier(.3,1.5,.5,1)}
+@keyframes k1{from{translate:-110vw 0}to{translate:0 0}}
+@keyframes k2{from{translate:110vw 0}to{translate:0 0}}
+.spark{left:50%;top:0;width:min(56vw,250px);aspect-ratio:1;margin:calc(min(56vw,250px)/-2) 0 0 calc(min(56vw,250px)/-2);opacity:0;
+  background:radial-gradient(circle,#fff 0 22%,#ffe9a8 23% 55%,rgba(255,233,168,.6) 56%);
+  clip-path:polygon(50% 0,57% 36%,90% 14%,65% 44%,100% 50%,65% 56%,90% 86%,57% 64%,50% 100%,43% 64%,10% 86%,35% 56%,0 50%,35% 44%,10% 14%,43% 36%);animation:spark .34s .4s both}
+@keyframes spark{0%{opacity:1;scale:.1;rotate:0deg}45%{opacity:1;scale:1}100%{opacity:0;scale:1.35;rotate:20deg}}
+#stage.quake{animation:quake .3s}
+@keyframes quake{0%,100%{translate:0 0}20%{translate:-7px 3px}40%{translate:6px -4px}60%{translate:-4px 2px}80%{translate:3px -1px}}
+
+#app.bad{animation:shake .4s}
+
+/* カード(開廷・判決) */
+#overlay{position:absolute;inset:0;z-index:30;background:rgba(21,26,45,.9);display:flex;padding:16px;overflow:auto}
+.card{margin:auto;background:var(--paper);color:var(--sumi);border-radius:10px;padding:22px 20px;max-width:440px;width:100%;display:flex;flex-direction:column;gap:12px}
+.card .eyebrow{font-size:12px;letter-spacing:.18em;color:#6b6252;font-weight:700}
+.card h1{font-family:var(--display);font-weight:800;font-size:30px;line-height:1.25;text-wrap:balance}
+.card p{font-size:15px}
+.card ul{padding-left:1.2em;font-size:14px;display:flex;flex-direction:column;gap:4px}
+.card .go{min-height:52px;border-radius:8px;background:var(--shu);color:#fff;font-weight:700;font-size:17px}
+.homelink{align-self:center;font-size:14px;font-weight:700;color:#6b6252;padding:4px 8px}
+#pauseTrigger{flex:none;min-height:34px;padding:0 12px;border:1px solid var(--line);border-radius:8px;font-size:13px;font-weight:700;color:var(--muted)}
+.verdict{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.rank{font-family:var(--display);font-weight:800;font-size:56px;line-height:1;color:var(--shu)}
+.card table{width:100%;border-collapse:collapse;font-size:14px;font-variant-numeric:tabular-nums}
+.card td{padding:6px 0;border-bottom:1px solid #d8cdb4}
+.card td:last-child{text-align:right;font-weight:700}
+
+/* 法廷記録: 舞台の上に重ねる。証言の紙と下段の操作は隠さない */
+#sheet{position:absolute;inset:0;z-index:5;background:var(--panel);display:flex;flex-direction:column;gap:10px;padding:12px 16px;overflow:auto}
+.shead{font-family:var(--display);font-size:15px;color:var(--gold);letter-spacing:.1em}
+#evlist{display:flex;gap:8px}
+#evlist button{flex:1;min-width:0;min-height:54px;border-radius:8px;background:var(--paper);color:var(--sumi);font-family:var(--display);font-weight:800;font-size:22px;border:3px solid transparent;opacity:.55}
+#evlist button[aria-pressed="true"]{border-color:var(--gold);opacity:1;box-shadow:0 0 0 2px var(--gold)}
+#evdesc{flex:1;background:var(--paper);color:var(--sumi);border-radius:8px;padding:10px 12px;font-size:14px;line-height:1.65;overflow:auto}
+#evdesc b{display:block;font-family:var(--display);font-size:16px;margin-bottom:2px}
+
+/* ステージ選択 */
+.stage{display:grid;grid-template-columns:1fr auto;gap:0 10px;align-items:center;text-align:left;padding:9px 14px;border-radius:8px;border:2px solid var(--sumi);background:#fffaf0;min-height:62px}
+.stage small{grid-column:1/-1;font-size:12px;color:#6b6252;font-weight:700}
+.stage b{font-family:var(--display);font-size:20px;line-height:1.4}
+.stage span{font-size:13px;font-weight:700;color:var(--shu);white-space:nowrap}
+.stage:disabled{opacity:.45;border-style:dashed;cursor:default}
+.card .back{min-height:44px;border-radius:8px;border:1px solid #b9ae95;color:#4a4336;font-weight:700;font-size:14px}
+.rank.stars{font-size:32px;color:#c8902a;font-family:var(--body);white-space:nowrap}
+.evpic{float:left;width:64px;height:64px;margin:0 10px 4px 0}
+.evpic svg{display:block;width:100%;height:100%}
+#evlist button svg{display:block;width:38px;height:38px;margin:auto}
+#box.glow{box-shadow:inset 0 0 0 4px #e8a62a}
+.sus{color:var(--shu);margin-left:6px}
+#stamp .yomi{display:none}
+/* 読み込んだ事件の行と、読み込み結果の知らせ */
+.urow{display:flex;gap:8px;align-items:stretch}
+.urow .stage{flex:1;min-width:0}
+.urow .del{flex:0 0 44px;border:1px solid #b9ae95;border-radius:8px;font-size:20px;color:#7a2a1c}
+.msg{font-size:13px;line-height:1.6;border-radius:8px;padding:8px 12px}
+.msg.err{background:#fbe3dc;color:#7a2a1c}
+.msg.ok{background:#e3efd9;color:#2f4f1c}
+.msg ul{padding-left:1.2em;font-size:13px}
+.evpic img{display:block;width:100%;height:100%;object-fit:contain}
+#evlist button img{display:block;width:38px;height:38px;object-fit:contain;margin:auto}
+.flash.solo{position:absolute;z-index:19;pointer-events:none}
+
+/* にゅうもん: 丸い書体、大きめの字、信頼の灯なし、矛盾によみがな */
+#app.kids{--display:"Zen Maru Gothic","Hiragino Maru Gothic ProN","Yu Gothic",sans-serif;--body:"Zen Maru Gothic","Hiragino Maru Gothic ProN","Yu Gothic",sans-serif;font-family:var(--body)}
+/* 分かち書きの空白でだけ折り返す */
+#app.kids #text,#app.kids #evdesc,#app.kids .card p,#app.kids .card li{word-break:keep-all;overflow-wrap:anywhere}
+#app.kids #text{font-size:20px;line-height:1.85;font-weight:700}
+#app.kids #box{min-height:178px}
+#app.kids #tag{font-size:14px}
+#app.kids #ctl button{font-size:15px;padding:0 4px;white-space:nowrap}
+#app.kids .pips{display:none}
+#app.kids #evdesc{font-size:17px;line-height:1.8;font-weight:700}
+#app.kids #evdesc b{font-size:19px}
+#app.kids .card p,#app.kids .card ul{font-size:16px;line-height:1.8}
+#app.kids .desk3 .tag{letter-spacing:.05em;font-size:12px}
+#app.kids #stamp .yomi{display:block;left:0;right:0;top:calc(min(42vw,190px)/-2 + 2px);text-align:center;font-size:17px;font-weight:700;letter-spacing:.6em;color:var(--paper);animation:yomi .2s .42s both}
+@keyframes yomi{from{opacity:0}to{opacity:1}}
+
+@media (min-height:760px){#box{min-height:180px}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <div class="ttl"><small id="eyebrow">CASE 01</small><b id="phase">月夜の番頭</b></div>
+    <button id="pauseTrigger" type="button" aria-label="一時停止">中断</button>
+  </header>
+
+  <div id="stage">
+    <div id="note" hidden></div>
+    <div id="upper">
+      <div class="deco" aria-hidden="true"><i class="valance"></i><i class="pillar pl"></i><i class="pillar pr"></i><i class="moon"></i><i class="andon al"></i><i class="andon ar"></i></div>
+      <div class="seat" id="judge"><div class="bust" data-k="judge"></div><div class="desk"><span>信頼</span><div class="pips" id="pips" role="img"></div></div></div>
+      <div class="seat" id="pros"><div class="bust" data-k="pros"><b class="mark">！？</b></div><div class="desk3"><i class="top"></i><i class="front"></i><i class="sidef"></i><i class="trim"></i><span class="item papers"></span><span class="tag">検察</span></div></div>
+      <div class="seat" id="def" data-on=""><div class="bust b-def" data-k="def"></div><div class="bust b-you" data-k="you"><span class="swing"><i class="fl-arm"></i><i class="fl-file"></i></span></div><span class="fly f1"></span><span class="fly f2"></span><span class="fly f3"></span><div class="desk3"><i class="top"></i><i class="front"></i><i class="sidef"></i><i class="trim"></i><span class="item cup"></span><span class="tag">弁護</span></div></div>
+    </div>
+    <div class="gutter"></div>
+    <div id="lower">
+      <div class="seat" id="wit" data-sweat="0"><div class="bust" data-k="wit"><i class="drop d1"></i><i class="drop d2"></i><i class="drop d3"></i></div><div class="desk"></div></div>
+    </div>
+    <div id="stamp" hidden><i class="flash"></i><div class="slash"><i class="band"></i><b class="yomi">むじゅん</b><b class="k k1">矛</b><b class="k k2">盾</b><i class="spark"></i></div></div>
+    <div id="sheet" hidden role="dialog" aria-label="法廷記録">
+      <p class="shead">法廷記録</p>
+      <div id="evlist"></div>
+      <div id="evdesc"></div>
+    </div>
+  </div>
+
+  <button id="box" type="button" aria-live="polite">
+    <span id="tag"></span>
+    <span id="text"></span>
+    <span id="dots"></span>
+  </button>
+
+  <div id="ctl"></div>
+
+
+  <div id="overlay"><div class="card" id="card"></div></div>
+</div>
+
+<script>
+(function(){
+"use strict";
+const $=id=>document.getElementById(id);
+const reduce=window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches;
+/* JSON由来の文字は、HTMLとして差し込む前に必ずこれを通す */
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const ROLES=['judge','pros','wit','you','def'];
+
+/* ---------- 人物の部品カタログ ---------- */
+/* JSONは部品名と色だけを指定する。絵そのものはここにしかない */
+const HEX=/^#[0-9a-fA-F]{6}$/;
+const st=(d,c,w)=>'<path d="'+d+'" stroke="'+(c||'#1e1b17')+'" stroke-width="'+(w||3)+'" fill="none" stroke-linecap="round"/>';
+const EAR='<circle cx="84" cy="77" r="7" fill="#d9b592"/>';
+const F_SHORT=c=>'<path d="M64 66a36 36 0 0 1 72 0c-10-15-62-15-72 0z" fill="'+c+'"/>';
+const S_SHORT=c=>'<path d="M71 76a37 37 0 0 1 68-27c-14-2-30 2-40 12-6 8-8 16-10 26z" fill="'+c+'"/>';
+const S_SWEPT=c=>'<path d="M71 76a37 37 0 0 1 68-27c-18-5-36 3-45 15-5 8-6 14-8 22z" fill="'+c+'"/>';
+const PARTS={
+ front:{
+  hair:{none:()=>'',short:F_SHORT,
+   swept:c=>'<path d="M64 70a36 36 0 0 1 72-4c-18-6-30-20-72 4z" fill="'+c+'"/>',
+   bun:c=>F_SHORT(c)+'<circle cx="100" cy="28" r="13" fill="'+c+'"/>',
+   ponytail:c=>F_SHORT(c)+'<path d="M132 58q24 10 16 46-10-14-20-30z" fill="'+c+'"/>',
+   crop:c=>'<path d="M64 62a36 36 0 0 1 72 0c-20-9-52-9-72 0z" fill="'+c+'"/>'},
+  hat:{none:()=>'',
+   cap:c=>'<path d="M64 64a36 36 0 0 1 72 0z" fill="'+c+'"/><rect x="96" y="58" width="52" height="9" rx="4.5" fill="'+c+'"/><rect x="96" y="58" width="52" height="9" rx="4.5" fill="#000" opacity=".2"/>',
+   chef:c=>'<rect x="66" y="24" width="68" height="28" rx="6" fill="'+c+'"/>',
+   bandana:c=>'<path d="M64 62a36 36 0 0 1 72 0z" fill="'+c+'"/>',
+   dog:c=>'<path d="M68 46q-24 8-16 50 16-12 22-38z" fill="'+c+'"/><path d="M132 46q24 8 16 50-16-12-22-38z" fill="'+c+'"/>',
+   cat:c=>'<path d="M70 52l-4-34 30 18z" fill="'+c+'"/><path d="M130 52l4-34-30 18z" fill="'+c+'"/>'},
+  wear:{none:'',collar:'<path d="M84 112l16 20 16-20z" fill="#f3ecdc"/>',tie:'<path d="M96 112h8l4 30-8 8-8-8z" fill="#d7e3f2"/>',
+   lapel:st('M84 112l16 26 16-26','#f3ecdc',5)+'<circle cx="134" cy="146" r="5" fill="#d9b25f"/>',
+   apron:'<path d="M72 132h56v48H72z" fill="#f3ecdc"/>',hood:st('M93 114v16M107 114v16','#f3ecdc')},
+  mouth:{none:'',flat:st('M92 90h16'),smile:st('M90 88q10 7 20 0'),frown:st('M90 92q10-6 20 0'),mustache:st('M86 88q14 8 28 0','#5a4a3a',4),
+   animal:'<path d="M93 82h14l-7 8z" fill="#1e1b17"/>'+st('M100 90q-4 8-11 4M100 90q4 8 11 4')}
+ },
+ side:{
+  hair:{none:()=>'',short:S_SHORT,swept:S_SWEPT,
+   bun:c=>S_SHORT(c)+'<circle cx="78" cy="42" r="12" fill="'+c+'"/>',
+   ponytail:c=>S_SWEPT(c)+'<path d="M74 58q-26 8-20 46 14-12 22-34z" fill="'+c+'"/><circle cx="76" cy="58" r="7" fill="#e0457b"/>',
+   crop:c=>'<path d="M72 70a36 36 0 0 1 71-11c-22-8-48-4-63 8z" fill="'+c+'"/>'+EAR},
+  hat:{none:()=>'',
+   cap:c=>'<path d="M72 68a36 36 0 0 1 71-9z" fill="'+c+'"/><rect x="126" y="52" width="38" height="8" rx="4" fill="'+c+'"/><rect x="126" y="52" width="38" height="8" rx="4" fill="#000" opacity=".2"/>'+EAR,
+   chef:c=>'<rect x="74" y="20" width="64" height="28" rx="6" fill="'+c+'"/>'+EAR,
+   bandana:c=>'<path d="M72 68a36 36 0 0 1 71-9z" fill="'+c+'"/><path d="M73 64l-15-7 3 17z" fill="'+c+'"/>'+EAR,
+   dog:c=>'<path d="M86 42q-28 4-22 50 18-10 26-36z" fill="'+c+'"/>',
+   cat:c=>'<path d="M82 46l-6-32 28 16z" fill="'+c+'"/><path d="M110 36l12-26 12 28z" fill="'+c+'"/>'},
+  wear:{none:'',collar:'<path d="M98 110l12 18 10-18z" fill="#f3ecdc"/>',tie:'<path d="M107 110h9l5 30-9 8-9-8z" fill="#d7e3f2"/>',
+   lapel:st('M96 110l14 26 12-26','#f3ecdc',5)+'<circle cx="66" cy="146" r="5" fill="#d9b25f"/>',
+   apron:'<polygon points="84,132 134,132 138,180 80,180" fill="#f3ecdc"/>',hood:st('M100 112v18M112 112v18','#f3ecdc')},
+  mouth:{none:'',flat:st('M118 91h12'),smile:st('M119 90q5 4 10 0'),frown:st('M119 92q5-3 10 0'),mustache:st('M116 90q8 6 16 0','#5a4a3a',4),
+   animal:'<circle cx="149" cy="79" r="5.5" fill="#1e1b17"/>'+st('M120 91q7 5 14 0')}
+ }
+};
+const HATCOL={cap:'#2f6fb5',chef:'#f3ecdc',bandana:'#c9432b',dog:'#8a5a2c',cat:'#e08a3a',none:'#000000'};
+function bust(k){
+  /* 裁判長と証人は正面、左右の席は斜め向き(右向きで描き、右の席は左右反転) */
+  const w=WHO[k],front=(k==='judge'||k==='wit'),P=PARTS[front?'front':'side'],skin=w.skin;
+  const extra=P.hair[w.hair](w.hairColor)+P.hat[w.hat](w.hatColor)+P.wear[w.wear]+P.mouth[w.mouth];
+  if(front)return '<svg viewBox="0 0 200 180" aria-hidden="true"><path d="M30 180c0-46 30-70 70-70s70 24 70 70z" fill="'+w.c+'"/><circle cx="100" cy="70" r="36" fill="'+skin+'"/><circle cx="88" cy="72" r="3" fill="#1e1b17"/><circle cx="112" cy="72" r="3" fill="#1e1b17"/>'+extra+'</svg>';
+  const inner='<path d="M20 180c2-48 30-72 74-72 30 0 52 18 60 72z" fill="'+w.c+'"/><circle cx="108" cy="70" r="36" fill="'+skin+'"/><path d="M141 67l10 14-11 3z" fill="'+skin+'"/><circle cx="116" cy="72" r="3" fill="#1e1b17"/><circle cx="133" cy="72" r="2.6" fill="#1e1b17"/>'+extra;
+  return '<svg viewBox="0 0 200 180" aria-hidden="true">'+(k!=='pros'?'<g transform="translate(200 0) scale(-1 1)">'+inner+'</g>':inner)+'</svg>';
+}
+
+/* ---------- 証拠の絵カタログ ---------- */
+const ICONS={
+ umbrella:'<path d="M6 28a18 18 0 0 1 36 0z" fill="#3f7fd0"/><path d="M24 28v12a4 4 0 0 1-8 0" stroke="#1e1b17" stroke-width="3" fill="none" stroke-linecap="round"/><path d="M11 5l-2 6M25 2l-2 6M39 5l-2 6" stroke="#4a9be8" stroke-width="3" stroke-linecap="round"/>',
+ carrot:'<path d="M12 22c9-7 19-2 27 15-15 2-25-1-27-15z" fill="#f08a2c"/><path d="M14 20l-6-9M16 18V7M18 19l6-9" stroke="#4c9a3f" stroke-width="4" stroke-linecap="round"/>',
+ tag:'<rect x="10" y="8" width="28" height="34" rx="4" fill="#fffaf0" stroke="#1e1b17" stroke-width="3"/><circle cx="24" cy="15" r="3" fill="#1e1b17"/><path d="M16 26h16M16 33h10" stroke="#d1432b" stroke-width="3" stroke-linecap="round"/>',
+ key:'<circle cx="16" cy="17" r="9" fill="none" stroke="#c8902a" stroke-width="5"/><path d="M22 23l18 18M32 33l5-5M38 39l4-4" stroke="#c8902a" stroke-width="5" stroke-linecap="round"/>',
+ paper:'<path d="M12 6h18l8 8v28H12z" fill="#fffaf0" stroke="#1e1b17" stroke-width="3" stroke-linejoin="round"/><path d="M18 20h14M18 27h14M18 34h9" stroke="#1e1b17" stroke-width="3" stroke-linecap="round"/>',
+ clock:'<circle cx="24" cy="24" r="17" fill="#fffaf0" stroke="#1e1b17" stroke-width="3"/><path d="M24 13v11l8 5" stroke="#d1432b" stroke-width="3" fill="none" stroke-linecap="round"/>',
+ shoe:'<path d="M6 36V20h12l6 9 14 3q4 1 4 4z" fill="#8a5a3c" stroke="#1e1b17" stroke-width="3" stroke-linejoin="round"/><path d="M5 40h38" stroke="#1e1b17" stroke-width="3" stroke-linecap="round"/>',
+ pudding:'<path d="M12 36l5-18h14l5 18z" fill="#f2c94c"/><path d="M15 23l2-7h14l2 7z" fill="#8a4b1f"/><ellipse cx="24" cy="38" rx="18" ry="4" fill="#fffaf0" stroke="#1e1b17" stroke-width="2"/>',
+ pot:'<path d="M14 28h20l-3 14H17z" fill="#b5651d"/><path d="M24 28V14M24 20q-10-2-10-10M24 18q10-2 10-10" stroke="#4c9a3f" stroke-width="4" fill="none" stroke-linecap="round"/>',
+ fridge:'<rect x="12" y="4" width="24" height="40" rx="3" fill="#dfe9f2" stroke="#1e1b17" stroke-width="3"/><path d="M12 20h24M18 10v5M18 26v8" stroke="#1e1b17" stroke-width="3" stroke-linecap="round"/>',
+ spoon:'<ellipse cx="16" cy="14" rx="8" ry="10" fill="#c9d3dd" stroke="#1e1b17" stroke-width="3"/><path d="M21 22l18 20" stroke="#1e1b17" stroke-width="5" stroke-linecap="round"/><circle cx="15" cy="13" r="4" fill="#f2c94c"/>',
+ shirt:'<path d="M16 6l-12 8 5 8 5-3v23h20V19l5 3 5-8-12-8q-8 6-16 0z" fill="#8fb6e8" stroke="#1e1b17" stroke-width="3" stroke-linejoin="round"/><circle cx="27" cy="28" r="4.5" fill="#8a4b1f"/>',
+ window:'<rect x="6" y="6" width="36" height="36" rx="2" fill="#bfe1ff" stroke="#1e1b17" stroke-width="3"/><path d="M24 6v36M6 24h36" stroke="#1e1b17" stroke-width="3"/><rect x="19" y="20" width="10" height="8" rx="2" fill="#c8902a" stroke="#1e1b17" stroke-width="2"/>',
+ sandal:'<path d="M6 36q0-8 10-8h18q8 0 8 8v3H6z" fill="#e0a13a" stroke="#1e1b17" stroke-width="3" stroke-linejoin="round"/><path d="M13 28q5-14 16 0" stroke="#d1432b" stroke-width="4" fill="none" stroke-linecap="round"/><circle cx="35" cy="34" r="3" fill="#3a2a1c"/><circle cx="29" cy="36" r="2" fill="#3a2a1c"/>',
+ gift:'<rect x="8" y="18" width="32" height="24" rx="2" fill="#e0457b" stroke="#1e1b17" stroke-width="3"/><path d="M24 18v24M8 28h32" stroke="#f2c94c" stroke-width="4"/><path d="M24 18q-10-14-14-4 4 6 14 4zM24 18q10-14 14-4-4 6-14 4z" fill="#f2c94c" stroke="#1e1b17" stroke-width="2" stroke-linejoin="round"/>',
+ light:'<rect x="6" y="18" width="24" height="12" rx="3" fill="#d1432b"/><path d="M30 16l10-4v24l-10-4z" fill="#f2c94c" stroke="#1e1b17" stroke-width="2" stroke-linejoin="round"/>'
+};
+const IMG=/^data:image\/(png|jpeg|webp|gif);base64,[A-Za-z0-9+/=]+$/;
+
+/* ---------- 文言(モードごとの既定。JSONの labels で上書きできる) ---------- */
+const LABEL={
+ standard:{next:'次へ',rec:'法廷記録',press:'問いただす',close:'閉じる',go:'突きつける',testi:'証言',done:'問いただし済み',added:'証言が追加された',trust:'信頼',prev:'前の証言',nextst:'次の証言',start:'開廷する'},
+ kids:{next:'つぎへ',rec:'しょうこ',press:'くわしく きく',close:'とじる',go:'これだ！',testi:'しょうげん',done:'きいたよ',added:'しょうげんが ふえた！',trust:'',prev:'まえの しょうげん',nextst:'つぎの しょうげん',start:'はじめる'}
+};
+const LABELKEYS={next:'next',record:'rec',press:'press',close:'close',present:'go',start:'start'};
+const ACT=/^(recoil|shock|joy|droop|lean|slam|quake|flash|sweat:[0-3])$/;
+
+/* ---------- JSONの検証 ---------- */
+/* 問題点を日本語の一覧で返す。空なら合格 */
+function validate(j){
+  const E=[],isS=v=>typeof v==='string'&&v.trim()!=='',isA=Array.isArray;
+  if(!j||typeof j!=='object'||isA(j))return ['ファイルの中身が { } で始まる事件データではありません。'];
+  if(!isS(j.id)||!/^[a-z0-9_-]{1,40}$/.test(j.id))E.push('id は半角の小文字・数字・ハイフンで書いてください。例: "kieta-purin"');
+  if(!isS(j.title))E.push('title(題名)がありません。');
+  if(j.mode!==undefined&&j.mode!=='kids'&&j.mode!=='standard')E.push('mode は "kids" か "standard" のどちらかです。');
+  ['label','tagline','brief','idleLine'].forEach(k=>{if(j[k]!==undefined&&typeof j[k]!=='string')E.push(k+' は文字で書いてください。');});
+  if(j.deskTags!==undefined&&!(isA(j.deskTags)&&j.deskTags.length===2&&j.deskTags.every(isS)))E.push('deskTags は ["左の札","右の札"] の2つです。');
+  if(j.labels!==undefined){if(typeof j.labels!=='object'||isA(j.labels))E.push('labels は { } で書いてください。');else Object.keys(j.labels).forEach(k=>{if(!LABELKEYS[k])E.push('labels に使えない名前があります: '+k+'(使えるのは '+Object.keys(LABELKEYS).join(', ')+')');else if(!isS(j.labels[k]))E.push('labels.'+k+' は文字で書いてください。');});}
+  /* 人物 */
+  if(!j.cast||typeof j.cast!=='object')E.push('cast(登場人物)がありません。');
+  else ROLES.forEach(r=>{
+    const c=j.cast[r];if(!c||typeof c!=='object'){E.push('cast.'+r+' がありません。');return;}
+    if(!isS(c.name))E.push('cast.'+r+'.name(名前)がありません。');
+    ['color','skin','hairColor','hatColor'].forEach(k=>{if(c[k]!==undefined&&!HEX.test(c[k]))E.push('cast.'+r+'.'+k+' は "#aabbcc" の形の色で書いてください。');});
+    ['hair','hat','wear','mouth'].forEach(k=>{if(c[k]!==undefined&&!Object.prototype.hasOwnProperty.call(PARTS.front[k],c[k]))E.push('cast.'+r+'.'+k+' に "'+c[k]+'" はありません。使えるのは: '+Object.keys(PARTS.front[k]).join(', '));});
+  });
+  /* 証拠 */
+  const evIds=[];
+  if(!isA(j.evidence)||j.evidence.length<1||j.evidence.length>6)E.push('evidence(証拠)は1〜6個にしてください。');
+  else j.evidence.forEach((e,i)=>{
+    const at='evidence['+(i+1)+'番目]';
+    if(!e||typeof e!=='object'){E.push(at+' の形が正しくありません。');return;}
+    if(!isS(e.id))E.push(at+' に id がありません。');else if(evIds.indexOf(e.id)>=0)E.push(at+' の id "'+e.id+'" が重複しています。');else evIds.push(e.id);
+    if(!isS(e.name))E.push(at+' に name がありません。');
+    if(!isS(e.desc))E.push(at+' に desc(説明)がありません。');
+    if(e.icon!==undefined&&!Object.prototype.hasOwnProperty.call(ICONS,e.icon))E.push(at+' の icon "'+e.icon+'" はありません。使えるのは: '+Object.keys(ICONS).join(', '));
+    if(e.glyph!==undefined&&(!isS(e.glyph)||Array.from(e.glyph).length>2))E.push(at+' の glyph は1〜2文字です。');
+    if(e.image!==undefined&&!(typeof e.image==='string'&&IMG.test(e.image)))E.push(at+' の image は png / jpeg / webp / gif のデータURLだけ使えます。');
+    if(e.icon===undefined&&e.glyph===undefined&&e.image===undefined)E.push(at+' に icon / glyph / image のどれかを付けてください。');
+  });
+  /* セリフ */
+  const chkLines=(a,at,need)=>{
+    if(a===undefined&&!need)return;
+    if(!isA(a)||(need&&a.length<1)){E.push(at+' はセリフを1行以上、[ ] の中に書いてください。');return;}
+    a.forEach((l,i)=>{
+      const p=at+' の'+(i+1)+'行目';
+      if(!l||typeof l!=='object'){E.push(p+' の形が正しくありません。');return;}
+      if(ROLES.indexOf(l.who)<0&&l.who!=='narr')E.push(p+' の who "'+l.who+'" は使えません。使えるのは: '+ROLES.join(', ')+', narr');
+      if(!isS(l.text))E.push(p+' に text がありません。');
+      if(l.act!==undefined){const acts=isA(l.act)?l.act:[l.act];acts.forEach(x=>{if(typeof x!=='string'||!ACT.test(x))E.push(p+' の act "'+x+'" は使えません。使えるのは: recoil, shock, joy, droop, lean, slam, quake, flash, sweat:0〜3');});}
+    });
+  };
+  chkLines(j.intro,'intro(導入)',true);
+  if(!isA(j.testimonies)||j.testimonies.length<1||j.testimonies.length>8)E.push('testimonies(証言)は1〜8本にしてください。');
+  else j.testimonies.forEach((t,ti)=>{
+    const at='証言'+(ti+1);
+    if(!t||typeof t!=='object'){E.push(at+' の形が正しくありません。');return;}
+    if(!isS(t.title))E.push(at+' に title がありません。');
+    if(t.guide!==undefined&&!isS(t.guide))E.push(at+' の guide は文字で書いてください。');
+    const keys=[];let hasAdd=false;
+    if(!isA(t.statements)||t.statements.length<1||t.statements.length>8)E.push(at+' の statements(発言)は1〜8個にしてください。');
+    else t.statements.forEach((s,si)=>{
+      const sp=at+' の発言'+(si+1);
+      if(!s||typeof s!=='object'){E.push(sp+' の形が正しくありません。');return;}
+      const one=(x,p)=>{
+        if(!isS(x.key))E.push(p+' に key がありません。');else if(keys.indexOf(x.key)>=0)E.push(p+' の key "'+x.key+'" が重複しています。');else keys.push(x.key);
+        if(!isS(x.text))E.push(p+' に text がありません。');
+        chkLines(x.press,p+' の press(問いただし)',true);
+      };
+      one(s,sp);
+      if(s.add!==undefined){if(!s.add||typeof s.add!=='object')E.push(sp+' の add の形が正しくありません。');else{hasAdd=true;one(s.add,sp+' の add(追加される発言)');}}
+    });
+    if(!t.hit||typeof t.hit!=='object')E.push(at+' に hit(正解)がありません。');
+    else{
+      if(evIds.indexOf(t.hit.evidence)<0)E.push(at+' の正解の証拠 "'+t.hit.evidence+'" が、証拠の一覧にありません。');
+      if(!isA(t.hit.keys)||t.hit.keys.length<1)E.push(at+' の hit.keys に、正解になる発言の key を1つ以上書いてください。');
+      else t.hit.keys.forEach(k=>{if(keys.indexOf(k)<0)E.push(at+' の hit.keys にある "'+k+'" という発言がありません。');});
+      if(t.hit.needsAdded&&!hasAdd)E.push(at+' は needsAdded が true ですが、add のある発言がありません。');
+    }
+    chkLines(t.needLines,at+' の needLines',false);
+    if(t.soft!==undefined){if(!isA(t.soft))E.push(at+' の soft は [ ] で書いてください。');else t.soft.forEach((s,i)=>{const p=at+' の soft '+(i+1)+'番目';if(!s||evIds.indexOf(s.evidence)<0)E.push(p+' の証拠が、証拠の一覧にありません。');chkLines(s&&s.lines,p+' の lines',true);});}
+    if(t.hints!==undefined&&!(isA(t.hints)&&t.hints.length>0&&t.hints.every(isS)))E.push(at+' の hints は ["ヒント1","ヒント2"] の形で書いてください。');
+    chkLines(t.after,at+' の after(崩したあとの会話)',true);
+  });
+  if(j.end!==undefined){if(!j.end||typeof j.end!=='object')E.push('end の形が正しくありません。');else{if(j.end.heading!==undefined&&!isS(j.end.heading))E.push('end.heading は文字で書いてください。');if(!isS(j.end.text))E.push('end.text(結末の文)がありません。');}}
+  else E.push('end(結末)がありません。');
+  return E;
+}
+
+/* ---------- JSON → エンジン内部の形 ---------- */
+function compile(j,builtin){
+  const kids=j.mode==='kids',L=Object.assign({},kids?LABEL.kids:LABEL.standard);
+  Object.keys(j.labels||{}).forEach(k=>{L[LABELKEYS[k]]=j.labels[k];});
+  const ln=a=>(a||[]).map(l=>[l.who,l.text,l.act===undefined?[]:(Array.isArray(l.act)?l.act:[l.act])]);
+  const who={narr:{n:''}};
+  ROLES.forEach(r=>{const c=j.cast[r],hat=c.hat||'none';
+    who[r]={n:c.name,c:c.color||'#6b7a99',skin:c.skin||'#e8c9a8',hair:c.hair||(hat==='none'?'short':'none'),hairColor:c.hairColor||'#2a2420',hat:hat,hatColor:c.hatColor||HATCOL[hat],wear:c.wear||'none',mouth:c.mouth||'flat'};});
+  const ev=j.evidence.map(e=>{
+    const big=e.image?'<img src="'+e.image+'" alt="">':e.icon?'<svg viewBox="0 0 48 48" aria-hidden="true">'+ICONS[e.icon]+'</svg>':'';
+    return {id:e.id,n:e.name,d:e.desc,btn:big||esc(e.glyph),big:big};});
+  const T=j.testimonies.map(t=>({
+    title:t.title,guide:t.guide,
+    st:t.statements.map(s=>({k:s.key,t:s.text,p:ln(s.press),add:s.add?{k:s.add.key,t:s.add.text,p:ln(s.add.press)}:null})),
+    hit:{ev:t.hit.evidence,keys:t.hit.keys.slice(),need:!!t.hit.needsAdded},
+    needLines:t.needLines?ln(t.needLines):null,
+    soft:(t.soft||[]).map(s=>({ev:s.evidence,lines:ln(s.lines)})),
+    hints:t.hints||null,after:ln(t.after)}));
+  const intro=ln(j.intro),firstWit=intro.find(l=>l[0]==='wit');
+  return {id:j.id,builtin:!!builtin,kids:kids,L:L,eyebrow:j.label||(kids?'じけん':'CASE'),tagline:j.tagline||'',title:j.title,brief:j.brief||'',
+    tags:j.deskTags||(kids?['けんじ','べんご']:['検察','弁護']),who:who,ev:ev,intro:intro,T:T,
+    idleLine:j.idleLine||(firstWit?firstWit[1]:''),
+    end:{h1:(j.end.heading)||(kids?'かいけつ！':'無罪'),text:j.end.text}};
+}
+
+/* ---------- 事件の一覧 ---------- */
+const BUILTIN=[{"format":1,"id":"nigeta-usagi","mode":"kids","label":"にゅうもん 1","tagline":"がっきゅうさいばん","title":"にげた うさぎ","brief":"うさぎの ぴょんたが にげた！ うたがわれたのは ともだちの ケンタくん。きみは べんごにん。しょうにんの おはなしの おかしな ところを みつけよう。","deskTags":["いいん","べんご"],"cast":{"judge":{"name":"せんせい","color":"#c96f8a","hair":"bun","hairColor":"#5a3a22","wear":"collar","mouth":"smile"},"pros":{"name":"いいんちょう ミナ","color":"#7a5bb5","hair":"ponytail","hairColor":"#2a2030","mouth":"smile"},"wit":{"name":"タクヤ","color":"#e0a13a","hair":"none","hat":"cap","hatColor":"#2f6fb5","mouth":"flat"},"you":{"name":"きみ","color":"#2f9f6e","hair":"short","hairColor":"#3a2a20","wear":"hood","mouth":"smile"},"def":{"name":"ケンタ","color":"#d9553f","hair":"crop","hairColor":"#2a2420","mouth":"frown"}},"evidence":[{"id":"kasa","name":"ぬれた かさ","desc":"けさは ずっと あめ。みんなの かさが ぬれている。","icon":"umbrella"},{"id":"ninjin","name":"にんじんの かけら","desc":"タクヤくんの ポケットから でてきた。うさぎの だいこうぶつ。","icon":"carrot"},{"id":"fuda","name":"とうばんの ふだ","desc":"きょうの うさぎとうばんは ケンタくん。あさ 8じに えさを あげる。","icon":"tag"}],"intro":[{"who":"narr","text":"あさの 1ねん 2くみ。うさぎの ぴょんたが いない！"},{"who":"judge","text":"みなさん、たいへんです。うさぎごやの とびらが あいて、ぴょんたが にげました。"},{"who":"pros","text":"きょうの とうばんは ケンタくん。しめわすれたのは ケンタくんだと おもいます。"},{"who":"def","text":"ちがうよ！ ぼく、ちゃんと しめたもん…。"},{"who":"you","text":"(ケンタくんは うそを つかない。たすけて あげなくちゃ。)"},{"who":"pros","text":"みた ひとが います。タクヤくんです。"},{"who":"wit","text":"う、うん。ぼく、みたよ。"},{"who":"judge","text":"では タクヤくん。みた ことを おはなし してください。"}],"testimonies":[{"title":"しょうげん 1 けさ みた こと","guide":"しょうげんを よもう。しょうこと ちがう ことを いっていたら、「しょうこ」から えらんで「これだ！」を おそう。","statements":[{"key":"a","text":"けさ、うさぎごやの まえで ケンタくんを みたよ。","press":[{"who":"you","text":"なんじごろ？"},{"who":"wit","text":"8じごろ。とうばんの じかんだよ。"}]},{"key":"b","text":"ケンタくんは とびらを あけて、うさぎと あそんでた。","press":[{"who":"you","text":"ほんとうに ケンタくんだった？"},{"who":"wit","text":"うん。あかい ふくだったもん。"}]},{"key":"c","text":"おひさまが ぽかぽかで、いい てんきだったなあ。","press":[{"who":"you","text":"いい てんき？"},{"who":"wit","text":"うん。そらが まっさおだったよ。"},{"who":"you","text":"(あれ？ けさは たしか…。)"}]}],"hit":{"evidence":"kasa","keys":["c"]},"hints":["けさの てんき、どうだったかな…。","タクヤくん、「いい てんき」って いってたよね。かさを みて！"],"after":[{"who":"you","text":"タクヤくん。けさは いい てんきじゃ なかったよ。"},{"who":"you","text":"みんなの かさが ぬれてる。けさは ずっと あめだったんだ！"},{"who":"wit","text":"あ、あめ…！ そ、そうだった。"},{"who":"pros","text":"タクヤくん、ほんとうに みたの？"},{"who":"wit","text":"み、みたよ！ えっと、きょうしつの まどから みたんだ。"},{"who":"judge","text":"では もういちど、おはなし してください。"}]},{"title":"しょうげん 2 まどから みた こと","guide":"こんどは「くわしく きく」も つかって みよう。きに なる ことばを もっと きけるよ。","statements":[{"key":"a","text":"あめだったから、きょうしつの まどから みてたんだ。","press":[{"who":"you","text":"まどから うさぎごやは みえるの？"},{"who":"wit","text":"み、みえるよ。ちょっと とおいけど。"}]},{"key":"b","text":"ぼくは うさぎごやに ちかづいて ないよ。","press":[{"who":"you","text":"いちども？"},{"who":"wit","text":"うん。きょうは いちども いってない。"},{"who":"you","text":"(いちども いってない…。)"}]},{"key":"c","text":"えさだって、あげて ないもん。","press":[{"who":"you","text":"えさって、なにを あげるの？"},{"who":"wit","text":"に、にんじんとか…。ぼくは あげてないけど！"}]}],"hit":{"evidence":"ninjin","keys":["b","c"]},"hints":["タクヤくんの ポケットに、なにか あったよね。","「ちかづいて ない」「えさを あげてない」…。にんじんを みて！"],"after":[{"who":"you","text":"タクヤくん。ポケットに にんじんの かけらが あったよ。"},{"who":"you","text":"うさぎごやに いって、えさを あげたんじゃ ないかな？"},{"who":"wit","text":"う…うう…。"},{"who":"wit","text":"ごめんなさい！ ぴょんたに にんじんを あげたくて、こっそり あけたんだ。"},{"who":"wit","text":"しめるのを わすれて…。こわくて いえなかった。"},{"who":"def","text":"そっか。いって くれて ありがとう。"},{"who":"judge","text":"しょうじきに いえて えらいね。さあ、みんなで ぴょんたを さがしましょう！"}]}],"end":{"heading":"かいけつ！","text":"ぴょんたは かだんの かげで みつかった。タクヤくんと ケンタくんは、いっしょに にんじんを あげた。"}},{"format":1,"id":"kieta-purin","mode":"kids","label":"にゅうもん 2","tagline":"おうちじけん","title":"きえた プリン","brief":"れいぞうこの プリンが きえた！ うたがわれたのは いぬの ポチ。きみは ポチの べんごにん。パパの おはなしの おかしな ところを みつけよう。","deskTags":["けんじ","べんご"],"cast":{"judge":{"name":"ママ","color":"#e07a5a","hair":"bun","hairColor":"#4a3020","wear":"apron","mouth":"smile"},"pros":{"name":"おねえちゃん","color":"#5a9bd8","hair":"ponytail","hairColor":"#3a2a20","mouth":"flat"},"wit":{"name":"パパ","color":"#5a6b8a","hair":"short","hairColor":"#2a2420","wear":"collar","mouth":"smile"},"you":{"name":"きみ","color":"#2f9f6e","hair":"short","hairColor":"#3a2a20","wear":"hood","mouth":"smile"},"def":{"name":"ポチ","color":"#b8834a","skin":"#f0dcc0","hair":"none","hat":"dog","hatColor":"#8a5a2c","mouth":"animal"}},"evidence":[{"id":"tana","name":"たかい たな","desc":"プリンは れいぞうこの いちばん うえの たなに あった。ポチには とどかない たかさ。","icon":"fridge"},{"id":"pajama","name":"パパの パジャマ","desc":"むねに ちゃいろい しみ。あまい カラメルの においが する。","icon":"shirt"},{"id":"spoon","name":"スプーン","desc":"ながしに スプーンが 1ぽん。プリンが ついて いる。","icon":"spoon"}],"intro":[{"who":"narr","text":"にちようの あさ。れいぞうこの プリンが ない！"},{"who":"judge","text":"これより おうちさいばんを はじめます。きのうの よる、プリンが きえました。"},{"who":"pros","text":"はんにんは ポチよ。パパが みたんだって。"},{"who":"def","text":"クゥーン…。"},{"who":"you","text":"(ポチは そんな こと しない。まもって あげなくちゃ。)"},{"who":"judge","text":"では パパ。みた ことを はなして ください。"},{"who":"wit","text":"え、ええと…。はい。"}],"testimonies":[{"title":"しょうげん 1 よるの だいどころ","statements":[{"key":"a","text":"よる、のどが かわいて だいどころに いったんだ。","press":[{"who":"you","text":"なんじごろ？"},{"who":"wit","text":"10じ…いや、11じ だったかな。"}]},{"key":"b","text":"そしたら ポチが れいぞうこを あけて いたんだよ。","press":[{"who":"you","text":"ポチが じぶんで あけたの？"},{"who":"wit","text":"そ、そう。はなで ぐいっとね。"}]},{"key":"c","text":"いちばん うえの たなから、プリンを ぱくっと とった。","press":[{"who":"you","text":"いちばん うえ？"},{"who":"wit","text":"うん。ぴょーんと とんでね。"},{"who":"you","text":"(ポチは ちいさいのに…？)"}]}],"hit":{"evidence":"tana","keys":["c"]},"hints":["ワン！(ポチが れいぞうこの うえの ほうを みあげて いる。)","クンクン。(プリンが あった たなは、ポチに とどくかな？「たかい たな」を みて！)"],"after":[{"who":"you","text":"パパ。プリンは いちばん うえの たなに あったんだよ。"},{"who":"you","text":"ポチは ちいさいから、あんな たかい ところには とどかない！"},{"who":"wit","text":"うっ…！ そ、そうだったかな。"},{"who":"pros","text":"パパ、ほんとうに みたの？"},{"who":"wit","text":"み、みたとも！ えっと、ゆかに おちて いたのを たべたんだ。"},{"who":"judge","text":"では もういちど、はなして ください。"}]},{"title":"しょうげん 2 ゆかの プリン","guide":"こんどは「くわしく きく」も つかって みよう。きに なる ことばを もっと きけるよ。","statements":[{"key":"a","text":"プリンは ゆかに おちて いたんだ。それを ポチが たべた。","press":[{"who":"you","text":"どうして ゆかに おちてたの？"},{"who":"wit","text":"さ、さあ…。だれかが おとしたのかな。"}]},{"key":"b","text":"パパは すぐ へやに もどって ねたよ。","press":[{"who":"you","text":"なにも たべずに？"},{"who":"wit","text":"も、もちろん！"}]},{"key":"c","text":"パパは プリンなんて、ひとくちも たべて いない。","press":[{"who":"you","text":"ほんとうに ひとくちも？"},{"who":"wit","text":"ひとくちも！ あまい ものは にがてなんだ。"},{"who":"you","text":"(あまい ものが にがて…。じゃあ あの しみは？)"}]}],"hit":{"evidence":"pajama","keys":["c"]},"soft":[{"evidence":"spoon","lines":[{"who":"judge","text":"スプーンで たべるのは にんげんね。でも だれの スプーンかは わからないわ。"}]}],"hints":["クンクン。(ポチが パパの むねの あたりを かいで いる。)","ワン！(パパの パジャマに、あまい においの しみが あるよ！)"],"after":[{"who":"you","text":"パパ。パジャマに ちゃいろい しみが あるよ。"},{"who":"you","text":"あまい カラメルの におい。プリンを たべたのは パパだ！"},{"who":"wit","text":"ぎくっ！"},{"who":"wit","text":"ご、ごめんなさい。よなかに おなかが すいて、つい…。"},{"who":"def","text":"ワン！","act":"joy"},{"who":"pros","text":"ポチ、うたがって ごめんね。"},{"who":"judge","text":"はんけつ！ パパは みんなの プリンを 3こ かって くること。"}]}],"end":{"heading":"かいけつ！","text":"パパは プリンを 3こ かってきた。ポチには ほねの おやつ。みんなで なかよく たべた。"}},{"format":1,"id":"wareta-uekibachi","mode":"kids","label":"にゅうもん 3","tagline":"おうちじけん","title":"われた うえきばち","brief":"ベランダの うえきばちが われた！ うたがわれたのは ねこの ミケ。きみは ミケの べんごにん。ママの おはなしの おかしな ところを みつけよう。","deskTags":["けんじ","べんご"],"cast":{"judge":{"name":"パパ","color":"#5a6b8a","hair":"short","hairColor":"#2a2420","wear":"tie","mouth":"smile"},"pros":{"name":"おねえちゃん","color":"#5a9bd8","hair":"ponytail","hairColor":"#3a2a20","mouth":"flat"},"wit":{"name":"ママ","color":"#e07a5a","hair":"bun","hairColor":"#4a3020","wear":"apron","mouth":"smile"},"you":{"name":"きみ","color":"#2f9f6e","hair":"short","hairColor":"#3a2a20","wear":"hood","mouth":"smile"},"def":{"name":"ミケ","color":"#f2e9d8","skin":"#fffaf0","hair":"none","hat":"cat","hatColor":"#e08a3a","mouth":"animal"}},"evidence":[{"id":"mado","name":"しまった まど","desc":"ベランダの まどは、あさから ずっと かぎが かかって いた。","icon":"window"},{"id":"sandal","name":"ママの サンダル","desc":"ベランダの サンダルに、くろい つちが ついて いる。","icon":"sandal"},{"id":"hako","name":"リボンの はこ","desc":"ベランダの すみに かくして あった。なかみは ひみつ。","icon":"gift"}],"intro":[{"who":"narr","text":"どようの ごご。ベランダの うえきばちが われて いる！"},{"who":"judge","text":"これより おうちさいばんを はじめます。だいじな うえきばちが われました。"},{"who":"pros","text":"はんにんは ミケよ。ママが そう いってた。"},{"who":"def","text":"ニャー…。"},{"who":"you","text":"(ミケは きょう、ずっと こたつで ねてたのに。)"},{"who":"judge","text":"では ママ。しって いる ことを はなして ください。"},{"who":"wit","text":"え、ええ。わかったわ。"}],"testimonies":[{"title":"しょうげん 1 われた わけ","statements":[{"key":"a","text":"おひるごろ、ベランダで がちゃんと おとが したの。","press":[{"who":"you","text":"ママは どこに いたの？"},{"who":"wit","text":"だ、だいどころよ。"}]},{"key":"b","text":"みに いったら、うえきばちが われて いたわ。","press":[{"who":"you","text":"そのとき ミケは いた？"},{"who":"wit","text":"い、いたわ。ベランダの すみに。"}]},{"key":"c","text":"ミケが まどから でて、たおしたのよ。","press":[{"who":"you","text":"まどから でたの？"},{"who":"wit","text":"そうよ。まどが あいて いたもの。"},{"who":"you","text":"(まどが あいて いた…？)"}]}],"hit":{"evidence":"mado","keys":["c"]},"hints":["ニャー。(ミケが まどの かぎを じっと みて いる。)","ニャッ！(まどは あいて いたかな？「しまった まど」を みて！)"],"after":[{"who":"you","text":"ママ。まどは あさから ずっと かぎが かかって いたよ。"},{"who":"you","text":"ミケは まどから でられない！"},{"who":"wit","text":"あっ…！ そ、そうだったわね。"},{"who":"pros","text":"ママ、どういう こと？"},{"who":"wit","text":"え、ええと…。そう、かぜよ！ つよい かぜで たおれたの。"},{"who":"judge","text":"ふむ。では もういちど はなして ください。"}]},{"title":"しょうげん 2 かぜの せい","guide":"「くわしく きく」で あたらしい しょうげんが ふえる ことが あるよ。よく きいて みよう。","statements":[{"key":"a","text":"つよい かぜが ふいて、うえきばちが たおれたのよ。","press":[{"who":"you","text":"きょうは かぜが つよかった？"},{"who":"wit","text":"つ、つよかったわ。たぶん。"}]},{"key":"b","text":"ママは きょう、ベランダには でて いないわ。","press":[{"who":"you","text":"いちども でて ないの？"},{"who":"wit","text":"ええ。せんたくものも へやに ほしたもの。"},{"who":"you","text":"サンダルも はいて ない？"},{"who":"wit","text":"は、はいて ないわ！"},{"who":"judge","text":"ママ。それも しょうげんに いれて ください。"}],"add":{"key":"x","text":"ベランダの サンダルは、きょう いちども はいて いないわ。","press":[{"who":"you","text":"ほんとうに いちども？"},{"who":"wit","text":"い、いちども…。"}]}}],"hit":{"evidence":"sandal","keys":["x"],"needsAdded":true},"needLines":[{"who":"judge","text":"サンダルの ことは、まだ きいて いないよ。「くわしく きく」で たしかめて みよう。"}],"soft":[{"evidence":"hako","lines":[{"who":"judge","text":"ふしぎな はこだね。でも いまの ことばとは ちがって いないよ。"}]}],"hints":["ニャー。(ミケが ベランダの サンダルを ふんふん かいで いる。)","ニャッ！(ママに「ベランダに でたか」を くわしく きいて、サンダルを みせよう！)"],"after":[{"who":"you","text":"ママ。サンダルに くろい つちが ついて いるよ。"},{"who":"you","text":"うえきばちの つちだ。ママは ベランダに でたんだ！"},{"who":"wit","text":"うう…。ごめんなさい。"},{"who":"wit","text":"ベランダに はこを かくそうと して、つまずいて しまったの。"},{"who":"pros","text":"はこ？ この リボンの はこ？"},{"who":"wit","text":"あしたは あなたの たんじょうび でしょう。ないしょに したかったの。"},{"who":"def","text":"ニャー！","act":"joy"},{"who":"judge","text":"はんけつ！ ミケは むざい。ママも むざい。あしたは みんなで おいわいだ！"}]}],"end":{"heading":"かいけつ！","text":"はこの なかみは、あたらしい じてんしゃの ヘルメット。ミケは リボンで あそんで ごきげんだった。"}},{"format":1,"id":"tsukiyo-no-banto","mode":"standard","label":"CASE 01","tagline":"むずかしい ・ 漢字あり","title":"月夜の番頭","brief":"老舗の和菓子店「月乃屋」から、門外不出のレシピ帳が消えた。疑われたのは見習い職人。あなたは弁護人として、目撃者の証言を崩す。","deskTags":["検察","弁護"],"cast":{"judge":{"name":"裁判長","color":"#34323f","hair":"short","hairColor":"#b9b9c4","wear":"collar","mouth":"none"},"pros":{"name":"氷室 検事","color":"#4f76a3","hair":"swept","hairColor":"#1c2233","wear":"tie","mouth":"flat"},"wit":{"name":"証人 餡堂 徳次","color":"#8a5a3c","hair":"none","hat":"chef","wear":"apron","mouth":"mustache"},"you":{"name":"弁護人(あなた)","color":"#2f6f5e","hair":"short","hairColor":"#3a2a20","wear":"lapel","mouth":"flat"},"def":{"name":"被告人 小麦沢 ハル","color":"#c98a2b","hair":"none","hat":"bandana","hatColor":"#c9432b","wear":"apron","mouth":"smile"}},"evidence":[{"id":"outage","name":"停電のお知らせ","desc":"電力会社の通知。11月3日の午後8時40分から9時20分まで、月見通り商店街の一帯で停電があった。","glyph":"電"},{"id":"door","name":"裏口の修理伝票","desc":"建具店の伝票。月乃屋の裏口の引き戸は11月2日に修理のため取り外した。6日に取り付けるまで、内側から板を打ち付けて封鎖してある。","glyph":"戸"},{"id":"ledger","name":"備品台帳","desc":"月乃屋の備品の一覧。懐中電灯は1本(赤色)。保管場所は事務室の机の引き出し。","glyph":"帳"},{"id":"lock","name":"店主のメモ","desc":"事件当日、店主は午後8時に事務室を施錠して帰宅した。事務室の鍵を持ち、金庫の番号を知っているのは、店主と番頭の2人だけ。","glyph":"鍵"},{"id":"card","name":"被告のタイムカード","desc":"小麦沢ハルの11月3日の退勤は午後10時4分。本人は「厨房でずっと餡の仕込みをしていた」と話している。","glyph":"刻"}],"intro":[{"who":"narr","text":"11月5日 午前10時 地方裁判所 第3法廷"},{"who":"judge","text":"これより、和菓子店「月乃屋」のレシピ帳盗難事件の審理を始めます。"},{"who":"pros","text":"事件は11月3日の夜。事務室の金庫から、門外不出のレシピ帳が消えました。犯人は見習い職人の小麦沢ハル。目撃者がいます。"},{"who":"def","text":"先生、わたし、やってません…！ あの晩はずっと厨房で仕込みをしていたんです。"},{"who":"you","text":"(大丈夫。うその証言には必ずほころびがある。証拠と食い違う一言を探そう。)"},{"who":"judge","text":"証人。名前と職業を。"},{"who":"wit","text":"餡堂徳次。月乃屋の番頭を三十年つとめております。"},{"who":"judge","text":"では、あの晩に見たことを証言してください。"}],"testimonies":[{"title":"証言1 目撃したこと","statements":[{"key":"a","text":"あの晩、わたしは9時ちょうどに戸締まりの見回りをしておりました。","press":[{"who":"you","text":"9時ちょうど、と言い切れるのですか？"},{"who":"wit","text":"毎晩きっかり9時に回るのが、三十年来の決まりでして。"},{"who":"pros","text":"証人の几帳面さは、店の誰もが認めています。"},{"who":"you","text":"(時刻は午後9時で確定、か。)"}]},{"key":"b","text":"事務室の前の廊下で、被告が部屋から出てくるのを見たのです。","press":[{"who":"you","text":"被告とは、どのくらい離れていましたか？"},{"who":"wit","text":"廊下の端と端ですから、9メートルほどですかな。"},{"who":"you","text":"(けっこう離れているな。)"}]},{"key":"c","text":"廊下の明かりがついていたので、顔ははっきり見えました。","press":[{"who":"you","text":"見まちがいの可能性はありませんか？"},{"who":"wit","text":"ありません。天井の電灯が煌々とついておりましたから。"},{"who":"you","text":"(電灯が、煌々と。…あの晩に？)"}]},{"key":"d","text":"被告は青い風呂敷包みを抱えて、裏口のほうへ走っていきました。","press":[{"who":"you","text":"包みの中身は見たのですか？"},{"who":"wit","text":"いえ。しかし、ちょうど帳面ほどの大きさでした。"},{"who":"pros","text":"状況から見て、レシピ帳と考えるのが自然でしょう。"}]},{"key":"e","text":"レシピ帳を盗んだのは、被告に間違いありません。","press":[{"who":"you","text":"それは証人の推測ですね？"},{"who":"wit","text":"む…。しかし、ほかに誰がおります。"},{"who":"judge","text":"弁護人。推測だと言うなら、証拠で示してください。"}]}],"hit":{"evidence":"outage","keys":["c"]},"after":[{"who":"you","text":"証人。あの晩、廊下の電灯がついていたはずはありません。"},{"who":"you","text":"この通知によれば、午後8時40分から9時20分まで、月見通り一帯は停電していたのです！"},{"who":"wit","text":"て、停電…！？ あっ…。"},{"who":"pros","text":"…証人。停電のことは覚えていますか。"},{"who":"wit","text":"そ、そうでした。真っ暗でしたな。ですが、見たのは本当です！ 明かりは別にあったのです。"},{"who":"judge","text":"では証人。もう一度、正確に証言してください。"}]},{"title":"証言2 暗闇の中で","statements":[{"key":"a","text":"停電でしたので、わたしは懐中電灯を手に見回っておりました。","press":[{"who":"you","text":"では最初の証言で、なぜ電灯がついていたと？"},{"who":"wit","text":"歳のせいか、つい記憶がごっちゃになりまして…。"},{"who":"pros","text":"細部の記憶ちがいは、誰にでもあることです。"}]},{"key":"b","text":"その光を向けたら、被告の顔がはっきり浮かびあがったのです。","press":[{"who":"you","text":"9メートル先の顔が、懐中電灯で分かりますか？"},{"who":"wit","text":"よく光るやつでして。"},{"who":"you","text":"(その懐中電灯のこと、あとで聞いてみよう。)"}]},{"key":"c","text":"被告は包みを抱えたまま、裏口の引き戸を開けて外へ逃げました。","press":[{"who":"you","text":"裏口から出たのは確かですか？"},{"who":"wit","text":"ええ。引き戸をガラリと開けて、夜の闇へ。この目で見ました。"}]},{"key":"d","text":"戸がピシャリと閉まる音まで、この耳で聞いております。","press":[{"who":"you","text":"音まで聞こえたのですか。"},{"who":"wit","text":"静かな夜でしたから。あの戸は建て付けが悪くて、大きな音がするのです。"},{"who":"you","text":"(建て付けの悪い戸…。そういえば修理の伝票があったな。)"}]},{"key":"e","text":"追いかけましたが、年寄りの足では追いつけませんでした。","press":[{"who":"you","text":"どこまで追ったのですか？"},{"who":"wit","text":"裏口の手前までです。息が切れまして。"}]}],"hit":{"evidence":"door","keys":["c","d"]},"after":[{"who":"you","text":"証人。被告は裏口から出られません。あなたが戸の音を聞けたはずもない。"},{"who":"you","text":"裏口の引き戸は事件の前日に取り外され、当夜は内側から板を打ち付けて封鎖されていたのです！"},{"who":"wit","text":"ぐっ…！ い、板…。そうでした…。"},{"who":"judge","text":"証人。偽りを述べれば、偽証の罪に問われますよ。"},{"who":"wit","text":"う、裏口は見まちがいです！ しかし、被告が事務室から出てきたのは確かなのです！"},{"who":"judge","text":"これが最後です。証言を。"}]},{"title":"証言3 番頭の言い分","statements":[{"key":"a","text":"裏口のことは、暗がりでの見まちがいでした。お詫びします。","press":[{"who":"you","text":"ほかにも見まちがいがあるのでは？"},{"who":"wit","text":"ありません！ 肝心なところは確かです。"}]},{"key":"b","text":"しかし、被告が事務室から出てきたのは、この目で見ました。","press":[{"who":"you","text":"事務室は午後8時に施錠されています。被告はどうやって入ったのですか？"},{"who":"wit","text":"そ、それは…合鍵でも作ったのでしょう。"},{"who":"pros","text":"侵入の方法は、現在も捜査中です。"},{"who":"you","text":"(鍵を持っているのは、店主と…この証人だけだ。)"}]},{"key":"c","text":"わたしは廊下に立ったまま、懐中電灯で照らしていたのですから。","press":[{"who":"you","text":"その懐中電灯は、あなたの私物ですか？"},{"who":"wit","text":"いえ、店の備え付けです。停電になったので取ってきたのです。"},{"who":"you","text":"どんな懐中電灯ですか？"},{"who":"wit","text":"赤いやつですよ。店に一本きりの。"},{"who":"judge","text":"証人。いまの点を証言に加えてください。"}],"add":{"key":"x","text":"懐中電灯は、停電のあとで取ってきた、店に一本だけの赤い備え付けです。","press":[{"who":"you","text":"停電になってから取りに行った。間違いありませんね？"},{"who":"wit","text":"ええ。真っ暗になりましたので、すぐに。"},{"who":"you","text":"(午後8時40分より後に取ってきた。…どこから？)"}]}},{"key":"d","text":"事務室には、あの晩いちども入っておりません。","press":[{"who":"you","text":"本当に、一歩も？"},{"who":"wit","text":"入る用事がありません。鍵もかかっておりましたし。"},{"who":"you","text":"(入っていない、と言い切ったな。)"}]}],"hit":{"evidence":"ledger","keys":["c","x","d"],"needsAdded":true},"needLines":[{"who":"judge","text":"弁護人。証人がどの懐中電灯を使ったのか、まだ明らかになっていません。"},{"who":"you","text":"(先に、懐中電灯のことを問いただすべきか。)"}],"soft":[{"evidence":"lock","lines":[{"who":"judge","text":"証人が鍵を持っていたことは分かります。しかし、入ったことの証明にはなりませんね。"},{"who":"you","text":"(鍵だけでは弱い。入らなければ手にできない物があれば…。)"}]}],"after":[{"who":"you","text":"証人。あなたが使った赤い懐中電灯は、ふだんどこに置いてありますか。"},{"who":"wit","text":"どこって、事務室の机の引き出しに…… あ。"},{"who":"you","text":"そのとおり。備品台帳にもそう書いてあります。そして事務室は、午後8時から施錠されていました。"},{"who":"you","text":"停電のあとで懐中電灯を手にできたのは、鍵を開けて事務室に入った人間だけです！"},{"who":"wit","text":"ぐ、ぐぬぬぬ…！","act":["sweat:3","shock"]},{"who":"pros","text":"…証人。事務室の鍵を持っているのは、店主とあなただけでしたね。"},{"who":"you","text":"暗闇の事務室に入り、金庫の番号を知っていて、レシピ帳を持ち出せた人物。それは被告ではない。あなたです、餡堂さん！"},{"who":"wit","text":"…餡子ひとすじ三十年。なのに店主は、あの帳面を見習いに継がせると言うのです…！"},{"who":"judge","text":"検察官、証人から改めて事情を聞くように。それでは、被告人 小麦沢ハルに判決を言い渡します。"}]}],"end":{"heading":"無罪","text":"レシピ帳は餡堂の自宅から見つかった。ハルは店に戻り、今日も餡を炊いている。「先生、今度うちの豆大福を食べに来てください！」"}}];
+const CASES={},ORDERED=[];
+BUILTIN.forEach(j=>{const e=validate(j);if(e.length){console.error('内蔵の事件に問題があります',j.id,e);return;}CASES[j.id]=compile(j,true);ORDERED.push(j.id);});
+/* この端末で読み込んだ事件 */
+let USER=[];
+function loadUser(){try{const v=JSON.parse(localStorage.getItem('jinmon-user-cases')||'[]');USER=Array.isArray(v)?v.filter(j=>validate(j).length===0&&!(CASES[j.id]&&CASES[j.id].builtin)):[];}catch(e){USER=[];}USER.forEach(j=>{CASES[j.id]=compile(j,false);});}
+function saveUser(){try{localStorage.setItem('jinmon-user-cases',JSON.stringify(USER));return true;}catch(e){return false;}}
+loadUser();
+let C,K,L,WHO,EV,INTRO,T;
+
+/* ---------- 状態 ---------- */
+const MAXLIFE=5;
+let S={mode:'title',ti:0,si:0,life:MAXLIFE,miss:0,tmiss:0,press:0,unlocked:false,sts:[]};
+let queue=[],onDone=null,typing=null,full='',sel='',busy=false,recOpen=false;
+
+/* ---------- 音 ---------- */
+let AC=null;
+function beep(f,d,type,v){if(!AC)return;try{const o=AC.createOscillator(),g=AC.createGain();o.type=type||'square';o.frequency.value=f;g.gain.value=v||.04;g.gain.exponentialRampToValueAtTime(.0001,AC.currentTime+d);o.connect(g);g.connect(AC.destination);o.start();o.stop(AC.currentTime+d);}catch(e){}}
+const sfx={tick:()=>beep(520,.05,'square',.025),hit:()=>{beep(140,.35,'sawtooth',.08);setTimeout(()=>beep(90,.4,'sawtooth',.08),90);},bad:()=>beep(110,.4,'square',.06),slam:()=>beep(70,.22,'sawtooth',.1),add:()=>{beep(660,.1,'triangle',.06);setTimeout(()=>beep(880,.15,'triangle',.06),100);}};
+
+/* ---------- 事件の切り替え ---------- */
+function load(id){
+  C=CASES[id];K=C.kids;L=C.L;WHO=C.who;EV=C.ev;INTRO=C.intro;T=C.T;sel=EV[0].id;
+  const app=$('app');app.classList.toggle('kids',K);app.style.setProperty('--arm',WHO.you.c);
+  document.querySelectorAll('.bust').forEach(b=>{const o=b.querySelector('svg');if(o)o.remove();b.insertAdjacentHTML('afterbegin',bust(b.dataset.k));});
+  document.querySelector('#pros .tag').textContent=C.tags[0];document.querySelector('#def .tag').textContent=C.tags[1];
+  $('eyebrow').textContent=C.eyebrow;$('phase').textContent=C.title;
+  document.querySelector('.shead').textContent=L.rec;
+  document.querySelector('#judge .desk span').textContent=L.trust;
+}
+/* 開始前の静かな法廷 */
+function idle(){
+  S={mode:'title',ti:0,si:0,life:MAXLIFE,miss:0,tmiss:0,press:0,unlocked:false,sts:[]};
+  pips();sweat(0);speaker('wit');$('box').classList.remove('testi','glow');$('dots').innerHTML='';
+  $('tag').textContent=WHO.wit.n;$('text').classList.remove('think');$('text').textContent=C.idleLine;ctl();
+}
+
+/* ---------- 表示 ---------- */
+function pips(){let h='';for(let i=0;i<MAXLIFE;i++)h+='<i class="'+(i<S.life?'':'off')+'"></i>';$('pips').innerHTML=h;$('pips').setAttribute('aria-label','裁判長の信頼 '+S.life+' / '+MAXLIFE);}
+function speaker(k){['judge','pros','wit'].forEach(x=>$(x).classList.toggle('on',x===k));$('def').dataset.on=k==='you'?'you':k==='def'?'def':'';}
+function pulse(el,c,ms){el.classList.remove(c);void el.offsetWidth;el.classList.add(c);setTimeout(()=>el.classList.remove(c),ms);}
+function sweat(n){$('wit').dataset.sweat=Math.min(3,n===undefined?S.ti+(S.unlocked?1:0):n);}
+/* セリフに付けられるアクション(JSONの act) */
+function doAct(a){
+  const you=document.querySelector('.b-you');
+  if(a==='recoil')pulse($('pros'),'recoil',1200);
+  else if(a==='shock')pulse($('wit'),'shock',600);
+  else if(a==='joy')pulse($('def'),'joy',800);
+  else if(a==='droop')pulse(document.querySelector('.b-def'),'droop',1350);
+  else if(a==='lean')pulse(you,'lean',750);
+  else if(a==='slam'){pulse(you,'strike',1350);setTimeout(()=>{pulse($('def'),'slam',900);sfx.slam();},reduce?0:700);}
+  else if(a==='quake'){if(!reduce)pulse($('stage'),'quake',320);}
+  else if(a==='flash'){if(!reduce){const f=document.createElement('i');f.className='flash solo';$('stage').appendChild(f);setTimeout(()=>f.remove(),320);}}
+  else if(a.indexOf('sweat:')===0)sweat(+a.slice(6));
+}
+function type(text){
+  clearInterval(typing);typing=null;full=text;const el=$('text');
+  if(reduce){el.textContent=text;return;}
+  let i=0;el.textContent='';const stepN=K?1:2,ms=K?38:30;
+  typing=setInterval(()=>{i+=stepN;el.textContent=text.slice(0,i);if(i>=text.length){clearInterval(typing);typing=null;}},ms);
+}
+function finishType(){if(typing){clearInterval(typing);typing=null;$('text').textContent=full;return true;}return false;}
+function note(msg){const n=$('note');n.textContent=msg;n.hidden=false;setTimeout(()=>{n.hidden=true;},2200);}
+
+function showLine(who,text,acts){
+  $('box').classList.remove('testi','glow');$('dots').innerHTML='';
+  speaker(who);
+  $('tag').textContent=who==='narr'?'':WHO[who].n;
+  $('text').classList.toggle('think',who==='you'&&text.charAt(0)==='(');
+  type(text);
+  (acts||[]).forEach(doAct);
+}
+function ctlTalk(){
+  $('ctl').className='';
+  $('ctl').innerHTML='<button class="next span2" id="nx" type="button">'+esc(L.next)+'</button><button class="recb" id="rc" type="button">'+esc(L.rec)+'</button><button class="nav" id="nx2" type="button" aria-label="'+esc(L.next)+'">▶</button>';
+  $('nx').onclick=advance;$('nx2').onclick=advance;$('rc').onclick=openRec;
+}
+function ctlExam(){
+  $('ctl').className='';
+  $('ctl').innerHTML='<button class="nav" id="pv" type="button" aria-label="'+esc(L.prev)+'">◀</button>'+
+   '<button class="act press" id="ps" type="button">'+esc(L.press)+'</button>'+
+   '<button class="recb" id="sh" type="button">'+esc(L.rec)+'</button>'+
+   '<button class="nav" id="nv" type="button" aria-label="'+esc(L.nextst)+'">▶</button>';
+  $('pv').disabled=S.si===0;
+  $('pv').onclick=()=>move(-1);$('nv').onclick=()=>move(1,true);
+  $('ps').onclick=press;$('sh').onclick=openRec;
+}
+function ctlRec(){
+  if(S.mode==='exam'){
+    $('ctl').className='two';
+    $('ctl').innerHTML='<button class="close" id="cl" type="button">'+esc(L.close)+'</button><button class="act show" id="go" type="button">'+esc(L.go)+'</button>';
+    $('go').onclick=()=>{const id=sel;recOpen=false;$('sheet').hidden=true;ctl();present(id);};
+  }else{$('ctl').className='one';$('ctl').innerHTML='<button class="next" id="cl" type="button">'+esc(L.close)+'</button>';}
+  $('cl').onclick=closeRec;
+}
+function ctl(){if(recOpen)ctlRec();else if(S.mode==='exam')ctlExam();else ctlTalk();}
+function talk(lines,done){S.mode='talk';queue=lines.slice();onDone=done;ctl();step();}
+function step(){
+  if(!queue.length){const d=onDone;onDone=null;if(d)d();return;}
+  const l=queue.shift();showLine(l[0],l[1],l[2]);
+}
+function advance(){
+  if(busy||recOpen)return;
+  if(finishType())return;
+  if(S.mode==='talk'){sfx.tick();step();}
+  else if(S.mode==='exam'){move(1,true);}
+}
+
+/* ---------- 尋問 ---------- */
+function startTestimony(i){
+  S.ti=i;S.si=0;S.unlocked=false;S.tmiss=0;sweat();
+  S.sts=T[i].st.map(s=>({k:s.k,t:s.t,p:s.p,add:s.add,done:false}));
+  $('phase').textContent=T[i].title;
+  const g=T[i].guide||(K?'しょうげんを よもう。しょうこと ちがう ことを いっていたら、「'+L.rec+'」から えらんで「'+L.go+'」を おそう。'
+    :'尋問開始 「'+T[i].title+'」  証言を読み、あやしい発言は'+L.press+'。証拠と食い違う発言には、'+L.rec+'から'+L.go+'。');
+  talk([['narr',g]],exam);
+}
+function exam(){
+  S.mode='exam';const s=S.sts[S.si],n=S.sts.length;
+  /* にゅうもんでは、2回まちがえると あやしい発言が光る */
+  const glow=K&&S.tmiss>=2&&T[S.ti].hit.keys.indexOf(s.k)>=0;
+  speaker('wit');
+  $('box').classList.add('testi');$('box').classList.toggle('glow',glow);$('text').classList.remove('think');
+  $('tag').innerHTML=esc(L.testi)+' '+(S.si+1)+' / '+n+(glow?' <span class="sus">あやしい！</span>':'')+(s.done?' <span class="done">'+esc(L.done)+'</span>':'');
+  let d='';for(let i=0;i<n;i++)d+='<i class="'+(i===S.si?'on':'')+'"></i>';$('dots').innerHTML=d;
+  type(s.t);
+  ctl();
+}
+function move(d,loop){
+  if(S.mode!=='exam'||busy||recOpen)return;const n=S.sts.length;let i=S.si+d;
+  if(i<0)return;if(i>=n){if(!loop)return;i=0;}
+  S.si=i;sfx.tick();exam();
+}
+function press(){
+  if(busy)return;
+  const s=S.sts[S.si];s.done=true;S.press++;sfx.tick();pulse(document.querySelector('.b-you'),'lean',750);
+  talk(s.p,()=>{
+    if(s.add&&!S.unlocked){S.unlocked=true;sweat();S.sts.splice(S.si+1,0,{k:s.add.k,t:s.add.t,p:s.add.p,add:null,done:false});S.si++;sfx.add();note(L.added);}
+    else if(S.si<S.sts.length-1)S.si++;
+    exam();
+  });
+}
+function present(id){
+  const t=T[S.ti],s=S.sts[S.si],h=t.hit;
+  if(id===h.ev&&h.need&&!S.unlocked){
+    talk(t.needLines||(K?[['judge','まだ わからない ことが あるみたい。「'+L.press+'」で もっと きいて みよう。']]:[['judge','弁護人。その点は、まだ証言で明らかになっていません。'],['you','(先に、もっと'+L.press+'べきか。)']]),exam);return;}
+  if(id===h.ev&&h.keys.indexOf(s.k)>=0){success();return;}
+  const soft=t.soft.find(x=>x.ev===id);
+  if(soft){talk(soft.lines,exam);return;}
+  wrong();
+}
+function success(){
+  /* ファイルを振りかぶる → 机に叩きつける → 一拍おいて矛盾の演出と周りの反応 */
+  busy=true;
+  const o=$('stamp'),p=$('pros'),w=$('wit'),d=$('def'),t0=reduce?0:700,t1=reduce?0:900;
+  pulse(document.querySelector('.b-you'),'strike',1350);
+  setTimeout(()=>{pulse(d,'slam',900);sfx.slam();},t0);
+  setTimeout(()=>{
+    sfx.hit();o.hidden=false;
+    [p,w,d].forEach(e=>{e.classList.remove('recoil','shock','joy');void e.offsetWidth;});
+    p.classList.add('recoil');w.classList.add('shock');d.classList.add('joy');sweat(S.ti+1);
+    if(!reduce)setTimeout(()=>pulse($('stage'),'quake',320),420);
+    setTimeout(()=>{
+      o.hidden=true;[p,w,d].forEach(e=>e.classList.remove('recoil','shock','joy'));busy=false;
+      talk(T[S.ti].after,()=>{if(S.ti<T.length-1)startTestimony(S.ti+1);else verdict();});
+    },reduce?700:(K?1500:1250));
+  },t1);
+}
+function wrong(){
+  S.miss++;S.tmiss++;sfx.bad();pulse(document.querySelector('.b-def'),'droop',1350);
+  const a=$('app');a.classList.remove('bad');void a.offsetWidth;a.classList.add('bad');
+  if(K){
+    /* にゅうもん: 減点なし。依頼人がヒントをささやく */
+    const h=T[S.ti].hints||['しょうこを もういちど よく みて みよう。'];
+    talk([['judge','うーん。その しょうこは、いまの ことばと ちがって いない みたい。'],['def',h[Math.min(S.tmiss,h.length)-1]]],exam);
+    return;
+  }
+  S.life--;pips();
+  talk([['judge','弁護人。その証拠は、いまの発言と食い違っていないようです。'],['you','(しまった。裁判長の心証が悪くなった…。)']],()=>{if(S.life<=0)gameOver();else exam();});
+}
+
+/* ---------- 法廷記録 ---------- */
+function pick(id){
+  sel=id;const ev=EV.find(x=>x.id===id);
+  $('evlist').querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed',x.dataset.id===id?'true':'false'));
+  $('evdesc').innerHTML=(ev.big?'<span class="evpic">'+ev.big+'</span>':'')+'<b>'+esc(ev.n)+'</b>'+esc(ev.d);
+}
+function openRec(){
+  if(busy||(S.mode!=='talk'&&S.mode!=='exam'))return;
+  finishType();recOpen=true;
+  $('evlist').innerHTML=EV.map(e=>'<button type="button" data-id="'+esc(e.id)+'" aria-label="'+esc(e.n)+'" aria-pressed="false">'+e.btn+'</button>').join('');
+  pick(sel);$('sheet').hidden=false;ctl();sfx.tick();
+}
+function closeRec(){recOpen=false;$('sheet').hidden=true;ctl();}
+$('evlist').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;pick(b.dataset.id);sfx.tick();});
+$('box').onclick=advance;
+
+/* ---------- 記録 ---------- */
+const ORDER='CBAS';
+const stars=n=>'★'.repeat(n)+'☆'.repeat(3-n);
+const OLDKEY={'tsukiyo-no-banto':['jinmon-best-c1','jinmon01-best'],'nigeta-usagi':['jinmon-best-k1']};
+function best(id){
+  try{let v=localStorage.getItem('jinmon-best-'+id);(OLDKEY[id]||[]).forEach(k=>{if(!v)v=localStorage.getItem(k);});return v?JSON.parse(v):null;}catch(e){return null;}
+}
+function save(id,o){try{localStorage.setItem('jinmon-best-'+id,JSON.stringify(o));}catch(e){}}
+function bestText(id){const b=best(id);if(!b)return '';return CASES[id].kids?(b.stars?stars(b.stars):''):(b.rank?'ランク '+esc(b.rank):'');}
+
+/* ---------- ステージ選択とJSONの読み込み ---------- */
+const HOME='<a class="homelink" href="../index.html">← ゲームせんたくにもどる</a>';
+/* 読み込みの仕組み(validate / importJson / readJson)は残したまま、画面のボタンだけ止めてある。true にすると出る */
+const SHOW_IMPORT=false;
+function showSelect(msg){
+  S.mode='title';
+  const row=id=>{const c=CASES[id],b=bestText(id);return '<button class="stage" type="button" data-id="'+esc(id)+'"><small>'+esc(c.eyebrow)+(c.tagline?' ・ '+esc(c.tagline):'')+'</small><b>'+esc(c.title)+'</b>'+(b?'<span>'+b+'</span>':'')+'</button>';};
+  let h='<p class="eyebrow">じんもん ゲーム</p><h1>ステージを えらぶ</h1>';
+  ORDERED.forEach(id=>{h+=row(id);});
+  if(USER.length){h+='<p class="eyebrow">読み込んだ事件</p>';USER.forEach(j=>{h+='<div class="urow">'+row(j.id)+'<button class="del" type="button" data-del="'+esc(j.id)+'" aria-label="'+esc(j.title)+' を消す">×</button></div>';});}
+  if(SHOW_IMPORT)h+=(msg||'')+'<button class="back" id="pickjson" type="button">事件のJSONを読み込む</button><input type="file" id="jsonfile" accept=".json,application/json" hidden>';
+  $('card').innerHTML=h+HOME;$('overlay').hidden=false;
+  $('card').querySelectorAll('.stage[data-id]').forEach(b=>{b.onclick=()=>{load(b.dataset.id);idle();showBrief();};});
+  $('card').querySelectorAll('[data-del]').forEach(b=>{b.onclick=()=>{const id=b.dataset.del;USER=USER.filter(j=>j.id!==id);delete CASES[id];saveUser();if(C&&C.id===id){load(ORDERED[0]);idle();}showSelect();};});
+  if(SHOW_IMPORT){$('pickjson').onclick=()=>$('jsonfile').click();$('jsonfile').onchange=e=>{const f=e.target.files&&e.target.files[0];if(f)readJson(f);};}
+}
+function importJson(text){
+  /* 返り値: {ok:true,title} か {ok:false,errors:[…]} */
+  let j;try{j=JSON.parse(text);}catch(e){return {ok:false,errors:['JSONとして読めませんでした。カンマやかっこの閉じ忘れがないか確かめてください。('+e.message+')']};}
+  const errs=validate(j);
+  if(!errs.length&&CASES[j.id]&&CASES[j.id].builtin)errs.push('id "'+j.id+'" は最初から入っている事件と同じです。別の id にしてください。');
+  if(errs.length)return {ok:false,errors:errs};
+  const was=USER.some(x=>x.id===j.id);
+  USER=USER.filter(x=>x.id!==j.id);USER.push(j);CASES[j.id]=compile(j,false);
+  return {ok:true,title:j.title,replaced:was,stored:saveUser()};
+}
+function readJson(file){
+  if(file.size>300000){showSelect('<div class="msg err">ファイルが大きすぎます(300KBまで)。</div>');return;}
+  const r=new FileReader();
+  r.onerror=()=>showSelect('<div class="msg err">ファイルを読めませんでした。</div>');
+  r.onload=()=>{
+    const res=importJson(String(r.result));
+    if(!res.ok){showSelect('<div class="msg err"><b>読み込めませんでした。直すところ:</b><ul>'+res.errors.slice(0,12).map(x=>'<li>'+esc(x)+'</li>').join('')+(res.errors.length>12?'<li>ほか '+(res.errors.length-12)+' 件</li>':'')+'</ul></div>');return;}
+    showSelect('<div class="msg ok">「'+esc(res.title)+'」を'+(res.replaced?'更新しました。':'追加しました。')+(res.stored?'':' この端末には保存できなかったので、ページを閉じると消えます。')+'</div>');
+  };
+  r.readAsText(file);
+}
+
+/* ---------- カード ---------- */
+function showBrief(){
+  const b=bestText(C.id),nm=esc(WHO.def.n);
+  const rules=K?[[L.press,'きに なる ことばを もっと きく。'],[L.rec,'しょうこを みる。おはなしと ちがう しょうこを えらんで「'+L.go+'」'],[null,'まちがえても だいじょうぶ。'+WHO.def.n+'が ヒントを くれるよ。']]
+               :[[L.press,'発言をくわしく聞く。何度でもできる。'],[L.rec,'証拠を読む。証拠と食い違う発言の上でえらんで、'+L.go+'。外すと信頼が減る。'],[null,'信頼が尽きると有罪。']];
+  $('card').innerHTML='<p class="eyebrow">'+esc(C.eyebrow)+(C.tagline?' ・ '+esc(C.tagline):'')+'</p><h1>'+esc(C.title)+'</h1><p>'+esc(C.brief)+'</p>'+
+   '<ul>'+rules.map(r=>'<li>'+(r[0]?'<b>'+esc(r[0])+'</b> ':'')+esc(r[1])+'</li>').join('')+'</ul>'+
+   (b?'<p class="eyebrow">'+(K?'いままでの きろく ':'自己ベスト ')+b+'</p>':'')+
+   '<button class="go" id="start" type="button">'+esc(L.start)+'</button>'+
+   '<button class="back" id="back" type="button">'+(K?'ステージを えらびなおす':'ステージ選択へ')+'</button>';
+  $('overlay').hidden=false;$('start').onclick=begin;$('back').onclick=()=>showSelect();
+}
+function begin(){
+  if(!AC){try{AC=new (window.AudioContext||window.webkitAudioContext)();}catch(e){AC=null;}}
+  if(AC&&AC.state==='suspended'){try{AC.resume();}catch(e){}}
+  S={mode:'talk',ti:0,si:0,life:MAXLIFE,miss:0,tmiss:0,press:0,unlocked:false,sts:[]};
+  pips();sweat(0);$('phase').textContent=C.title;$('overlay').hidden=true;
+  talk(INTRO,()=>startTestimony(0));
+}
+function verdict(){
+  S.mode='end';
+  const b=best(C.id);let score,rec=false,rows;
+  if(K){
+    const n=S.miss===0?3:S.miss<=2?2:1;score=stars(n);
+    if(!b||n>(b.stars||0)){rec=true;save(C.id,{stars:n});}
+    rows='<tr><td>まちがえた かず</td><td>'+S.miss+' かい</td></tr><tr><td>くわしく きいた かず</td><td>'+S.press+' かい</td></tr>'+(rec?'<tr><td>あたらしい きろく！</td><td>'+score+'</td></tr>':'');
+  }else{
+    const rank=S.miss===0?'S':S.miss===1?'A':S.miss<=3?'B':'C';score=rank;
+    if(!b||ORDER.indexOf(rank)>ORDER.indexOf(b.rank)){rec=true;save(C.id,{rank:rank});}
+    rows='<tr><td>外した証拠</td><td>'+S.miss+' 回</td></tr><tr><td>問いただした回数</td><td>'+S.press+' 回</td></tr><tr><td>弁護評価'+(rec?'(自己ベスト更新)':'')+'</td><td>'+rank+'</td></tr>';
+  }
+  $('card').innerHTML='<p class="eyebrow">'+esc(C.eyebrow)+' '+esc(C.title)+(K?'':' ・ 判決')+'</p>'+
+   '<div class="verdict"><h1>'+esc(C.end.h1)+'</h1><span class="rank'+(K?' stars':'')+'">'+score+'</span></div>'+
+   '<p>'+esc(C.end.text)+'</p><table>'+rows+'</table>'+
+   '<button class="go" id="start" type="button">'+(K?'もう いちど あそぶ':'もう一度弁護する')+'</button>'+
+   '<button class="back" id="back" type="button">'+(K?'ステージを えらぶ':'ステージ選択へ')+'</button>'+HOME;
+  $('overlay').hidden=false;$('start').onclick=begin;$('back').onclick=()=>{idle();showSelect();};
+}
+function gameOver(){
+  S.mode='end';
+  $('card').innerHTML='<p class="eyebrow">'+esc(C.eyebrow)+' '+esc(C.title)+'</p><h1>有罪</h1>'+
+   '<p>裁判長の信頼を失い、弁護は打ち切られた。</p>'+
+   '<p>手がかり: 発言を問いただすと、証人は細かいことを口にします。その細部を法廷記録と見くらべてください。</p>'+
+   '<button class="go" id="start" type="button">この証言からやり直す</button>'+
+   '<button class="back" id="back" type="button">ステージ選択へ</button>'+HOME;
+  $('overlay').hidden=false;
+  $('start').onclick=()=>{S.life=MAXLIFE;pips();$('overlay').hidden=true;startTestimony(S.ti);};
+  $('back').onclick=()=>{idle();showSelect();};
+}
+
+addEventListener('keydown',e=>{
+  if(!$('overlay').hidden||recOpen)return;
+  if(e.key==='ArrowRight'){e.preventDefault();if(S.mode==='exam')move(1,true);else advance();}
+  if(e.key==='ArrowLeft'&&S.mode==='exam'){e.preventDefault();move(-1);}
+});
+
+/* 開いた時点で法廷が見えるように */
+load(ORDERED[0]);idle();showSelect();
+})();
+</script>
+<script>window.PAUSE_UI_CONFIG = { trigger: '#pauseTrigger' };</script>
+<script src="../pause-ui.js"></script>
+</body>
+</html>
