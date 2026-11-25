@@ -1,0 +1,945 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>執刀ファイル</title>
+<link href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=Zen+Kaku+Gothic+New:wght@500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  /* layout: 中央に手術野(4:3)、左に器具レール、上に生体モニター、下に助手の声。単一テーマ(手術室) */
+  --drape:#0e3b40;
+  --drape-deep:#072629;
+  --steel:#c4d2cf;
+  --bone:#f1f4ec;
+  --amber:#ffb224;
+  --mint:#7fe6c4;
+  --danger:#ff5d52;
+  --display:"Dela Gothic One","Hiragino Kaku Gothic ProN","Yu Gothic",sans-serif;
+  --body:"Zen Kaku Gothic New","Hiragino Kaku Gothic ProN","Yu Gothic","Noto Sans JP",sans-serif;
+  color-scheme:dark;
+}
+*{box-sizing:border-box;margin:0}
+html,body{height:100%}
+body{
+  background:var(--drape-deep);color:var(--bone);font-family:var(--body);font-weight:500;
+  display:grid;grid-template-rows:auto minmax(0,1fr) auto;overflow:hidden;
+  -webkit-user-select:none;user-select:none;-webkit-touch-callout:none;
+}
+button{font:inherit;color:inherit;cursor:pointer}
+button:focus-visible{outline:3px solid var(--amber);outline-offset:2px}
+
+/* monitor */
+.monitor{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;padding:8px 16px;background:var(--drape);border-bottom:2px solid #06191b}
+.vital{display:flex;align-items:center;gap:10px}
+.label{font-size:11px;letter-spacing:.14em;color:var(--steel)}
+.num{font-family:var(--display);font-size:30px;line-height:1;font-variant-numeric:tabular-nums;color:var(--mint);min-width:2ch;text-align:right}
+.vital.low .num{color:var(--danger)}
+.bar{width:80px;height:10px;background:#06191b;border-radius:5px;overflow:hidden}
+.bar i{display:block;height:100%;width:75%;background:var(--mint);transition:width .2s}
+.vital.low .bar i{background:var(--danger)}
+#ecg{width:90px;height:34px;display:block}
+.phases{display:flex;gap:6px;list-style:none;padding:0}
+.phases li{font-size:12px;font-weight:700;padding:4px 10px;border-radius:99px;border:1.5px solid rgba(196,210,207,.35);color:var(--steel)}
+.phases li.now{background:var(--amber);border-color:var(--amber);color:#2a1a00}
+.phases li.done{border-color:var(--mint);color:var(--mint)}
+.stat{display:flex;align-items:baseline;gap:8px}
+.stat b{font-family:var(--display);font-weight:400;font-size:20px;font-variant-numeric:tabular-nums}
+.spacer{flex:1}
+#sound,#quit{background:none;border:1.5px solid rgba(196,210,207,.4);border-radius:8px;padding:5px 10px;font-size:12px;font-weight:700}
+
+/* main */
+main{display:grid;grid-template-columns:96px minmax(0,1fr);min-height:0}
+.rail{display:grid;grid-template-rows:repeat(7,minmax(0,1fr));gap:6px;padding:8px;background:#0a3034;min-height:0}
+.tool{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;min-height:0;
+  background:var(--drape);border:2px solid transparent;border-radius:12px;font-size:11px;font-weight:700;color:var(--steel);padding:2px;touch-action:manipulation}
+.tool svg{width:28px;height:28px;flex:none;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.tool[aria-pressed="true"]{background:var(--amber);color:#2a1a00;border-color:#fff3d1}
+#stage{position:relative;min-width:0;min-height:0;overflow:hidden;background:var(--drape-deep)}
+#field{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);touch-action:none;border-radius:6px;display:block}
+
+/* overlay */
+#overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(4,20,22,.72);overflow:auto}
+#overlay[hidden]{display:none}
+.card{width:min(460px,100%);margin:auto;background:var(--bone);color:#10282b;border-radius:6px;padding:22px 24px;display:flex;flex-direction:column;gap:12px;
+  border-top:10px solid var(--amber);box-shadow:0 18px 50px rgba(0,0,0,.5)}
+.card .eyebrow{font-size:12px;font-weight:700;letter-spacing:.12em;color:#3d6064}
+.card h1{font-family:var(--display);font-weight:400;font-size:34px;line-height:1.15;text-wrap:balance}
+.card p{font-size:15px;line-height:1.65}
+.card ol{padding-left:1.3em;font-size:15px;line-height:1.7}
+.card .note{font-size:13px;padding:8px 10px;background:#dfe7dc;border-left:4px solid #0e3b40}
+.card table{width:100%;border-collapse:collapse;font-size:15px;font-variant-numeric:tabular-nums}
+.card td{padding:5px 0;border-bottom:1px solid #cfd8cc}
+.card td:last-child{text-align:right;font-weight:700}
+.rank{font-family:var(--display);font-size:84px;line-height:1;color:#0e3b40}
+.rankrow{display:flex;align-items:flex-end;justify-content:space-between;gap:12px}
+.go{align-self:stretch;background:#0e3b40;color:var(--bone);border:0;border-radius:6px;padding:14px;font-family:var(--display);font-size:20px}
+.go:active{background:#072629}
+.back{align-self:center;font-size:14px;font-weight:700;color:#3d6064;padding:4px 8px}
+#pauseTrigger{background:none;border:1.5px solid rgba(196,210,207,.4);border-radius:8px;padding:5px 10px;font-size:12px;font-weight:700;touch-action:manipulation}
+.go.alt{background:none;color:#0e3b40;border:2px solid #0e3b40;font-size:16px;padding:10px}
+.cases{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.cases button{background:none;border:2px solid #0e3b40;color:#0e3b40;border-radius:6px;padding:8px;font-weight:700;font-size:14px}
+.cases button[aria-pressed="true"]{background:#0e3b40;color:var(--bone)}
+.cases.three{grid-template-columns:repeat(3,1fr)}
+.lessons{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.lessons button{background:#dfe7dc;border:0;border-radius:6px;padding:9px 10px;font-weight:700;font-size:13px;color:#10282b;text-align:left}
+[hidden]{display:none!important}
+.pulse{outline:3px solid var(--amber);outline-offset:-3px;border-radius:12px;animation:pulse 1s ease-in-out infinite}
+@keyframes pulse{50%{outline-color:transparent}}
+@media (prefers-reduced-motion:reduce){.pulse{animation:none}}
+#tutProg{font-size:13px;font-weight:700;letter-spacing:.04em;color:var(--amber)}
+
+/* assistant */
+.say{display:flex;gap:12px;align-items:center;padding:9px 16px;background:var(--drape);border-top:2px solid #06191b;min-height:48px}
+.say .who{flex:none;font-size:11px;font-weight:700;letter-spacing:.1em;background:var(--bone);color:#10282b;padding:3px 8px;border-radius:4px}
+.say p{font-size:15px;line-height:1.45}
+.say.warn p{color:var(--amber)}
+
+@media (orientation:portrait){
+  main{grid-template-columns:1fr;grid-template-rows:minmax(0,1fr) auto}
+  .rail{order:2;grid-template-rows:none;grid-template-columns:repeat(7,minmax(0,1fr));}
+  .tool{padding:8px 2px;font-size:10px}
+}
+@media (max-width:560px){#ecg,.bar{display:none}.monitor{gap:6px 12px;padding:6px 16px}.phases li{padding:3px 7px;font-size:11px}}
+@media (max-height:430px){.tool span{display:none}.say{min-height:0;padding:5px 16px}.say p{font-size:13px}}
+</style>
+</head>
+<body>
+<header class="monitor">
+  <div class="vital" id="vitalBox">
+    <span class="label">VITAL</span><span class="num" id="vit">75</span>
+    <span class="bar"><i id="vitBar"></i></span>
+    <canvas id="ecg" width="260" height="68" aria-hidden="true"></canvas>
+  </div>
+  <ol class="phases" id="phases" aria-label="手術の進行">
+    <li data-p="0">消毒</li><li data-p="1">切開</li><li data-p="2">摘出</li><li data-p="3">閉創</li>
+  </ol>
+  <span id="tutProg" hidden></span>
+  <span class="spacer"></span>
+  <div class="stat"><span class="label">TIME</span><b id="time">3:00</b></div>
+  <div class="stat"><span class="label">SCORE</span><b id="score">0</b></div>
+  <button id="quit" type="button" hidden>中断</button>
+  <button id="sound" type="button" aria-pressed="true">音 ON</button>
+  <button id="pauseTrigger" type="button" aria-label="一時停止">ポーズ</button>
+</header>
+
+<main>
+  <nav class="rail" id="rail" aria-label="器具">
+    <button class="tool" type="button" data-tool="gel" aria-pressed="true"><svg viewBox="0 0 24 24"><path d="M9 3h6v4l2 3v9a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2v-9l2-3z"/><path d="M7 13h10"/></svg><span>消毒ジェル</span></button>
+    <button class="tool" type="button" data-tool="scalpel" aria-pressed="false"><svg viewBox="0 0 24 24"><path d="M4 20l8-8"/><path d="M12 12l6-8c2 2.500 2 5.500 0 8l-3.500 2z"/></svg><span>メス</span></button>
+    <button class="tool" type="button" data-tool="forceps" aria-pressed="false"><svg viewBox="0 0 24 24"><path d="M6 21L11 4h2l5 17"/><path d="M9.500 9h5"/></svg><span>ピンセット</span></button>
+    <button class="tool" type="button" data-tool="suture" aria-pressed="false"><svg viewBox="0 0 24 24"><path d="M4 13a8 8 0 0 1 15-4"/><path d="M19 9l1-4M19 9l-4-1"/><path d="M4 13c0 5 4 7 7 5s2-5 0-4-1 4 2 5"/></svg><span>縫合糸</span></button>
+    <button class="tool" type="button" data-tool="laser" aria-pressed="false"><svg viewBox="0 0 24 24"><path d="M3 21l9-9"/><path d="M12 12l3-3"/><path d="M18 2v3M22 6h-3M21 11l-2.500-1.500M13 3l1.500 2.500M19 5l-2 2"/></svg><span>レーザー</span></button>
+    <button class="tool" type="button" data-tool="syringe" aria-pressed="false"><svg viewBox="0 0 24 24"><path d="M15 3l6 6"/><path d="M18 6l-9 9-4 1 1-4 9-9"/><path d="M5 19l-2 2M11 8l5 5"/></svg><span>安定剤</span></button>
+    <button class="tool" type="button" data-tool="bandage" aria-pressed="false"><svg viewBox="0 0 24 24"><rect x="3" y="8" width="18" height="8" rx="2"/><path d="M9 8v8M15 8v8"/></svg><span>包帯</span></button>
+  </nav>
+  <div id="stage">
+    <canvas id="field" aria-label="手術野"></canvas>
+    <div id="overlay">
+      <div class="card" id="card"></div>
+    </div>
+  </div>
+</main>
+
+<footer class="say" id="sayBox"><span class="who">助手</span><p id="say">準備ができたら「執刀開始」を押してください。</p></footer>
+
+<script>
+(function(){
+"use strict";
+const W=800,H=600,N=41;
+const cv=document.getElementById('field'),ctx=cv.getContext('2d');
+const stage=document.getElementById('stage');
+const reduce=window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches;
+let scale=1;
+function fit(){
+  const r=stage.getBoundingClientRect();if(!r.width||!r.height)return;
+  const s=Math.min(r.width/W,r.height/H),cw=Math.floor(W*s),ch=Math.floor(H*s),d=window.devicePixelRatio||1;
+  cv.style.width=cw+'px';cv.style.height=ch+'px';cv.width=Math.round(cw*d);cv.height=Math.round(ch*d);scale=cv.width/W;
+}
+if(window.ResizeObserver)new ResizeObserver(fit).observe(stage);else addEventListener('resize',fit);
+fit();
+
+/* ---------- geometry ---------- */
+const LINE=[];for(let i=0;i<N;i++){const t=i/(N-1);LINE.push({x:250+300*t,y:290+22*Math.sin(Math.PI*t)});}
+const dist=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
+function nearest(poly,p){let bi=0,bd=1e9;for(let i=0;i<poly.length;i++){const d=dist(poly[i],p);if(d<bd){bd=d;bi=i;}}return{i:bi,d:bd};}
+function tangent(poly,i){const a=poly[Math.max(0,i-1)],b=poly[Math.min(poly.length-1,i+1)];const l=Math.hypot(b.x-a.x,b.y-a.y)||1;return{x:(b.x-a.x)/l,y:(b.y-a.y)/l};}
+function signedDist(poly,i,p){const t=tangent(poly,i);return t.x*(p.y-poly[i].y)-t.y*(p.x-poly[i].x);}
+const TRAY={x:604,y:22,w:176,h:112};
+const VIAL={x:64,y:532};
+const inTray=p=>p.x>TRAY.x-10&&p.x<TRAY.x+TRAY.w+10&&p.y>TRAY.y-10&&p.y<TRAY.y+TRAY.h+10;
+
+/* ---------- state ---------- */
+let S,A=null,tool='gel';
+function mkFrag(x,y,a){return{x:x,y:y,ox:x,oy:y,a:a,u:{x:Math.cos(a),y:Math.sin(a)},pull:0,state:'in'};}
+const CASES={0:{name:'臨床実習',limit:0,phase:'摘出'},1:{name:'硝子の雨',limit:180,phase:'摘出'},2:{name:'泳ぐ影',limit:240,phase:'駆除'},3:{name:'戦場医師',limit:0,phase:'摘出'}};
+const DIFF={
+  rookie:{label:'新人',drain:1,cutTol:42,perpTol:34,guides:true,frags:3,bugSp:1,bite:1},
+  vet:{label:'ベテラン',drain:1.4,cutTol:30,perpTol:24,guides:false,frags:5,bugSp:1.25,bite:.7},
+  tut:{label:'実習',drain:0,cutTol:48,perpTol:40,guides:true,frags:1,bugSp:.6,bite:1e6},
+  field:{label:'戦場',drain:1,cutTol:42,perpTol:34,guides:true,frags:0,bugSp:1,bite:1.3}
+};
+const FRAGS=[[290,235,-2.2],[505,325,0.4],[355,430,2.6],[420,190,-1.0],[580,440,0.9]];
+const LESSONS=[
+  {id:'equip',name:'機材の確認'},
+  {id:'gel',name:'消毒ジェル',tool:'gel',desc:'消毒ジェルは切開の前後に患部へ塗ります。',todo:'点線を指でなぞって塗ってください。'},
+  {id:'scalpel',name:'メス',tool:'scalpel',desc:'メスは皮膚を切開します。',todo:'START から点線に沿って、離さず一息で切ってください。'},
+  {id:'forceps',name:'ピンセット',tool:'forceps',desc:'ピンセットは異物をつかんで運びます。',todo:'ガラス片を矢印の向きにまっすぐ引き抜き、トレイへ。'},
+  {id:'suture',name:'縫合糸',tool:'suture',desc:'縫合糸は傷を縫って出血を止めます。',todo:'傷をまたぐようにジグザグに4回以上往復してください。'},
+  {id:'laser',name:'レーザー',tool:'laser',desc:'レーザーは動く病原体を焼きます。',todo:'遊走体に当て続けてください。'},
+  {id:'syringe',name:'安定剤',tool:'syringe',desc:'安定剤はバイタルを回復します。',todo:'瓶を長押しで吸い、患部を長押しで注射。80以上まで繰り返してください。'},
+  {id:'bandage',name:'包帯',tool:'bandage',desc:'包帯は縫合と消毒のあと、最後に貼ります。',todo:'縫合部の左端から右端までなぞってください。'}
+];
+let caseId=1,diff='rookie',tutFrom=0;
+function D(){return S&&S.tut?DIFF.tut:S&&S.field?DIFF.field:DIFF[diff];}
+function bugMode(){return caseId===2||!!S.field||!!(S.tut&&LESSONS[S.tut.i].id==='laser');}
+function mkBug(x,y,big){return{x:x,y:y,ang:Math.random()*6.28,w:0,wt:0,r:big?32:20,big:big,hp:big?1.8:.9,max:big?1.8:.9,state:'alive',biteT:(6+Math.random()*5)*D().bite,hitT:0,ph:Math.random()*6};}
+function reset(){
+  if(S){S.tut=null;S.field=null;}
+  S={mode:'brief',step:'gel1',view:'skin',vit:75,time:CASES[caseId].limit,score:0,counts:{COOL:0,GOOD:0,BAD:0},
+    gel:new Array(N).fill(false),dabs:[],cutIdx:0,
+    frags:caseId===1?FRAGS.slice(0,DIFF[diff].frags).map(a=>mkFrag(a[0],a[1],a[2])):[],
+    bugs:caseId===2?[mkBug(260,250,false),mkBug(540,400,false),mkBug(400,320,true)].concat(diff==='vet'?[mkBug(330,430,false)]:[]):[],tut:null,field:null,cur:null,scorch:[],misfire:0,lz:0,wounds:[],
+    inc:{poly:LINE,need:6,span:true,closed:false,stitches:[]},
+    syr:0,pops:[],fade:0,shake:0,bandX:0,bandDone:false,hint:'',hintT:0,ptr:null,endT:0,t:0};
+  A=null;
+}
+reset();
+
+/* ---------- audio ---------- */
+let AC=null,soundOn=true;
+function tone(f,d,type,g,when){
+  if(!AC||!soundOn)return;
+  try{const t0=AC.currentTime+(when||0),o=AC.createOscillator(),ga=AC.createGain();
+    o.type=type||'sine';o.frequency.value=f;ga.gain.setValueAtTime(g||.07,t0);ga.gain.exponentialRampToValueAtTime(.0001,t0+d);
+    o.connect(ga);ga.connect(AC.destination);o.start(t0);o.stop(t0+d+.03);}catch(e){}
+}
+const sfx={
+  COOL(){tone(784,.1,'triangle',.09);tone(1175,.18,'triangle',.09,.08);},
+  GOOD(){tone(660,.14,'triangle',.08);},
+  BAD(){tone(140,.25,'sawtooth',.08);},
+  tick(){tone(520,.04,'square',.03);},
+  done(){tone(523,.12,'triangle',.09);tone(659,.12,'triangle',.09,.12);tone(784,.3,'triangle',.09,.24);}
+};
+
+/* ---------- ui refs ---------- */
+const $=id=>document.getElementById(id);
+const elVit=$('vit'),elBar=$('vitBar'),elVitBox=$('vitalBox'),elTime=$('time'),elScore=$('score'),elSay=$('say'),elSayBox=$('sayBox'),overlay=$('overlay'),card=$('card');
+const phaseEls=[...document.querySelectorAll('#phases li')];
+const TOOL_NAME={gel:'消毒ジェル',scalpel:'メス',forceps:'ピンセット',suture:'縫合糸',syringe:'安定剤',bandage:'包帯',laser:'レーザー'};
+function setTool(t){tool=t;document.querySelectorAll('.tool').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.tool===t)));sfx.tick();
+  if(S&&S.tut&&S.tut.ph==='tap'&&t===LESSONS[S.tut.i].tool)S.tut.ph='do';}
+document.querySelectorAll('.tool').forEach(b=>b.addEventListener('pointerdown',e=>{e.preventDefault();setTool(b.dataset.tool);}));
+document.querySelectorAll('.tool').forEach(b=>b.addEventListener('click',()=>setTool(b.dataset.tool)));
+addEventListener('keydown',e=>{const k=['1','2','3','4','5','6','7'].indexOf(e.key);if(k>=0)setTool(['gel','scalpel','forceps','suture','laser','syringe','bandage'][k]);});
+$('sound').addEventListener('click',function(){soundOn=!soundOn;this.textContent=soundOn?'音 ON':'音 OFF';this.setAttribute('aria-pressed',String(soundOn));});
+
+function hint(msg){S.hint=msg;S.hintT=2.6;}
+function pop(label,p){S.pops.push({x:p.x,y:p.y,t:0,label:label});}
+function rate(label,p){S.counts[label]++;S.score+={COOL:100,GOOD:60,BAD:10}[label];pop(label,p);sfx[label]();}
+function damage(n,p,label){if(!S.tut)S.vit-=n;S.counts.BAD++;pop(label||'BAD',p);S.shake=.3;sfx.BAD();}
+
+/* ---------- step logic ---------- */
+function applyGel(p){
+  const last=S.dabs[S.dabs.length-1];
+  if(!last||dist(last,p)>9){S.dabs.push({x:p.x,y:p.y});if(S.dabs.length>160)S.dabs.shift();}
+  let all=true;for(let i=0;i<N;i++){if(!S.gel[i]&&dist(LINE[i],p)<34)S.gel[i]=true;if(!S.gel[i])all=false;}
+  if(all){
+    if(S.tut){A=null;tutDone();return;}
+    rate('COOL',LINE[N>>1]);A=null;S.gel.fill(false);
+    if(S.step==='gel1'){S.step='cut';S.dabs=[];}else S.step='bandage';
+  }
+}
+function enterInside(){S.fade=1;S.view='inside';S.step='inside';}
+function checkInside(){
+  if(S.tut){tutCheck();return;}
+  const cleared=S.frags.every(f=>f.state==='done')&&S.bugs.every(b=>b.state==='done');
+  if(cleared&&S.wounds.every(w=>w.closed)){S.fade=1;S.view='skin';S.step='close';sfx.GOOD();}
+}
+function addWound(x,y,vx,vy,arr){
+  const poly=[];for(let k=0;k<13;k++){const s=-36+6*k;poly.push({x:x+vx*s,y:y+vy*s});}
+  (arr||S.wounds).push({poly:poly,need:4,span:false,closed:false,stitches:[],r:6,cx:x,cy:y});
+}
+function spawnWound(f){addWound(f.ox,f.oy,-f.u.y,f.u.x);}
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+function steer(b,target,max){const d=Math.atan2(Math.sin(target-b.ang),Math.cos(target-b.ang));b.ang+=clamp(d,-max,max);}
+function updBugs(dt){
+  const lasing=A&&A.type==='laser'&&S.ptr&&S.ptr.down;let hit=null;
+  if(lasing){
+    let bd=1e9;S.bugs.forEach(b=>{if(b.state!=='alive')return;const d=dist(b,S.ptr);if(d<b.r+16&&d<bd){bd=d;hit=b;}});
+    S.lz+=dt;if(S.lz>.09){S.lz=0;tone(hit?1400:300,.05,'sawtooth',.025);}
+    if(hit){hit.hp-=dt;hit.hitT=.35;}
+    else{if(!S.tut)S.vit-=3*dt;S.misfire+=dt;const l=S.scorch[S.scorch.length-1];if(!l||dist(l,S.ptr)>10){S.scorch.push({x:S.ptr.x,y:S.ptr.y});if(S.scorch.length>80)S.scorch.shift();}}
+  }
+  const born=[],open=S.wounds.filter(w=>!w.closed).length;
+  S.bugs.forEach(b=>{
+    if(b.state!=='alive')return;
+    if(b.hp<=0){
+      rate(S.misfire<.5?'COOL':'GOOD',{x:b.x,y:b.y-30});S.misfire=0;
+      if(b.big){b.state='done';b.gone=true;
+        for(let k=0;k<2;k++){const n=mkBug(b.x,b.y,false);n.ang=b.ang+(k?1.6:-1.6);n.hitT=.6;born.push(n);}
+        hint('母体が分裂しました。小型を追ってください。');
+      }else b.state='dead';
+      return;
+    }
+    b.hitT=Math.max(0,b.hitT-dt);b.wt-=dt;if(b.wt<=0){b.w=(Math.random()-.5)*5;b.wt=.3+Math.random()*.7;}
+    let sp=(b.big?55:85)*D().bugSp;
+    if(b.hitT>0&&S.ptr){sp*=1.7;steer(b,Math.atan2(b.y-S.ptr.y,b.x-S.ptr.x),6*dt);}
+    else b.ang+=b.w*dt;
+    if(b.x<140||b.x>660||b.y<160||b.y>480)steer(b,Math.atan2(320-b.y,400-b.x),8*dt);
+    b.x=clamp(b.x+Math.cos(b.ang)*sp*dt,110,690);b.y=clamp(b.y+Math.sin(b.ang)*sp*dt,140,500);
+    b.biteT-=dt;
+    if(b.biteT<=0){b.biteT=(9+Math.random()*6)*D().bite;
+      if(open+born.length<4&&S.wounds.filter(w=>!w.closed).length<4){const q=Math.random()*3.14;addWound(b.x,b.y,Math.cos(q),Math.sin(q));S.vit-=2;pop('裂傷',b);S.shake=.15;sfx.BAD();}}
+  });
+  born.forEach(n=>S.bugs.push(n));
+}
+function expected(){
+  if(S.tut){const L=LESSONS[S.tut.i];return L.id==='laser'?['laser','forceps']:[L.tool];}
+  switch(S.step){case'gel1':case'gel2':return['gel'];case'cut':return['scalpel'];case'inside':return bugMode()?['laser','forceps','suture']:['forceps','suture'];case'close':return['suture'];case'bandage':return['bandage'];}
+  return[];
+}
+function onDown(p){
+  if(S.mode!=='play')return;
+  if(S.tut){
+    const ph=S.tut.ph;
+    if(ph==='eq0'){if(inTray(p)){S.tut.ph='eq1';pop('OK',p);sfx.GOOD();}return;}
+    if(ph==='eq1'){if(dist(p,VIAL)<56){S.tut.ph='eq2';pop('OK',p);sfx.GOOD();}return;}
+    if(ph==='eq2'||ph==='ok')return;
+    if(ph==='tap'){hint('先に「'+LESSONS[S.tut.i].name+'」をタップして持ち替えてください。');return;}
+  }
+  if(S.field){if(fieldTap(p))return;if(!S.cur)return;}
+  if(tool==='syringe'){A={type:'syr'};return;}
+  if(tool==='scalpel'&&S.step!=='cut'){
+    if(S.step==='gel1')hint('切開の前に、まず消毒ジェルを。');
+    else{damage(5,p,'MISS');hint('そこはメスを入れる場所ではありません。');}
+    return;
+  }
+  if(expected().indexOf(tool)<0){hint('いまは「'+expected().map(t=>TOOL_NAME[t]).join('」か「')+'」を使ってください。');return;}
+  if(S.step==='gel1'||S.step==='gel2'){A={type:'gel'};applyGel(p);}
+  else if(S.step==='cut'){
+    if(dist(p,LINE[0])<36){A={type:'cut',dev:0,n:0};S.cutIdx=0;}
+    else hint('START の印から切り始めてください。');
+  }
+  else if(S.step==='inside'&&tool==='laser'){A={type:'laser'};}
+  else if(S.step==='inside'&&tool==='forceps'){
+    let best=null,bd=46,kind='';
+    S.bugs.forEach(b=>{if(b.state!=='dead')return;const d=dist(b,p);if(d<bd){bd=d;best=b;kind='bug';}});
+    S.frags.forEach(f=>{if(f.state==='done')return;const c=f.state==='in'?{x:f.ox+f.u.x*14,y:f.oy+f.u.y*14}:f;const d=dist(c,p);if(d<bd){bd=d;best=f;kind='frag';}});
+    if(kind==='bug')A={type:'carry',o:best};
+    else if(kind==='frag')A={type:'grab',f:best,sx:p.x,sy:p.y,maxPerp:0};
+    else if(S.bugs.some(b=>b.state==='alive')&&!S.frags.some(f=>f.state!=='done'))hint('動いている遊走体はつかめません。先にレーザーで焼いてください。');
+  }
+  else if(tool==='suture'){
+    const targets=S.step==='close'?[S.inc]:S.wounds.filter(w=>!w.closed);
+    if(!targets.length){hint(caseId===1?'縫う傷がありません。先にガラス片を摘出してください。':'いまは縫う傷がありません。');return;}
+    A={type:'suture',pts:[p],tr:targets.map(w=>({w:w,last:0,cross:[]}))};
+  }
+  else if(S.step==='bandage'){
+    if(p.x<LINE[0].x+18&&nearest(LINE,p).d<60){A={type:'band',dev:0,n:0};S.bandX=p.x;}
+    else hint('包帯は縫合部の左端から貼ってください。');
+  }
+}
+function onMove(p){
+  if(!A||S.mode!=='play')return;
+  if(A.type==='gel')applyGel(p);
+  else if(A.type==='cut'){
+    const n=nearest(LINE,p);
+    if(n.d>D().cutTol){A=null;S.cutIdx=0;damage(6,p,'BAD');hint('線から外れました。START からやり直しです。');return;}
+    if(n.i>S.cutIdx&&n.i<=S.cutIdx+8){S.cutIdx=n.i;A.dev+=n.d;A.n++;}
+    if(S.cutIdx>=N-1){const avg=A.dev/Math.max(1,A.n);rate(avg<9?'COOL':avg<20?'GOOD':'BAD',LINE[N-1]);A=null;if(S.tut)tutDone();else enterInside();}
+  }
+  else if(A.type==='grab'){
+    const f=A.f;
+    if(f.state==='in'){
+      const ox=p.x-A.sx,oy=p.y-A.sy,along=ox*f.u.x+oy*f.u.y,perp=Math.abs(ox*f.u.y-oy*f.u.x);
+      A.maxPerp=Math.max(A.maxPerp,perp);
+      if(perp>D().perpTol){f.pull=0;A=null;damage(6,p,'BAD');hint('横にこじると組織を傷つけます。矢印の向きにまっすぐ。');return;}
+      f.pull=Math.max(0,Math.min(60,along));
+      if(along>=60){f.state='free';f.pull=0;f.x=p.x;f.y=p.y;spawnWound(f);rate(A.maxPerp<12?'COOL':'GOOD',{x:f.ox,y:f.oy-30});}
+    }else{f.x=p.x;f.y=p.y;}
+  }
+  else if(A.type==='carry'){A.o.x=p.x;A.o.y=p.y;}
+  else if(A.type==='suture'){
+    const last=A.pts[A.pts.length-1];if(dist(last,p)>3)A.pts.push(p);
+    A.tr.forEach(tr=>{
+      const n=nearest(tr.w.poly,p);if(n.d>58)return;
+      const sd=signedDist(tr.w.poly,n.i,p);if(Math.abs(sd)<7)return;
+      const sg=sd>0?1:-1;
+      if(tr.last&&sg!==tr.last){tr.cross.push(n.i);sfx.tick();}
+      tr.last=sg;
+    });
+  }
+  else if(A.type==='band'){
+    const n=nearest(LINE,p);
+    if(n.d>60){A=null;S.bandX=0;hint('包帯がずれました。左端からもう一度。');return;}
+    S.bandX=Math.max(S.bandX,p.x);A.dev+=n.d;A.n++;
+    if(p.x>=LINE[N-1].x-4){rate(A.dev/Math.max(1,A.n)<14?'COOL':'GOOD',LINE[N>>1]);S.bandDone=true;A=null;if(S.tut)tutDone();else{S.mode='ending';S.endT=1;sfx.done();}}
+  }
+}
+function onUp(p){
+  if(!A){return;}
+  const a=A;A=null;
+  if(S.mode!=='play')return;
+  if(a.type==='cut'){S.cutIdx=0;hint('途中で離さず、一息で切ってください。');}
+  else if(a.type==='grab'){
+    const f=a.f;
+    if(f.state==='in')f.pull=0;
+    else if(inTray(f)){f.state='done';sfx.GOOD();checkInside();}
+  }
+  else if(a.type==='carry'){if(inTray(a.o)){a.o.state='done';sfx.GOOD();checkInside();}}
+  else if(a.type==='suture'){
+    let ok=false,tried=false;
+    a.tr.forEach(tr=>{
+      const c=tr.cross;if(c.length)tried=true;
+      const spanOK=!tr.w.span||(Math.min.apply(null,c)<=N*.28&&Math.max.apply(null,c)>=N*.72);
+      if(c.length>=tr.w.need&&spanOK){
+        tr.w.closed=true;tr.w.stitches=c.slice();ok=true;
+        const mid=tr.w.poly[tr.w.poly.length>>1];rate(c.length>=tr.w.need+2?'COOL':'GOOD',{x:mid.x,y:mid.y-30});
+        if(tr.w===S.inc){if(S.field)fieldSaved();else S.step='gel2';}
+      }else if(c.length>=tr.w.need&&!spanOK)hint('切開部の端から端まで縫ってください。');
+    });
+    if(!ok&&tried&&!S.hintT)hint('縫い目が足りません。傷をまたいでジグザグに往復を。');
+    if(ok&&S.step==='inside')checkInside();
+  }
+  else if(a.type==='band'){S.bandX=0;}
+}
+
+/* ---------- pointer ---------- */
+let pid=null;
+function pos(e){const r=cv.getBoundingClientRect();return{x:(e.clientX-r.left)/r.width*W,y:(e.clientY-r.top)/r.height*H};}
+cv.addEventListener('pointerdown',e=>{e.preventDefault();if(pid!==null)return;pid=e.pointerId;try{cv.setPointerCapture(pid);}catch(_){}
+  const p=pos(e);S.ptr={x:p.x,y:p.y,down:true};onDown(p);});
+cv.addEventListener('pointermove',e=>{if(e.pointerId!==pid)return;e.preventDefault();const p=pos(e);S.ptr={x:p.x,y:p.y,down:true};onMove(p);});
+function end(e){if(e.pointerId!==pid)return;pid=null;const p=pos(e);if(S.ptr)S.ptr.down=false;onUp(p);}
+cv.addEventListener('pointerup',end);cv.addEventListener('pointercancel',end);
+cv.addEventListener('contextmenu',e=>e.preventDefault());
+
+/* ---------- update ---------- */
+let beat=0,ecgBuf=new Array(130).fill(0);
+function ecgVal(p){if(p<.10)return 0;if(p<.14)return-.15;if(p<.18)return 1;if(p<.22)return-.4;if(p>.34&&p<.48)return .22*Math.sin((p-.34)/.14*Math.PI);return 0;}
+function update(dt){
+  S.t+=dt;
+  S.pops.forEach(o=>o.t+=dt);S.pops=S.pops.filter(o=>o.t<1);
+  if(S.fade>0)S.fade=Math.max(0,S.fade-dt*1.6);
+  if(S.shake>0)S.shake=Math.max(0,S.shake-dt);
+  if(S.hintT>0){S.hintT-=dt;if(S.hintT<=0){S.hintT=0;S.hint='';}}
+  const bpm=S.mode==='fail'?0:62+(99-Math.max(0,S.vit))*.75;
+  beat+=dt*bpm/60;if(beat>=1){beat-=1;if(S.mode==='play')tone(880,.05,'square',.018);}
+  ecgBuf.push(bpm?ecgVal(beat):0);ecgBuf.shift();
+  if(S.mode==='ending'){S.endT-=dt;if(S.endT<=0)showResult();return;}
+  if(S.mode!=='play')return;
+  if(S.tut){
+    if(S.tut.ph==='ok'){S.tut.okT-=dt;if(S.tut.okT<=0){if(S.tut.i+1<LESSONS.length)setupLesson(S.tut.i+1);else showTutEnd();}}
+    else if(LESSONS[S.tut.i].id==='syringe'&&S.tut.ph==='do'&&S.vit>=80)tutDone();
+  }else{
+    if(S.field)fieldUpdate(dt);else S.time-=dt;
+    if(S.mode!=='play')return;
+    let drain=0;
+    if(S.step==='inside')drain=(caseId===2||S.field?.5:.7)+.9*S.wounds.filter(w=>!w.closed).length;
+    else if(S.step==='close'||S.step==='gel2'||S.step==='bandage')drain=.5;
+    S.vit-=drain*D().drain*dt;
+  }
+  S.wounds.forEach(w=>{if(!w.closed)w.r=Math.min(40,w.r+dt*5);else w.r=Math.max(0,w.r-dt*14);});
+  if(S.step==='inside'&&bugMode()&&S.fade<.4)updBugs(dt);
+  if(A&&A.type==='syr'&&S.ptr&&S.ptr.down){
+    if(dist(S.ptr,VIAL)<54){
+      if(S.field&&!A.paid&&S.syr<1){
+        if(S.field.stock>0){S.field.stock--;A.paid=true;}
+        else if(!A.warned){A.warned=true;hint('安定剤の在庫がありません。補給を待ってください。');}
+      }
+      if(!S.field||A.paid)S.syr=Math.min(1,S.syr+dt/.7);
+    }
+    else if(S.syr>0&&(!S.field||S.cur)){const amt=Math.min(S.syr,dt/.7);S.syr-=amt;S.vit=Math.min(99,S.vit+20*amt);}
+  }
+  if(S.tut)return;
+  if(S.field){if(S.cur&&S.vit<=0){fieldLoss('手術中の患者を失いました。');if(S.mode==='play')nextAfter();}return;}
+  if(S.vit<=0){S.vit=0;fail('バイタルが 0 になりました。');}
+  else if(S.time<=0){S.time=0;fail('制限時間を超えました。');}
+}
+
+/* ---------- drawing ---------- */
+function rr(c,x,y,w,h,r){c.beginPath();c.moveTo(x+r,y);c.arcTo(x+w,y,x+w,y+h,r);c.arcTo(x+w,y+h,x,y+h,r);c.arcTo(x,y+h,x,y,r);c.arcTo(x,y,x+w,y,r);c.closePath();}
+function linePath(c,poly,a,b){c.beginPath();c.moveTo(poly[a].x,poly[a].y);for(let i=a+1;i<=b;i++)c.lineTo(poly[i].x,poly[i].y);}
+function stitches(c,w,color){
+  c.strokeStyle=color;c.lineWidth=3;c.lineCap='round';
+  w.stitches.forEach(i=>{const p=w.poly[i],t=tangent(w.poly,i);c.beginPath();c.moveTo(p.x-t.y*-11,p.y+t.x*-11);c.lineTo(p.x-t.y*11,p.y+t.x*11);c.stroke();});
+}
+function drawSkin(c){
+  c.fillStyle='#14555b';c.fillRect(0,0,W,H);
+  c.strokeStyle='rgba(255,255,255,.045)';c.lineWidth=20;
+  for(let k=0;k<5;k++){c.beginPath();c.moveTo(-20,70+k*130);c.bezierCurveTo(200,30+k*130,560,140+k*130,820,60+k*130);c.stroke();}
+  rr(c,110,100,580,400,40);
+  const g=c.createLinearGradient(0,100,0,500);g.addColorStop(0,'#eebd9f');g.addColorStop(1,'#d79c7f');c.fillStyle=g;c.fill();
+  c.strokeStyle='rgba(60,20,10,.28)';c.lineWidth=7;c.stroke();
+  // gel dabs
+  c.fillStyle='rgba(127,230,196,.22)';S.dabs.forEach(d=>{c.beginPath();c.arc(d.x,d.y,22,0,7);c.fill();});
+  if(S.step==='gel1'||S.step==='cut'){
+    c.setLineDash([10,9]);c.strokeStyle='rgba(40,30,30,.75)';c.lineWidth=2.5;linePath(c,LINE,0,N-1);c.stroke();c.setLineDash([]);
+    if(S.step==='cut'){
+      c.strokeStyle='#ffb224';c.lineWidth=3;c.beginPath();c.arc(LINE[0].x,LINE[0].y,16+2*Math.sin(S.t*5),0,7);c.stroke();
+      c.fillStyle='#3a2600';c.font='700 13px "Zen Kaku Gothic New",sans-serif';c.textAlign='center';c.fillText('START',LINE[0].x,LINE[0].y-26);
+      if(S.cutIdx>0){c.strokeStyle='#7a1020';c.lineWidth=5;c.lineCap='round';linePath(c,LINE,0,S.cutIdx);c.stroke();}
+    }
+  }
+  if(S.step==='close'){
+    c.beginPath();
+    for(let i=0;i<N;i++){const p=LINE[i],w=13*Math.sin(Math.PI*i/(N-1));if(i)c.lineTo(p.x,p.y-w);else c.moveTo(p.x,p.y-w);}
+    for(let i=N-1;i>=0;i--){const p=LINE[i],w=13*Math.sin(Math.PI*i/(N-1));c.lineTo(p.x,p.y+w);}
+    c.closePath();c.fillStyle='#5c0e1d';c.fill();c.strokeStyle='#9a2a3a';c.lineWidth=2;c.stroke();
+  }
+  if(S.inc.closed){
+    c.strokeStyle='#9a4a4a';c.lineWidth=2.5;linePath(c,LINE,0,N-1);c.stroke();stitches(c,S.inc,'#1b2440');
+  }
+  if(S.step==='bandage'&&(S.bandX>0||S.bandDone)){
+    let b=0;for(let i=0;i<N;i++)if(LINE[i].x<=S.bandX)b=i;if(S.bandDone)b=N-1;
+    if(b>0){c.lineCap='butt';c.strokeStyle='rgba(246,242,230,.95)';c.lineWidth=50;linePath(c,LINE,0,b);c.stroke();
+      c.strokeStyle='rgba(180,170,150,.5)';c.lineWidth=1.5;c.setLineDash([3,6]);linePath(c,LINE,0,b);c.stroke();c.setLineDash([]);}
+  }
+}
+const BLOBS=[[180,150,150,90,.3],[620,230,170,120,-.4],[420,300,220,130,.15],[230,470,190,100,.5],[600,500,200,110,-.2]];
+function drawShard(c){
+  c.beginPath();c.moveTo(0,-27);c.lineTo(10,-5);c.lineTo(6,21);c.lineTo(-7,17);c.lineTo(-11,-7);c.closePath();
+  c.fillStyle='rgba(206,240,246,.88)';c.fill();c.strokeStyle='#f7ffff';c.lineWidth=1.5;c.stroke();
+  c.beginPath();c.moveTo(0,-27);c.lineTo(-2,16);c.strokeStyle='rgba(255,255,255,.6)';c.stroke();
+}
+function drawBug(c,b){
+  const r=b.r,dead=b.state!=='alive';
+  c.save();c.translate(b.x,b.y);c.rotate(b.ang);
+  c.strokeStyle=dead?'rgba(120,116,130,.85)':'rgba(40,20,70,.85)';c.lineWidth=dead?2:3;c.lineCap='round';
+  for(let j=-1;j<=1;j++){c.beginPath();c.moveTo(-r*.7,j*r*.35);
+    for(let k=1;k<=5;k++){const wob=dead?j*k*1.5:Math.sin(S.t*14+k*1.1+j+b.ph)*r*.22*(k/5);c.lineTo(-r*.7-k*r*.38,j*r*.35+wob);}c.stroke();}
+  c.beginPath();c.ellipse(0,0,r,r*.68,0,0,7);
+  c.fillStyle=dead?'#6f6a78':(b.hitT>0?'#7b3fd0':'#2a1450');c.fill();c.strokeStyle=dead?'#4a4652':'#b79cff';c.lineWidth=2;c.stroke();
+  if(!dead){c.beginPath();c.arc(r*.25,0,r*.28*(1+.15*Math.sin(S.t*9+b.ph)),0,7);c.fillStyle='#ffd166';c.fill();}
+  c.restore();
+  if(!dead&&b.hp<b.max){c.strokeStyle='#ffb224';c.lineWidth=4;c.lineCap='butt';c.beginPath();c.arc(b.x,b.y,r+10,-Math.PI/2,-Math.PI/2+Math.PI*2*Math.max(0,b.hp/b.max));c.stroke();}
+}
+function drawInside(c){
+  const g=c.createRadialGradient(400,300,60,400,300,520);g.addColorStop(0,'#bf4a57');g.addColorStop(1,'#5a1320');c.fillStyle=g;c.fillRect(0,0,W,H);
+  BLOBS.forEach(b=>{c.save();c.translate(b[0],b[1]);c.rotate(b[4]);c.beginPath();c.ellipse(0,0,b[2],b[3],0,0,7);c.fillStyle='rgba(224,128,138,.2)';c.fill();c.strokeStyle='rgba(70,10,22,.35)';c.lineWidth=3;c.stroke();c.restore();});
+  const v=c.createRadialGradient(400,300,260,400,300,520);v.addColorStop(0,'rgba(20,2,6,0)');v.addColorStop(1,'rgba(20,2,6,.75)');c.fillStyle=v;c.fillRect(0,0,W,H);
+  // tray
+  rr(c,TRAY.x,TRAY.y,TRAY.w,TRAY.h,12);const tg=c.createLinearGradient(0,TRAY.y,0,TRAY.y+TRAY.h);tg.addColorStop(0,'#dfe8e6');tg.addColorStop(1,'#9fb0ad');c.fillStyle=tg;c.fill();
+  c.strokeStyle='#6f817e';c.lineWidth=3;c.stroke();
+  c.fillStyle='#3d5552';c.font='700 13px "Zen Kaku Gothic New",sans-serif';c.textAlign='left';c.fillText('トレイ',TRAY.x+12,TRAY.y+22);
+  c.fillStyle='rgba(38,8,10,.35)';S.scorch.forEach(d=>{c.beginPath();c.arc(d.x,d.y,7,0,7);c.fill();});
+  // wounds
+  S.wounds.forEach(w=>{
+    if(w.r>0){c.beginPath();c.arc(w.cx,w.cy,w.r,0,7);c.fillStyle='rgba(110,6,22,.78)';c.fill();}
+    c.lineCap='round';c.strokeStyle=w.closed?'#7d2433':'#35050f';c.lineWidth=w.closed?2.5:6;linePath(c,w.poly,0,w.poly.length-1);c.stroke();
+    if(w.closed)stitches(c,w,'#eef2ff');
+  });
+  // fragments
+  S.frags.forEach((f,k)=>{
+    if(f.state==='in'){
+      c.save();c.translate(f.ox,f.oy);c.rotate(f.a+Math.PI/2);
+      c.beginPath();c.ellipse(0,0,17,6,0,0,7);c.fillStyle='#35050f';c.fill();
+      c.save();c.beginPath();c.rect(-40,-200,80,202);c.clip();c.translate(0,-(10+f.pull));drawShard(c);c.restore();
+      if(S.step==='inside'&&D().guides&&!(A&&A.type==='grab'&&A.f===f)){
+        const ph=(S.t*1.4+k*.3)%1;c.strokeStyle='rgba(255,178,36,'+(.9-ph*.7)+')';c.lineWidth=3.5;c.lineCap='round';
+        for(let j=0;j<2;j++){const y=-52-j*14-ph*10;c.beginPath();c.moveTo(-8,y+8);c.lineTo(0,y);c.lineTo(8,y+8);c.stroke();}
+      }
+      c.restore();
+    }else{
+      const px=f.state==='done'?TRAY.x+(S.frags.length>3?28:44)+k*(S.frags.length>3?30:46):f.x,py=f.state==='done'?TRAY.y+68:f.y;
+      c.save();c.translate(px,py);c.rotate(f.a+Math.PI/2);drawShard(c);c.restore();
+    }
+  });
+}
+function drawBugs(c){
+  let slot=0;
+  S.bugs.forEach(b=>{
+    if(b.gone)return;
+    if(b.state==='done'){drawBug(c,{x:TRAY.x+28+slot*30,y:TRAY.y+70,ang:-1.2,r:13,state:'dead',ph:0,hitT:0});slot++;}
+    else drawBug(c,b);
+  });
+}
+function drawTutMarks(c){
+  if(!S.tut||S.mode!=='play')return;
+  c.strokeStyle='rgba(255,178,36,'+(.45+.55*(.5+.5*Math.sin(S.t*6)))+')';c.lineWidth=5;
+  if(S.tut.ph==='eq0'){rr(c,TRAY.x-8,TRAY.y-8,TRAY.w+16,TRAY.h+16,16);c.stroke();}
+  else if(S.tut.ph==='eq1'){c.beginPath();c.arc(VIAL.x,VIAL.y+4,52,0,7);c.stroke();}
+}
+function drawVial(c){
+  const x=VIAL.x,y=VIAL.y;
+  if(tool==='syringe'){c.strokeStyle='rgba(255,178,36,.9)';c.lineWidth=3;c.beginPath();c.arc(x,y,44+2*Math.sin(S.t*5),0,7);c.stroke();}
+  rr(c,x-20,y-22,40,52,6);c.fillStyle='rgba(230,245,240,.92)';c.fill();c.strokeStyle='#49625f';c.lineWidth=2;c.stroke();
+  rr(c,x-16,y-2,32,28,4);c.fillStyle='#4fd0a8';c.fill();
+  c.fillStyle='#8a9a98';c.fillRect(x-12,y-34,24,13);
+  c.fillStyle='#f1f4ec';c.font='700 12px "Zen Kaku Gothic New",sans-serif';c.textAlign='center';c.fillText(S.field?'安定剤 ×'+S.field.stock:'安定剤',x,y+46);
+  // syringe gauge
+  rr(c,x+32,y-30,12,60,4);c.fillStyle='rgba(6,25,27,.8)';c.fill();
+  if(S.syr>0){rr(c,x+34,y+28-56*S.syr,8,56*S.syr,3);c.fillStyle='#7fe6c4';c.fill();}
+}
+function drawAction(c){
+  if(A&&A.type==='suture'&&A.pts.length>1){
+    c.strokeStyle=S.view==='skin'?'#1b2440':'#eef2ff';c.lineWidth=2.2;c.lineJoin='round';c.lineCap='round';
+    c.beginPath();c.moveTo(A.pts[0].x,A.pts[0].y);for(let i=1;i<A.pts.length;i++)c.lineTo(A.pts[i].x,A.pts[i].y);c.stroke();
+  }
+  if(A&&A.type==='laser'&&S.ptr&&S.ptr.down){
+    const g=c.createRadialGradient(S.ptr.x,S.ptr.y,2,S.ptr.x,S.ptr.y,30);g.addColorStop(0,'rgba(255,240,240,.95)');g.addColorStop(.3,'rgba(255,70,90,.7)');g.addColorStop(1,'rgba(255,70,90,0)');
+    c.fillStyle=g;c.beginPath();c.arc(S.ptr.x,S.ptr.y,30,0,7);c.fill();
+  }
+  if(S.ptr&&S.ptr.down&&S.mode==='play'){
+    c.strokeStyle='rgba(255,255,255,.85)';c.lineWidth=2;c.beginPath();c.arc(S.ptr.x,S.ptr.y,tool==='gel'?24:12,0,7);c.stroke();
+    if(tool==='syringe'&&S.syr>0&&dist(S.ptr,VIAL)>=54){c.fillStyle='rgba(127,230,196,.35)';c.beginPath();c.arc(S.ptr.x,S.ptr.y,26+6*Math.sin(S.t*12),0,7);c.fill();}
+  }
+}
+const POPC={COOL:'#ffb224',GOOD:'#7fe6c4',BAD:'#ff5d52',MISS:'#ff5d52',OK:'#7fe6c4','救命':'#7fe6c4'};
+function drawPops(c){
+  c.textAlign='center';
+  S.pops.forEach(o=>{
+    const k=Math.min(1,o.t/.12),sz=30+10*k;c.globalAlpha=o.t>.7?(1-o.t)/.3:1;
+    c.font=sz+'px "Dela Gothic One",sans-serif';
+    const x=Math.max(70,Math.min(W-70,o.x)),y=Math.max(50,o.y-o.t*36);
+    c.lineWidth=6;c.strokeStyle='#06191b';c.strokeText(o.label,x,y);c.fillStyle=POPC[o.label]||'#ff5d52';c.fillText(o.label,x,y);
+  });
+  c.globalAlpha=1;
+}
+const ecg=$('ecg'),ex=ecg.getContext('2d');
+function drawEcg(){
+  ex.clearRect(0,0,260,68);ex.strokeStyle=S.vit<30?'#ff5d52':'#7fe6c4';ex.lineWidth=3;ex.lineJoin='round';ex.beginPath();
+  for(let i=0;i<ecgBuf.length;i++){const x=i*2,y=44-ecgBuf[i]*34;if(i)ex.lineTo(x,y);else ex.moveTo(x,y);}
+  ex.stroke();
+  ex.fillStyle=ex.strokeStyle;ex.beginPath();ex.arc(258,44-ecgBuf[ecgBuf.length-1]*34,4,0,7);ex.fill();
+}
+function draw(){
+  const c=ctx;c.setTransform(scale,0,0,scale,0,0);c.save();
+  if(S.shake>0&&!reduce)c.translate((Math.random()-.5)*36*S.shake,(Math.random()-.5)*36*S.shake);
+  if(S.view==='idle')drawIdle(c);else if(S.view==='skin')drawSkin(c);else{drawInside(c);drawBugs(c);}
+  drawVial(c);drawField(c);drawTutMarks(c);drawAction(c);drawPops(c);c.restore();
+  if(S.fade>0){c.fillStyle='rgba(4,18,20,'+S.fade+')';c.fillRect(0,0,W,H);}
+  drawEcg();
+}
+
+/* ---------- hud ---------- */
+const MSG={
+  gel1:'まず切開部を消毒します。消毒ジェルで点線をなぞってください。',
+  cut:'メスを選び、START から点線に沿って一息で切開してください。',
+  inside:'ピンセットでガラス片をつかみ、矢印の向きにまっすぐ引き抜いてトレイへ。',
+  bleed:'出血しています。縫合糸で傷をまたぐようにジグザグに縫ってください。',
+  close:'処置完了です。切開部を端から端までジグザグに縫合してください。',
+  laser:'レーザーを選び、遊走体に当て続けて焼いてください。外すと組織が焼けます。',
+  husk:'残骸をピンセットでつかみ、トレイへ運んでください。',
+  gel2:'縫合部を消毒ジェルでなぞってください。',
+  bandage:'最後です。包帯を左端から右端まで貼ってください。'
+};
+const PHASE={gel1:0,cut:1,inside:2,close:3,gel2:3,bandage:3};
+let lastSay='',lastHud='',lastPulse='';
+const elProg=$('tutProg'),toolBtns=[...document.querySelectorAll('.tool')];
+function hud(){
+  const v=Math.max(0,Math.ceil(S.vit)),t=Math.max(0,Math.ceil(S.time)),key=v+'|'+t+'|'+S.score+'|'+S.step+'|'+S.mode+'|'+caseId+(S.tut?S.tut.i:'')+(S.field?S.field.saved+'/'+S.field.lost+(S.cur?'c':'i'):'');
+  if(key!==lastHud){
+    lastHud=key;elVit.textContent=(S.field&&!S.cur)?'--':v;elBar.style.width=v+'%';elVitBox.classList.toggle('low',v<30);
+    elTime.textContent=caseId===0?'--:--':Math.floor(t/60)+':'+String(t%60).padStart(2,'0');elScore.textContent=S.score;
+    const inTut=!!S.tut&&S.mode==='play',inF=!!S.field;
+    $('phases').hidden=inTut||inF;elProg.hidden=!(inTut||inF);
+    if(inTut)elProg.textContent='臨床実習 '+(S.tut.i+1)+' / '+LESSONS.length+' '+LESSONS[S.tut.i].name;
+    else if(inF)elProg.textContent='救命 '+S.field.saved+' ・ 喪失 '+S.field.lost+' / 3';
+    $('quit').hidden=S.mode!=='play';
+    const ph=S.mode==='result'?4:PHASE[S.step];
+    phaseEls.forEach((el,i)=>{el.classList.toggle('now',i===ph&&S.mode==='play');el.classList.toggle('done',i<ph);});
+  }
+  let m,warn=false;
+  if(S.mode==='brief')m=caseId===0?'練習したい項目を選ぶか、「最初から通しで始める」を押してください。':'準備ができたら「執刀開始」を押してください。';
+  else if(S.mode==='result'||S.mode==='ending')m='お疲れさまでした。手術は成功です。';
+  else if(S.mode==='fail')m='……手術を中断します。';
+  else if(S.mode==='tutend')m='実習修了です。お疲れさまでした。';
+  else if(S.mode==='fieldover')m='撤収命令です。お疲れさまでした。';
+  else if(S.tut){m=tutMsg();warn=!!S.hint;}
+  else if(S.hint){m=S.hint;warn=true;}
+  else if(S.vit<30){m='バイタル低下! 安定剤を選び、瓶を長押しで吸って、患部を長押しで注射を。';warn=true;}
+  else if(S.field)m=fieldMsg();
+  else if(S.step==='inside'&&S.wounds.some(w=>!w.closed))m=MSG.bleed;
+  else if(S.step==='inside'&&caseId===2)m=S.bugs.some(b=>b.state==='dead')?MSG.husk:MSG.laser;
+  else m=MSG[S.step];
+  if(m!==lastSay){lastSay=m;elSay.textContent=m;elSayBox.classList.toggle('warn',warn);}
+  let pt='';
+  if(S.tut&&S.mode==='play'){
+    const L=LESSONS[S.tut.i],ph=S.tut.ph;
+    if(ph==='tap')pt=L.tool;else if(ph==='eq2')pt='VITAL';
+    else if(L.id==='laser'&&ph==='do'){const husk=S.bugs.some(b=>b.state==='dead');pt=husk?(tool!=='forceps'?'forceps':''):(tool!=='laser'?'laser':'');}
+  }
+  if(pt!==lastPulse){lastPulse=pt;toolBtns.forEach(b=>b.classList.toggle('pulse',b.dataset.tool===pt));elVitBox.classList.toggle('pulse',pt==='VITAL');}
+}
+
+/* ---------- overlays ---------- */
+const BACK='<a class="back" href="../index.html">← ゲームせんたくにもどる</a>';
+const bestKey=()=>'shittou0'+caseId+'-best'+(diff==='vet'?'-vet':'');
+function best(){try{return JSON.parse(localStorage.getItem(bestKey())||'null');}catch(e){return null;}}
+const BRIEF={
+ 1:{p:n=>'患者は28歳の庭師。温室の天井崩落に巻き込まれ、左腹部にガラス片が'+n+'個残っています。',
+    ol:['消毒ジェルで切開部を消毒','メスで切開','ガラス片を摘出し、傷を縫合','閉創して包帯'],
+    note:'バイタルが下がったら「安定剤」。瓶を長押しで吸い、患部を長押しで注射します。',
+    vet:'ベテラン:ガラス片が5個。バイタルが下がりやすく、切開と引き抜きの判定が厳しく、引き抜き方向の矢印が出ません。'},
+ 2:{p:()=>'患者は41歳の潜水士。深海調査から戻った後、腹腔内に未知の遊走体が見つかりました。組織を噛み裂きながら泳ぎ回っています。',
+    ol:['消毒して切開','レーザーを当て続けて遊走体を焼く','残骸をピンセットでトレイへ。裂傷は縫合','閉創して包帯'],
+    note:'レーザーを外すと組織が焼けてバイタルが下がります。大型の母体は倒すと分裂します。',
+    vet:'ベテラン:遊走体が1体多く、速く、よく噛みます。バイタルも下がりやすく、切開の判定も厳しくなります。'}
+};
+const caseLabel=()=>'CASE 0'+caseId+' '+CASES[caseId].name+' ・ '+DIFF[diff].label;
+function tabsHtml(){
+  return '<div class="cases">'+[[0,'臨床実習'],[1,'CASE 01'],[2,'CASE 02'],[3,'戦場医師']].map(t=>'<button type="button" data-case="'+t[0]+'" aria-pressed="'+(caseId===t[0])+'">'+t[1]+'</button>').join('')+'</div>';
+}
+function showBrief(){
+  let h=tabsHtml();
+  if(caseId===0){
+    h+='<p class="eyebrow">臨床実習 ・ 時間制限なし</p><h1>器具と機材の練習</h1>'+
+      '<p>器具を1つずつ持ち替えて、塗る・切る・つかむ・縫う・焼く・打つ・貼るを実際に練習します。失敗してもその場でやり直せます。</p>'+
+      '<div class="lessons">'+LESSONS.map((L,i)=>'<button type="button" data-lesson="'+i+'">'+(i+1)+'. '+L.name+'</button>').join('')+'</div>'+
+      '<p class="note">項目をタップすると、そこから順に始まります。</p>'+
+      '<button class="go" id="start" type="button">最初から通しで始める</button>';
+  }else if(caseId===3){
+    const fb=fieldBest();
+    h+='<p class="eyebrow">戦場医師 ・ 3人失うまで続く</p><h1>野戦病院</h1>'+
+      '<p>負傷者が次々に運び込まれます。患者は開創済みです。処置を終えて切開部を縫えば救命です。</p>'+
+      '<ol><li>上の待機カードをタップして、次の患者を選ぶ</li><li>待たせるほど患者のバイタルは下がる</li><li>安定剤は本数制限あり。3人救うごとに2本補給</li>'+
+      '<li>赤い「急患」は手術中でも交代できる。安定剤を1本渡すと、看護師が今の患者を約25秒維持する</li></ol>'+
+      (fb?'<p class="eyebrow">自己ベスト 救命 '+fb.saved+'人</p>':'')+
+      '<button class="go" id="start" type="button">出動する</button>';
+  }else{
+    const b=best(),B=BRIEF[caseId],lim=CASES[caseId].limit;
+    h+='<div class="cases">'+['rookie','vet'].map(d=>'<button type="button" data-diff="'+d+'" aria-pressed="'+(diff===d)+'">'+DIFF[d].label+'</button>').join('')+'</div>'+
+      '<p class="eyebrow">CASE 0'+caseId+' ・ 制限時間 '+Math.floor(lim/60)+':00</p><h1>'+CASES[caseId].name+'</h1>'+
+      '<p>'+B.p(DIFF[diff].frags)+'</p><ol>'+B.ol.map(x=>'<li>'+x+'</li>').join('')+'</ol>'+
+      '<p class="note">'+(diff==='vet'?B.vet:B.note)+'</p>'+
+      (b?'<p class="eyebrow">自己ベスト('+DIFF[diff].label+') ランク '+b.rank+' ・ '+b.score+'点</p>':'')+
+      '<button class="go" id="start" type="button">執刀開始</button>';
+  }
+  card.innerHTML=h+BACK;overlay.hidden=false;
+  $('start').addEventListener('click',()=>{tutFrom=0;start();});
+  card.querySelectorAll('[data-case]').forEach(el=>el.addEventListener('click',()=>{caseId=+el.dataset.case;reset();showBrief();}));
+  card.querySelectorAll('[data-diff]').forEach(el=>el.addEventListener('click',()=>{diff=el.dataset.diff;reset();showBrief();}));
+  card.querySelectorAll('[data-lesson]').forEach(el=>el.addEventListener('click',()=>{tutFrom=+el.dataset.lesson;start();}));
+  phaseEls[2].textContent=CASES[caseId].phase;
+}
+function menuBtn(toCase){
+  const m=$('menu');if(!m)return;
+  m.addEventListener('click',()=>{if(toCase!=null)caseId=toCase;reset();showBrief();});
+}
+function showResult(){
+  S.mode='result';
+  const bt=Math.floor(S.time)*5,bv=Math.ceil(S.vit)*3,total=S.score+bt+bv;
+  const rank=total>=1500&&S.counts.BAD===0?'S':total>=1250?'A':total>=950?'B':'C';
+  const b=best();let rec=false;
+  if(!b||total>b.score){rec=true;try{localStorage.setItem(bestKey(),JSON.stringify({rank:rank,score:total}));}catch(e){}}
+  const next=caseId===1;
+  card.innerHTML='<p class="eyebrow">'+caseLabel()+' ・ 手術成功</p>'+
+   '<div class="rankrow"><h1>執刀評価</h1><span class="rank">'+rank+'</span></div>'+
+   '<table><tr><td>COOL / GOOD / BAD</td><td>'+S.counts.COOL+' / '+S.counts.GOOD+' / '+S.counts.BAD+'</td></tr>'+
+   '<tr><td>処置スコア</td><td>'+S.score+'</td></tr>'+
+   '<tr><td>残り時間 '+Math.floor(S.time)+'秒 × 5</td><td>'+bt+'</td></tr>'+
+   '<tr><td>バイタル '+Math.ceil(S.vit)+' × 3</td><td>'+bv+'</td></tr>'+
+   '<tr><td>合計'+(rec?'(自己ベスト更新)':'')+'</td><td>'+total+'</td></tr></table>'+
+   (next?'<button class="go" id="menu" type="button">次の症例へ</button><button class="go alt" id="start" type="button">もう一度執刀する</button>'
+        :'<button class="go" id="start" type="button">もう一度執刀する</button><button class="go alt" id="menu" type="button">症例選択へ</button>')+BACK;
+  overlay.hidden=false;$('start').addEventListener('click',start);menuBtn(next?2:null);
+}
+function fail(reason){
+  S.mode='fail';A=null;sfx.BAD();
+  card.innerHTML='<p class="eyebrow">'+caseLabel()+'</p><h1>手術失敗</h1><p>'+reason+'</p>'+
+   '<p class="note">出血中の傷は早めに縫合を。バイタルが30を切る前に安定剤を打つと立て直せます。</p>'+
+   '<button class="go" id="start" type="button">最初からやり直す</button><button class="go alt" id="menu" type="button">症例選択へ</button>'+BACK;
+  overlay.hidden=false;$('start').addEventListener('click',start);menuBtn(null);
+}
+/* ---------- tutorial ---------- */
+function setupLesson(i){
+  const L=LESSONS[i];
+  S.tut={i:i,ph:L.id==='equip'?'eq0':'tap',okT:0};
+  A=null;S.fade=.8;S.vit=75;S.syr=0;S.wounds=[];S.frags=[];S.bugs=[];S.scorch=[];S.dabs=[];S.gel.fill(false);
+  S.cutIdx=0;S.bandX=0;S.bandDone=false;S.inc.closed=false;S.inc.stitches=[];S.hint='';S.hintT=0;S.misfire=0;
+  setTool('');
+  S.view='inside';S.step='inside';
+  if(L.id==='gel'){S.view='skin';S.step='gel1';}
+  else if(L.id==='scalpel'){S.view='skin';S.step='cut';}
+  else if(L.id==='forceps')S.frags=[mkFrag(400,330,-1.9)];
+  else if(L.id==='suture')addWound(400,320,1,0);
+  else if(L.id==='laser')S.bugs=[mkBug(400,320,false)];
+  else if(L.id==='syringe')S.vit=40;
+  else if(L.id==='bandage'){S.view='skin';S.step='bandage';S.inc.closed=true;S.inc.stitches=[4,9,14,19,24,29,34,38];}
+}
+function tutDone(){if(S.tut.ph==='ok')return;S.tut.ph='ok';S.tut.okT=1.3;pop('OK',{x:400,y:250});sfx.done();}
+function tutCheck(){
+  const id=LESSONS[S.tut.i].id;
+  if(id==='forceps'&&S.frags.every(f=>f.state==='done'))tutDone();
+  else if(id==='suture'&&S.wounds.every(w=>w.closed))tutDone();
+  else if(id==='laser'&&S.bugs.every(b=>b.state==='done'))tutDone();
+}
+function tutMsg(){
+  const L=LESSONS[S.tut.i],ph=S.tut.ph;
+  if(S.hint)return S.hint;
+  if(ph==='eq0')return '機材の確認です。右上の「トレイ」をタップしてください。摘出した異物はここに置きます。';
+  if(ph==='eq1')return '左下の「安定剤」の瓶をタップしてください。バイタルが下がったら、ここから薬を吸います。';
+  if(ph==='eq2')return '画面上の「VITAL」をタップしてください。患者の体力で、0になると手術失敗です。';
+  if(ph==='tap')return '「'+L.name+'」をタップして持ち替えてください。';
+  if(ph==='ok')return 'その調子です。';
+  if(L.id==='laser'&&S.bugs.some(b=>b.state==='dead'))return '焼けました。「ピンセット」に持ち替えて、残骸をトレイへ運んでください。';
+  return L.desc+L.todo;
+}
+function showTutEnd(){
+  S.mode='tutend';A=null;
+  card.innerHTML='<p class="eyebrow">臨床実習</p><h1>実習修了</h1>'+
+   '<p>すべての器具を扱えました。本番では制限時間とバイタルに気を配ってください。</p>'+
+   '<button class="go" id="menu" type="button">CASE 01 へ進む</button><button class="go alt" id="start" type="button">もう一度実習する</button>'+BACK;
+  overlay.hidden=false;$('start').addEventListener('click',()=>{tutFrom=0;start();});menuBtn(1);
+}
+function start(){
+  if(!AC){try{AC=new (window.AudioContext||window.webkitAudioContext)();}catch(e){AC=null;}}
+  if(AC&&AC.state==='suspended'){try{AC.resume();}catch(e){}}
+  reset();S.mode='play';overlay.hidden=true;
+  if(caseId===0)setupLesson(tutFrom);else if(caseId===3)startField();else setTool('gel');
+}
+$('quit').addEventListener('click',()=>{reset();showBrief();});
+elVitBox.addEventListener('click',()=>{if(S.tut&&S.mode==='play'&&S.tut.ph==='eq2')tutDone();});
+
+/* ---------- field hospital ---------- */
+const PKEYS=['step','view','vit','frags','wounds','bugs','scorch','inc','misfire'];
+function fieldBest(){try{return JSON.parse(localStorage.getItem('shittou-field-best')||'null');}catch(e){return null;}}
+function spots(n){const out=[];let tries=0;while(out.length<n&&tries++<400){const q={x:180+Math.random()*450,y:200+Math.random()*260};if(out.every(o=>dist(o,q)>105))out.push(q);}return out;}
+function genPatient(){
+  const F=S.field,lv=F.saved,r=Math.random();
+  const urgent=F.spawned>=2&&!F.queue.some(p=>p.urgent)&&Math.random()<Math.min(.4,.2+.02*lv);
+  const type=F.spawned===0?'glass':F.spawned===1?'lac':r<.3?'glass':r<.55?'lac':r<.8?'bug':'mix';
+  const nf=type==='glass'?Math.min(5,2+Math.floor(lv/3)+(Math.random()<.5?1:0)):type==='mix'?2:0;
+  const nb=type==='bug'?Math.min(4,2+Math.floor(lv/4)):type==='mix'?1:0;
+  const nw=type==='lac'?Math.min(6,3+Math.floor(lv/3)):0;
+  const d={step:'inside',view:'inside',vit:urgent?55+Math.random()*10:72+Math.random()*13,frags:[],wounds:[],bugs:[],scorch:[],
+    inc:{poly:LINE,need:6,span:true,closed:false,stitches:[]},misfire:0};
+  const sp=spots(nf+nb+nw);let k=0;
+  for(let i=0;i<nf&&k<sp.length;i++,k++)d.frags.push(mkFrag(sp[k].x,sp[k].y,Math.random()*6.28));
+  for(let i=0;i<nb&&k<sp.length;i++,k++)d.bugs.push(mkBug(sp[k].x,sp[k].y,type==='bug'&&lv>=5&&i===0));
+  for(let i=0;i<nw&&k<sp.length;i++,k++){const q=Math.random()*3.14;addWound(sp[k].x,sp[k].y,Math.cos(q),Math.sin(q),d.wounds);}
+  d.wounds.forEach(w=>{w.r=18;});
+  F.spawned++;
+  return{id:F.nextId++,type:type,urgent:urgent,d:d,holdT:0,n:{glass:'破片 '+d.frags.length,lac:'裂傷 '+d.wounds.length,bug:'寄生体 '+d.bugs.length,mix:'破片+寄生体'}[type]};
+}
+function loadPatient(p){PKEYS.forEach(k=>{S[k]=p.d[k];});S.cur=p;A=null;S.fade=.8;}
+function stashPatient(){const p=S.cur;PKEYS.forEach(k=>{p.d[k]=S[k];});return p;}
+function clearTable(){S.cur=null;A=null;S.step='idle';S.view='idle';S.vit=75;S.frags=[];S.wounds=[];S.bugs=[];S.scorch=[];}
+function startField(){
+  S.field={queue:[],held:null,saved:0,lost:0,stock:3,arrive:8,elapsed:0,nextId:1,spawned:0};
+  S.time=0;clearTable();S.field.queue.push(genPatient());setTool('forceps');
+}
+function cardRect(i){return{x:16+i*188,y:10,w:180,h:54};}
+function fieldTap(p){
+  const F=S.field;
+  for(let i=0;i<F.queue.length;i++){
+    const r=cardRect(i);
+    if(p.x>=r.x&&p.x<=r.x+r.w&&p.y>=r.y&&p.y<=r.y+r.h+6){
+      const q=F.queue[i];
+      if(!S.cur){F.queue.splice(i,1);loadPatient(q);sfx.GOOD();}
+      else if(!q.urgent)hint('手術中に交代できるのは、赤い急患だけです。');
+      else if(F.held)hint('すでに1人預けています。これ以上は交代できません。');
+      else{
+        const cur=stashPatient();
+        if(F.stock>0){F.stock--;cur.holdT=25;hint('安定剤を看護師に渡しました。約25秒は維持できます。');}
+        else{cur.holdT=0;hint('安定剤がありません。預けた患者は弱っていきます。');}
+        F.held=cur;F.queue.splice(i,1);loadPatient(q);sfx.GOOD();
+      }
+      return true;
+    }
+  }
+  return false;
+}
+function nextAfter(){
+  const F=S.field;
+  if(F.held){const h=F.held;F.held=null;loadPatient(h);hint('預けていた患者に戻ります。');}
+  else clearTable();
+}
+function fieldSaved(){
+  const F=S.field;F.saved++;S.score+=200;pop('救命',{x:400,y:250});sfx.done();
+  if(F.saved%3===0){F.stock=Math.min(5,F.stock+2);hint('補給が届きました。安定剤 +2。');}
+  nextAfter();
+}
+function fieldLoss(msg){
+  const F=S.field;F.lost++;hint(msg);sfx.BAD();S.shake=.25;pop('喪失',{x:400,y:250});
+  if(F.lost>=3)fieldOver();
+}
+function fieldUpdate(dt){
+  const F=S.field;F.elapsed+=dt;S.time=F.elapsed;
+  F.arrive-=dt;if(!S.cur&&!F.queue.length&&!F.held)F.arrive=Math.min(F.arrive,1.2);
+  if(F.arrive<=0){
+    if(F.queue.length<3){F.queue.push(genPatient());tone(440,.12,'triangle',.07);tone(440,.12,'triangle',.07,.18);}
+    F.arrive=Math.max(9,22-F.saved*1.2)*(.8+Math.random()*.4);
+  }
+  for(let i=F.queue.length-1;i>=0;i--){
+    const q=F.queue[i];q.d.vit-=(q.urgent?1.5:.45)*dt;
+    if(q.d.vit<=0){F.queue.splice(i,1);fieldLoss('待機中の患者を失いました。');if(S.mode!=='play')return;}
+  }
+  if(F.held){
+    const h=F.held;
+    if(h.holdT>0)h.holdT-=dt;
+    else{h.d.vit-=.8*dt;if(h.d.vit<=0){F.held=null;fieldLoss('預けていた患者を失いました。');}}
+  }
+}
+function fieldMsg(){
+  const F=S.field;
+  if(!S.cur)return F.queue.length?'上の待機カードをタップして、次の患者の手術を始めてください。':'次の搬入を待っています。';
+  if(F.queue.some(q=>q.urgent)&&!F.held)return '急患です! 赤いカードをタップすると、安定剤を1本看護師に渡して交代できます。';
+  if(S.step==='close')return '処置完了。切開部を端から端までジグザグに縫えば救命です。';
+  if(S.wounds.some(w=>!w.closed))return MSG.bleed;
+  if(S.bugs.some(b=>b.state==='dead'))return MSG.husk;
+  if(S.bugs.some(b=>b.state==='alive'))return MSG.laser;
+  return MSG.inside;
+}
+function fieldOver(){
+  const F=S.field;S.mode='fieldover';A=null;
+  const b=fieldBest();let rec=false;
+  if(F.saved>0&&(!b||F.saved>b.saved)){rec=true;try{localStorage.setItem('shittou-field-best',JSON.stringify({saved:F.saved}));}catch(e){}}
+  const t=Math.floor(F.elapsed);
+  card.innerHTML='<p class="eyebrow">戦場医師 ・ 撤収</p>'+
+   '<div class="rankrow"><h1>救った人数</h1><span class="rank">'+F.saved+'</span></div>'+
+   '<table><tr><td>活動時間</td><td>'+Math.floor(t/60)+':'+String(t%60).padStart(2,'0')+'</td></tr>'+
+   '<tr><td>処置スコア</td><td>'+S.score+'</td></tr>'+
+   '<tr><td>自己ベスト'+(rec?'(更新)':'')+'</td><td>'+(b?Math.max(b.saved,F.saved):F.saved)+'人</td></tr></table>'+
+   '<button class="go" id="start" type="button">もう一度出動する</button><button class="go alt" id="menu" type="button">症例選択へ</button>'+BACK;
+  overlay.hidden=false;$('start').addEventListener('click',start);menuBtn(null);
+}
+function vitBar(c,x,y,w,v){c.fillStyle='#06191b';c.fillRect(x,y,w,10);c.fillStyle=v<30?'#ff5d52':'#7fe6c4';c.fillRect(x,y,w*Math.max(0,v)/99,10);}
+function drawField(c){
+  const F=S.field;if(!F)return;
+  F.queue.forEach((q,i)=>{
+    const r=cardRect(i);rr(c,r.x,r.y,r.w,r.h,8);c.fillStyle=q.urgent?'rgba(96,16,24,.94)':'rgba(8,38,41,.92)';c.fill();
+    c.lineWidth=3;c.strokeStyle=q.urgent?'rgba(255,93,82,'+(.55+.45*Math.sin(S.t*8))+')':(!S.cur?'rgba(255,178,36,'+(.55+.45*Math.sin(S.t*6))+')':'rgba(196,210,207,.45)');c.stroke();
+    c.textAlign='left';c.fillStyle='#f1f4ec';c.font='700 14px "Zen Kaku Gothic New",sans-serif';c.fillText((q.urgent?'急患 ':'')+q.n,r.x+10,r.y+22);
+    vitBar(c,r.x+10,r.y+33,118,q.d.vit);
+    c.textAlign='right';c.font='17px "Dela Gothic One",sans-serif';c.fillText(Math.max(0,Math.ceil(q.d.vit)),r.x+r.w-10,r.y+44);
+  });
+  if(F.held){
+    const h=F.held,x=592,y=534,w=192,hh=54;rr(c,x,y,w,hh,8);c.fillStyle='rgba(8,38,41,.94)';c.fill();
+    c.lineWidth=3;c.strokeStyle=h.holdT>0?'#7fe6c4':'#ff5d52';c.stroke();
+    c.textAlign='left';c.fillStyle='#f1f4ec';c.font='700 13px "Zen Kaku Gothic New",sans-serif';
+    c.fillText(h.holdT>0?'看護師が維持中 '+Math.ceil(h.holdT)+'秒':'預かり中 低下しています',x+10,y+22);
+    vitBar(c,x+10,y+33,128,h.d.vit);
+    c.textAlign='right';c.font='17px "Dela Gothic One",sans-serif';c.fillText(Math.max(0,Math.ceil(h.d.vit)),x+w-10,y+44);
+  }
+}
+function drawIdle(c){
+  c.fillStyle='#14555b';c.fillRect(0,0,W,H);
+  c.strokeStyle='rgba(255,255,255,.045)';c.lineWidth=20;
+  for(let k=0;k<5;k++){c.beginPath();c.moveTo(-20,70+k*130);c.bezierCurveTo(200,30+k*130,560,140+k*130,820,60+k*130);c.stroke();}
+  rr(c,190,190,420,220,28);c.fillStyle='rgba(6,25,27,.45)';c.fill();c.setLineDash([10,10]);c.strokeStyle='rgba(196,210,207,.5)';c.lineWidth=3;c.stroke();c.setLineDash([]);
+  c.fillStyle='#f1f4ec';c.textAlign='center';c.font='26px "Dela Gothic One",sans-serif';
+  c.fillText(S.field&&S.field.queue.length?'次の患者を選んでください':'搬入を待っています',400,295);
+  c.font='700 15px "Zen Kaku Gothic New",sans-serif';c.fillStyle='#c4d2cf';
+  c.fillText(S.field&&S.field.queue.length?'上の待機カードをタップ':'手術台は空いています',400,330);
+}
+
+/* ---------- loop ---------- */
+let prev=performance.now();
+function frame(now){
+  const dt=Math.min(.05,(now-prev)/1000);prev=now;
+  // 共通ポーズUIを開いている間は時間もバイタルも止める
+  const po=document.getElementById('pauseOverlay');
+  if(!(po&&po.classList.contains('show')))update(dt);
+  draw();hud();requestAnimationFrame(frame);
+}
+showBrief();requestAnimationFrame(frame);
+})();
+</script>
+<script>window.PAUSE_UI_CONFIG = { trigger: '#pauseTrigger' };</script>
+<script src="../pause-ui.js"></script>
+</body>
+</html>
