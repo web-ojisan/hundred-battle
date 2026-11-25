@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
-<title>執刀ファイル</title>
+<title>お医者さんごっこ</title>
 <link href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=Zen+Kaku+Gothic+New:wght@500;700&display=swap" rel="stylesheet">
 <style>
 :root{
@@ -23,22 +23,22 @@
 html,body{height:100%}
 body{
   background:var(--drape-deep);color:var(--bone);font-family:var(--body);font-weight:500;
-  display:grid;grid-template-rows:auto minmax(0,1fr) auto;overflow:hidden;
+  display:grid;grid-template-rows:auto auto minmax(0,1fr);overflow:hidden;
   -webkit-user-select:none;user-select:none;-webkit-touch-callout:none;
 }
 button{font:inherit;color:inherit;cursor:pointer}
 button:focus-visible{outline:3px solid var(--amber);outline-offset:2px}
 
 /* monitor */
-.monitor{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;padding:8px 16px;background:var(--drape);border-bottom:2px solid #06191b}
+.monitor{display:flex;flex-wrap:wrap;align-items:center;gap:8px 10px;padding:8px 16px;background:var(--drape);border-bottom:2px solid #06191b}
 .vital{display:flex;align-items:center;gap:10px}
 .label{font-size:11px;letter-spacing:.14em;color:var(--steel)}
 .num{font-family:var(--display);font-size:30px;line-height:1;font-variant-numeric:tabular-nums;color:var(--mint);min-width:2ch;text-align:right}
 .vital.low .num{color:var(--danger)}
-.bar{width:80px;height:10px;background:#06191b;border-radius:5px;overflow:hidden}
+.bar{width:70px;height:10px;background:#06191b;border-radius:5px;overflow:hidden}
 .bar i{display:block;height:100%;width:75%;background:var(--mint);transition:width .2s}
 .vital.low .bar i{background:var(--danger)}
-#ecg{width:90px;height:34px;display:block}
+#ecg{width:80px;height:34px;display:block}
 .phases{display:flex;gap:6px;list-style:none;padding:0}
 .phases li{font-size:12px;font-weight:700;padding:4px 10px;border-radius:99px;border:1.5px solid rgba(196,210,207,.35);color:var(--steel)}
 .phases li.now{background:var(--amber);border-color:var(--amber);color:#2a1a00}
@@ -53,6 +53,12 @@ main{display:grid;grid-template-columns:96px minmax(0,1fr);min-height:0}
 .rail{display:grid;grid-template-rows:repeat(7,minmax(0,1fr));gap:6px;padding:8px;background:#0a3034;min-height:0}
 .tool{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;min-height:0;
   background:var(--drape);border:2px solid transparent;border-radius:12px;font-size:11px;font-weight:700;color:var(--steel);padding:2px;touch-action:manipulation}
+.tool{position:relative;overflow:hidden}
+.tool svg,.tool span{position:relative;z-index:1}
+.gauge{position:absolute;left:0;right:0;bottom:0;height:0;background:rgba(127,230,196,.5);pointer-events:none}
+.tool[aria-pressed="true"] .gauge{background:rgba(14,59,64,.38)}
+.stock{position:absolute;top:3px;right:6px;z-index:1;font-family:var(--display);font-weight:400;font-size:13px;color:var(--mint)}
+.tool[aria-pressed="true"] .stock{color:#2a1a00}
 .tool svg{width:28px;height:28px;flex:none;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 .tool[aria-pressed="true"]{background:var(--amber);color:#2a1a00;border-color:#fff3d1}
 #stage{position:relative;min-width:0;min-height:0;overflow:hidden;background:var(--drape-deep)}
@@ -75,7 +81,7 @@ main{display:grid;grid-template-columns:96px minmax(0,1fr);min-height:0}
 .rankrow{display:flex;align-items:flex-end;justify-content:space-between;gap:12px}
 .go{align-self:stretch;background:#0e3b40;color:var(--bone);border:0;border-radius:6px;padding:14px;font-family:var(--display);font-size:20px}
 .go:active{background:#072629}
-.back{align-self:center;font-size:14px;font-weight:700;color:#3d6064;padding:4px 8px}
+.homelink{flex:none;align-self:center;font-size:14px;font-weight:700;color:#3d6064;padding:6px 12px}
 #pauseTrigger{background:none;border:1.5px solid rgba(196,210,207,.4);border-radius:8px;padding:5px 10px;font-size:12px;font-weight:700;touch-action:manipulation}
 .go.alt{background:none;color:#0e3b40;border:2px solid #0e3b40;font-size:16px;padding:10px}
 .cases{display:grid;grid-template-columns:1fr 1fr;gap:8px}
@@ -88,13 +94,55 @@ main{display:grid;grid-template-columns:96px minmax(0,1fr);min-height:0}
 .pulse{outline:3px solid var(--amber);outline-offset:-3px;border-radius:12px;animation:pulse 1s ease-in-out infinite}
 @keyframes pulse{50%{outline-color:transparent}}
 @media (prefers-reduced-motion:reduce){.pulse{animation:none}}
+.card.menu{height:min(640px,100%);gap:10px;padding:18px 20px}
+.mhead{flex:none}
+.mhead.row{display:flex;align-items:center;gap:12px}
+.mhead h1{font-size:28px}
+.back{flex:none;background:none;border:2px solid #0e3b40;color:#0e3b40;border-radius:6px;padding:7px 10px;font-weight:700;font-size:13px}
+.mbody{flex:1;min-height:0;overflow:auto;display:flex;flex-direction:column;gap:10px}
+.tile{flex:1;min-height:92px;display:flex;flex-direction:column;justify-content:center;gap:4px;text-align:left;background:#0e3b40;color:var(--bone);border:0;border-radius:6px;padding:12px 16px}
+.tile b{font-family:var(--display);font-weight:400;font-size:24px;line-height:1.2}
+.tile span{font-size:14px}
+.tile small{font-size:12px;font-weight:700;color:var(--amber);font-variant-numeric:tabular-nums}
+.tile:active{background:#072629}
+.caserow{flex:none;display:flex;align-items:center;gap:10px;background:#dfe7dc;border:2px solid transparent;border-radius:6px;padding:10px 12px;text-align:left;color:#10282b;font-weight:700}
+.caserow[aria-pressed="true"]{border-color:#0e3b40;background:#fff}
+.caserow .no{font-size:12px;letter-spacing:.08em;color:#3d6064}
+.caserow .nm{flex:1;font-family:var(--display);font-weight:400;font-size:18px}
+.caserow .bs{font-size:12px;font-variant-numeric:tabular-nums;color:#3d6064}
+.mset{flex:none;height:40px;display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:13px;font-weight:700;color:#3d6064;font-variant-numeric:tabular-nums}
+.seg{display:flex;border:2px solid #0e3b40;border-radius:99px;overflow:hidden}
+.seg button{background:none;border:0;padding:6px 14px;font-weight:700;font-size:13px;color:#0e3b40}
+.seg button[aria-pressed="true"]{background:#0e3b40;color:var(--bone)}
+.card.menu .go{flex:none}
+body.attop .monitor,body.attop .say,body.attop .rail{visibility:hidden}
+.face{border-radius:50%;flex:none;display:block}
+#face{flex:none;display:block;width:40px;height:40px}
+.mhead.row .face{margin-left:auto}
+.eyebrow.withface{display:flex;align-items:center;gap:10px}
+body.norail .rail{visibility:hidden}
+.toplink{align-self:center;background:none;border:0;color:#3d6064;font-weight:700;font-size:14px;text-decoration:underline;padding:6px 12px}
+.trophies{display:grid;grid-template-columns:1fr 1fr;gap:6px;flex:none}
+.trophy{display:flex;gap:8px;align-items:center;padding:8px;border-radius:6px;background:#dfe7dc;color:#5d7477}
+.trophy svg{width:22px;height:22px;flex:none;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.trophy b{display:block;font-size:13px}
+.trophy span{display:block;font-size:11px;line-height:1.35}
+.trophy.got{background:#0e3b40;color:var(--bone)}
+.trophy.got svg{color:var(--amber)}
+@media (max-width:420px){.trophies{grid-template-columns:1fr}}
+#chain{font-size:12px;font-weight:700;color:var(--amber);min-width:4.5em}
 #tutProg{font-size:13px;font-weight:700;letter-spacing:.04em;color:var(--amber)}
 
 /* assistant */
-.say{display:flex;gap:12px;align-items:center;padding:9px 16px;background:var(--drape);border-top:2px solid #06191b;min-height:48px}
+.say{display:flex;gap:12px;align-items:center;padding:9px 16px;background:#0a3034;border-bottom:2px solid #06191b;min-height:48px}
 .say .who{flex:none;font-size:11px;font-weight:700;letter-spacing:.1em;background:var(--bone);color:#10282b;padding:3px 8px;border-radius:4px}
 .say p{font-size:15px;line-height:1.45}
 .say.warn p{color:var(--amber)}
+.say.alert{background:#5a1018;animation:alert .7s steps(2,jump-none) infinite}
+.say.alert p{color:#fff;font-weight:700}
+.say.alert .who{background:var(--danger);color:#fff}
+@keyframes alert{50%{background:#8f1c27}}
+@media (prefers-reduced-motion:reduce){.say.alert{animation:none}}
 
 @media (orientation:portrait){
   main{grid-template-columns:1fr;grid-template-rows:minmax(0,1fr) auto}
@@ -118,11 +166,12 @@ main{display:grid;grid-template-columns:96px minmax(0,1fr);min-height:0}
   <span id="tutProg" hidden></span>
   <span class="spacer"></span>
   <div class="stat"><span class="label">TIME</span><b id="time">3:00</b></div>
-  <div class="stat"><span class="label">SCORE</span><b id="score">0</b></div>
+  <div class="stat"><span class="label">SCORE</span><b id="score">0</b><span id="chain"></span></div>
   <button id="quit" type="button" hidden>中断</button>
   <button id="sound" type="button" aria-pressed="true">音 ON</button>
   <button id="pauseTrigger" type="button" aria-label="一時停止">ポーズ</button>
 </header>
+<div class="say" id="sayBox" role="status"><span id="face"></span><span class="who" id="who">助手</span><p id="say">準備ができたら「執刀開始」を押してください。</p></div>
 
 <main>
   <nav class="rail" id="rail" aria-label="器具">
@@ -131,7 +180,7 @@ main{display:grid;grid-template-columns:96px minmax(0,1fr);min-height:0}
     <button class="tool" type="button" data-tool="forceps" aria-pressed="false"><svg viewBox="0 0 24 24"><path d="M6 21L11 4h2l5 17"/><path d="M9.500 9h5"/></svg><span>ピンセット</span></button>
     <button class="tool" type="button" data-tool="suture" aria-pressed="false"><svg viewBox="0 0 24 24"><path d="M4 13a8 8 0 0 1 15-4"/><path d="M19 9l1-4M19 9l-4-1"/><path d="M4 13c0 5 4 7 7 5s2-5 0-4-1 4 2 5"/></svg><span>縫合糸</span></button>
     <button class="tool" type="button" data-tool="laser" aria-pressed="false"><svg viewBox="0 0 24 24"><path d="M3 21l9-9"/><path d="M12 12l3-3"/><path d="M18 2v3M22 6h-3M21 11l-2.500-1.500M13 3l1.500 2.500M19 5l-2 2"/></svg><span>レーザー</span></button>
-    <button class="tool" type="button" data-tool="syringe" aria-pressed="false"><svg viewBox="0 0 24 24"><path d="M15 3l6 6"/><path d="M18 6l-9 9-4 1 1-4 9-9"/><path d="M5 19l-2 2M11 8l5 5"/></svg><span>安定剤</span></button>
+    <button class="tool" type="button" data-tool="syringe" aria-pressed="false"><svg viewBox="0 0 24 24"><path d="M15 3l6 6"/><path d="M18 6l-9 9-4 1 1-4 9-9"/><path d="M5 19l-2 2M11 8l5 5"/></svg><span>安定剤</span><i class="gauge" id="syrGauge"></i><b class="stock" id="syrStock" hidden></b></button>
     <button class="tool" type="button" data-tool="bandage" aria-pressed="false"><svg viewBox="0 0 24 24"><rect x="3" y="8" width="18" height="8" rx="2"/><path d="M9 8v8M15 8v8"/></svg><span>包帯</span></button>
   </nav>
   <div id="stage">
@@ -142,7 +191,6 @@ main{display:grid;grid-template-columns:96px minmax(0,1fr);min-height:0}
   </div>
 </main>
 
-<footer class="say" id="sayBox"><span class="who">助手</span><p id="say">準備ができたら「執刀開始」を押してください。</p></footer>
 
 <script>
 (function(){
@@ -168,12 +216,20 @@ function tangent(poly,i){const a=poly[Math.max(0,i-1)],b=poly[Math.min(poly.leng
 function signedDist(poly,i,p){const t=tangent(poly,i);return t.x*(p.y-poly[i].y)-t.y*(p.x-poly[i].x);}
 const TRAY={x:604,y:22,w:176,h:112};
 const VIAL={x:64,y:532};
+function onPatient(p){
+  if(S.view==='idle')return false;
+  if(S.view==='skin')return p.x>110&&p.x<690&&p.y>100&&p.y<500;
+  if(inTray(p))return false;
+  if(S.field&&((p.y<72&&p.x<580)||(p.x>586&&p.y>528)))return false;
+  return true;
+}
+const fill={on:false,paid:false,warned:false};
 const inTray=p=>p.x>TRAY.x-10&&p.x<TRAY.x+TRAY.w+10&&p.y>TRAY.y-10&&p.y<TRAY.y+TRAY.h+10;
 
 /* ---------- state ---------- */
 let S,A=null,tool='gel';
 function mkFrag(x,y,a){return{x:x,y:y,ox:x,oy:y,a:a,u:{x:Math.cos(a),y:Math.sin(a)},pull:0,state:'in'};}
-const CASES={0:{name:'臨床実習',limit:0,phase:'摘出'},1:{name:'硝子の雨',limit:180,phase:'摘出'},2:{name:'泳ぐ影',limit:240,phase:'駆除'},3:{name:'戦場医師',limit:0,phase:'摘出'}};
+const CASES={0:{name:'臨床実習',limit:0,phase:'摘出'},1:{name:'硝子の雨',limit:180,phase:'摘出'},2:{name:'泳ぐ影',limit:240,phase:'駆除'},3:{name:'野戦病院',limit:0,phase:'摘出'}};
 const DIFF={
   rookie:{label:'新人',drain:1,cutTol:42,perpTol:34,guides:true,frags:3,bugSp:1,bite:1},
   vet:{label:'ベテラン',drain:1.4,cutTol:30,perpTol:24,guides:false,frags:5,bugSp:1.25,bite:.7},
@@ -188,7 +244,7 @@ const LESSONS=[
   {id:'forceps',name:'ピンセット',tool:'forceps',desc:'ピンセットは異物をつかんで運びます。',todo:'ガラス片を矢印の向きにまっすぐ引き抜き、トレイへ。'},
   {id:'suture',name:'縫合糸',tool:'suture',desc:'縫合糸は傷を縫って出血を止めます。',todo:'傷をまたぐようにジグザグに4回以上往復してください。'},
   {id:'laser',name:'レーザー',tool:'laser',desc:'レーザーは動く病原体を焼きます。',todo:'遊走体に当て続けてください。'},
-  {id:'syringe',name:'安定剤',tool:'syringe',desc:'安定剤はバイタルを回復します。',todo:'瓶を長押しで吸い、患部を長押しで注射。80以上まで繰り返してください。'},
+  {id:'syringe',name:'安定剤',tool:'syringe',desc:'安定剤はバイタルを回復します。',todo:'ボタンをそのまま長押しすると薬を吸います。次に患部を長押しで注射。80以上まで繰り返してください。'},
   {id:'bandage',name:'包帯',tool:'bandage',desc:'包帯は縫合と消毒のあと、最後に貼ります。',todo:'縫合部の左端から右端までなぞってください。'}
 ];
 let caseId=1,diff='rookie',tutFrom=0;
@@ -202,7 +258,7 @@ function reset(){
     frags:caseId===1?FRAGS.slice(0,DIFF[diff].frags).map(a=>mkFrag(a[0],a[1],a[2])):[],
     bugs:caseId===2?[mkBug(260,250,false),mkBug(540,400,false),mkBug(400,320,true)].concat(diff==='vet'?[mkBug(330,430,false)]:[]):[],tut:null,field:null,cur:null,scorch:[],misfire:0,lz:0,wounds:[],
     inc:{poly:LINE,need:6,span:true,closed:false,stitches:[]},
-    syr:0,pops:[],fade:0,shake:0,bandX:0,bandDone:false,hint:'',hintT:0,ptr:null,endT:0,t:0};
+    syr:0,chain:0,pc:0,maxScore:0,pops:[],fade:0,shake:0,bandX:0,bandDone:false,hint:'',hintT:0,ptr:null,endT:0,t:0};
   A=null;
 }
 reset();
@@ -236,9 +292,19 @@ addEventListener('keydown',e=>{const k=['1','2','3','4','5','6','7'].indexOf(e.k
 $('sound').addEventListener('click',function(){soundOn=!soundOn;this.textContent=soundOn?'音 ON':'音 OFF';this.setAttribute('aria-pressed',String(soundOn));});
 
 function hint(msg){S.hint=msg;S.hintT=2.6;}
-function pop(label,p){S.pops.push({x:p.x,y:p.y,t:0,label:label});}
-function rate(label,p){S.counts[label]++;S.score+={COOL:100,GOOD:60,BAD:10}[label];pop(label,p);sfx[label]();}
-function damage(n,p,label){if(!S.tut)S.vit-=n;S.counts.BAD++;pop(label||'BAD',p);S.shake=.3;sfx.BAD();}
+function pop(label,p,text){S.pops.push({x:p.x,y:p.y,t:0,label:label,text:text||label});}
+function chainCap(){return S.tut||S.field?1:(diff==='vet'?2:1.5);}
+function rate(label,p){
+  if(label==='COOL')S.praiseT=S.t+1.2;
+  S.counts[label]++;
+  const cool=(!S.tut&&!S.field&&diff==='vet')?150:100,cap=chainCap();
+  S.pc++;S.maxScore+=cool*Math.min(cap,1+.1*(S.pc-1));
+  let text=label;
+  if(label==='COOL'){S.chain++;S.score+=Math.round(cool*Math.min(cap,1+.1*(S.chain-1)));if(cap>1&&S.chain>=2)text='COOL ×'+S.chain;}
+  else{S.chain=0;S.score+=label==='GOOD'?60:10;}
+  pop(label,p,text);sfx[label]();
+}
+function damage(n,p,label){S.chain=0;if(!S.tut)S.vit-=n;S.counts.BAD++;pop(label||'BAD',p);S.shake=.3;sfx.BAD();}
 
 /* ---------- step logic ---------- */
 function applyGel(p){
@@ -277,6 +343,7 @@ function updBugs(dt){
     if(b.state!=='alive')return;
     if(b.hp<=0){
       rate(S.misfire<.5?'COOL':'GOOD',{x:b.x,y:b.y-30});S.misfire=0;
+      if(S.field){TS.kills++;trophyCheck();}
       if(b.big){b.state='done';b.gone=true;
         for(let k=0;k<2;k++){const n=mkBug(b.x,b.y,false);n.ang=b.ang+(k?1.6:-1.6);n.hitT=.6;born.push(n);}
         hint('母体が分裂しました。小型を追ってください。');
@@ -304,13 +371,12 @@ function onDown(p){
   if(S.mode!=='play')return;
   if(S.tut){
     const ph=S.tut.ph;
-    if(ph==='eq0'){if(inTray(p)){S.tut.ph='eq1';pop('OK',p);sfx.GOOD();}return;}
-    if(ph==='eq1'){if(dist(p,VIAL)<56){S.tut.ph='eq2';pop('OK',p);sfx.GOOD();}return;}
+    if(ph==='eq0'){if(inTray(p)){S.tut.ph='eq2';pop('OK',p);sfx.GOOD();}return;}
     if(ph==='eq2'||ph==='ok')return;
     if(ph==='tap'){hint('先に「'+LESSONS[S.tut.i].name+'」をタップして持ち替えてください。');return;}
   }
   if(S.field){if(fieldTap(p))return;if(!S.cur)return;}
-  if(tool==='syringe'){A={type:'syr'};return;}
+  if(tool==='syringe'){A={type:'syr'};if(S.syr<=0)hint('先に「安定剤」ボタンを長押しして、薬を吸ってください。');return;}
   if(tool==='scalpel'&&S.step!=='cut'){
     if(S.step==='gel1')hint('切開の前に、まず消毒ジェルを。');
     else{damage(5,p,'MISS');hint('そこはメスを入れる場所ではありません。');}
@@ -443,15 +509,16 @@ function update(dt){
   }
   S.wounds.forEach(w=>{if(!w.closed)w.r=Math.min(40,w.r+dt*5);else w.r=Math.max(0,w.r-dt*14);});
   if(S.step==='inside'&&bugMode()&&S.fade<.4)updBugs(dt);
-  if(A&&A.type==='syr'&&S.ptr&&S.ptr.down){
-    if(dist(S.ptr,VIAL)<54){
-      if(S.field&&!A.paid&&S.syr<1){
-        if(S.field.stock>0){S.field.stock--;A.paid=true;}
-        else if(!A.warned){A.warned=true;hint('安定剤の在庫がありません。補給を待ってください。');}
-      }
-      if(!S.field||A.paid)S.syr=Math.min(1,S.syr+dt/.7);
+  if(fill.on&&S.syr<1){
+    if(S.field&&!fill.paid){
+      if(S.field.stock>0){S.field.stock--;S.field.usedStab=true;fill.paid=true;}
+      else if(!fill.warned){fill.warned=true;hint('安定剤の在庫がありません。補給を待ってください。');}
     }
-    else if(S.syr>0&&(!S.field||S.cur)){const amt=Math.min(S.syr,dt/.7);S.syr-=amt;S.vit=Math.min(99,S.vit+20*amt);}
+    if(!S.field||fill.paid){S.syr=Math.min(1,S.syr+dt/.7);if(S.syr>=1)sfx.GOOD();}
+  }
+  if(A&&A.type==='syr'&&S.ptr&&S.ptr.down&&S.syr>0){
+    if(onPatient(S.ptr)&&(!S.field||S.cur)){const amt=Math.min(S.syr,dt/.7);S.syr-=amt;S.vit=Math.min(99,S.vit+20*amt);}
+    else if(!A.warned){A.warned=true;hint('注射は患部の上で長押ししてください。');}
   }
   if(S.tut)return;
   if(S.field){if(S.cur&&S.vit<=0){fieldLoss('手術中の患者を失いました。');if(S.mode==='play')nextAfter();}return;}
@@ -560,7 +627,6 @@ function drawTutMarks(c){
   if(!S.tut||S.mode!=='play')return;
   c.strokeStyle='rgba(255,178,36,'+(.45+.55*(.5+.5*Math.sin(S.t*6)))+')';c.lineWidth=5;
   if(S.tut.ph==='eq0'){rr(c,TRAY.x-8,TRAY.y-8,TRAY.w+16,TRAY.h+16,16);c.stroke();}
-  else if(S.tut.ph==='eq1'){c.beginPath();c.arc(VIAL.x,VIAL.y+4,52,0,7);c.stroke();}
 }
 function drawVial(c){
   const x=VIAL.x,y=VIAL.y;
@@ -584,17 +650,17 @@ function drawAction(c){
   }
   if(S.ptr&&S.ptr.down&&S.mode==='play'){
     c.strokeStyle='rgba(255,255,255,.85)';c.lineWidth=2;c.beginPath();c.arc(S.ptr.x,S.ptr.y,tool==='gel'?24:12,0,7);c.stroke();
-    if(tool==='syringe'&&S.syr>0&&dist(S.ptr,VIAL)>=54){c.fillStyle='rgba(127,230,196,.35)';c.beginPath();c.arc(S.ptr.x,S.ptr.y,26+6*Math.sin(S.t*12),0,7);c.fill();}
+    if(tool==='syringe'&&S.syr>0&&onPatient(S.ptr)){c.fillStyle='rgba(127,230,196,.35)';c.beginPath();c.arc(S.ptr.x,S.ptr.y,26+6*Math.sin(S.t*12),0,7);c.fill();}
   }
 }
-const POPC={COOL:'#ffb224',GOOD:'#7fe6c4',BAD:'#ff5d52',MISS:'#ff5d52',OK:'#7fe6c4','救命':'#7fe6c4'};
+const POPC={COOL:'#ffb224',GOOD:'#7fe6c4',BAD:'#ff5d52',MISS:'#ff5d52',OK:'#7fe6c4','救命':'#7fe6c4','トロフィー':'#ffb224'};
 function drawPops(c){
   c.textAlign='center';
   S.pops.forEach(o=>{
     const k=Math.min(1,o.t/.12),sz=30+10*k;c.globalAlpha=o.t>.7?(1-o.t)/.3:1;
     c.font=sz+'px "Dela Gothic One",sans-serif';
     const x=Math.max(70,Math.min(W-70,o.x)),y=Math.max(50,o.y-o.t*36);
-    c.lineWidth=6;c.strokeStyle='#06191b';c.strokeText(o.label,x,y);c.fillStyle=POPC[o.label]||'#ff5d52';c.fillText(o.label,x,y);
+    c.lineWidth=6;c.strokeStyle='#06191b';c.strokeText(o.text,x,y);c.fillStyle=POPC[o.label]||'#ff5d52';c.fillText(o.text,x,y);
   });
   c.globalAlpha=1;
 }
@@ -609,7 +675,7 @@ function draw(){
   const c=ctx;c.setTransform(scale,0,0,scale,0,0);c.save();
   if(S.shake>0&&!reduce)c.translate((Math.random()-.5)*36*S.shake,(Math.random()-.5)*36*S.shake);
   if(S.view==='idle')drawIdle(c);else if(S.view==='skin')drawSkin(c);else{drawInside(c);drawBugs(c);}
-  drawVial(c);drawField(c);drawTutMarks(c);drawAction(c);drawPops(c);c.restore();
+  drawField(c);drawTutMarks(c);drawAction(c);drawPops(c);c.restore();
   if(S.fade>0){c.fillStyle='rgba(4,18,20,'+S.fade+')';c.fillRect(0,0,W,H);}
   drawEcg();
 }
@@ -627,13 +693,13 @@ const MSG={
   bandage:'最後です。包帯を左端から右端まで貼ってください。'
 };
 const PHASE={gel1:0,cut:1,inside:2,close:3,gel2:3,bandage:3};
-let lastSay='',lastHud='',lastPulse='';
+let lastSay='',lastHud='',lastPulse='',lastAlert=false,alertT=0,lastG=-1,lastSk=null,lastWho='',lastFace='';
 const elProg=$('tutProg'),toolBtns=[...document.querySelectorAll('.tool')];
 function hud(){
-  const v=Math.max(0,Math.ceil(S.vit)),t=Math.max(0,Math.ceil(S.time)),key=v+'|'+t+'|'+S.score+'|'+S.step+'|'+S.mode+'|'+caseId+(S.tut?S.tut.i:'')+(S.field?S.field.saved+'/'+S.field.lost+(S.cur?'c':'i'):'');
+  const v=Math.max(0,Math.ceil(S.vit)),t=Math.max(0,Math.ceil(S.time)),key=v+'|'+t+'|'+S.score+'|'+S.chain+'|'+S.step+'|'+S.mode+'|'+caseId+(S.tut?S.tut.i:'')+(S.field?S.field.saved+'/'+S.field.lost+(S.cur?'c':'i'):'');
   if(key!==lastHud){
     lastHud=key;elVit.textContent=(S.field&&!S.cur)?'--':v;elBar.style.width=v+'%';elVitBox.classList.toggle('low',v<30);
-    elTime.textContent=caseId===0?'--:--':Math.floor(t/60)+':'+String(t%60).padStart(2,'0');elScore.textContent=S.score;
+    elTime.textContent=caseId===0?'--:--':Math.floor(t/60)+':'+String(t%60).padStart(2,'0');elScore.textContent=S.score;$('chain').textContent=(chainCap()>1&&S.chain>=2)?'COOL ×'+S.chain:'';
     const inTut=!!S.tut&&S.mode==='play',inF=!!S.field;
     $('phases').hidden=inTut||inF;elProg.hidden=!(inTut||inF);
     if(inTut)elProg.textContent='臨床実習 '+(S.tut.i+1)+' / '+LESSONS.length+' '+LESSONS[S.tut.i].name;
@@ -643,19 +709,27 @@ function hud(){
     phaseEls.forEach((el,i)=>{el.classList.toggle('now',i===ph&&S.mode==='play');el.classList.toggle('done',i<ph);});
   }
   let m,warn=false;
-  if(S.mode==='brief')m=caseId===0?'練習したい項目を選ぶか、「最初から通しで始める」を押してください。':'準備ができたら「執刀開始」を押してください。';
+  if(S.mode==='brief')m={top:'行き先を選んでください。',tut:'練習したい項目を選ぶか、「最初から通しで始める」を押してください。',er:'症例と難易度を選んで、「執刀開始」を押してください。',field:'準備ができたら「出動する」を押してください。'}[menu];
   else if(S.mode==='result'||S.mode==='ending')m='お疲れさまでした。手術は成功です。';
   else if(S.mode==='fail')m='……手術を中断します。';
   else if(S.mode==='tutend')m='実習修了です。お疲れさまでした。';
   else if(S.mode==='fieldover')m='撤収命令です。お疲れさまでした。';
   else if(S.tut){m=tutMsg();warn=!!S.hint;}
   else if(S.hint){m=S.hint;warn=true;}
-  else if(S.vit<30){m='バイタル低下! 安定剤を選び、瓶を長押しで吸って、患部を長押しで注射を。';warn=true;}
+  else if(S.vit<30){m='バイタル低下! 「安定剤」ボタンを長押しで吸い、患部を長押しで注射を。';warn=true;}
   else if(S.field)m=fieldMsg();
   else if(S.step==='inside'&&S.wounds.some(w=>!w.closed))m=MSG.bleed;
   else if(S.step==='inside'&&caseId===2)m=S.bugs.some(b=>b.state==='dead')?MSG.husk:MSG.laser;
   else m=MSG[S.step];
+  const who=caseId===0?'指導医':caseId===3?'看護師':'助手';if(who!==lastWho){lastWho=who;$('who').textContent=who;}
   if(m!==lastSay){lastSay=m;elSay.textContent=m;elSayBox.classList.toggle('warn',warn);}
+  const alertOn=S.mode==='play'&&!S.tut&&((S.vit<30&&(!S.field||!!S.cur))||(!!S.field&&!!S.cur&&!S.field.held&&S.field.queue.some(q=>q.urgent)));
+  if(alertOn!==lastAlert){lastAlert=alertOn;elSayBox.classList.toggle('alert',alertOn);alertT=0;}
+  if(alertOn&&S.t>=alertT){alertT=S.t+4;tone(980,.12,'square',.05);tone(740,.16,'square',.05,.16);}
+  const mood=(alertOn||S.mode==='fail')?'alert':(S.mode==='result'||S.mode==='tutend'||(S.tut&&S.tut.ph==='ok')||S.t<S.praiseT)?'praise':'normal';
+  const fk=curWho()+mood;if(fk!==lastFace){lastFace=fk;$('face').innerHTML=faceSvg(curWho(),mood,40);}
+  const g=Math.round(S.syr*100);if(g!==lastG){lastG=g;elGauge.style.height=g+'%';}
+  const sk=S.field?'×'+S.field.stock:'';if(sk!==lastSk){lastSk=sk;elStock.textContent=sk;elStock.hidden=!sk;}
   let pt='';
   if(S.tut&&S.mode==='play'){
     const L=LESSONS[S.tut.i],ph=S.tut.ph;
@@ -666,13 +740,13 @@ function hud(){
 }
 
 /* ---------- overlays ---------- */
-const BACK='<a class="back" href="../index.html">← ゲームせんたくにもどる</a>';
+const HOME='<a class="homelink" href="../index.html">← ゲームせんたくにもどる</a>';
 const bestKey=()=>'shittou0'+caseId+'-best'+(diff==='vet'?'-vet':'');
 function best(){try{return JSON.parse(localStorage.getItem(bestKey())||'null');}catch(e){return null;}}
 const BRIEF={
  1:{p:n=>'患者は28歳の庭師。温室の天井崩落に巻き込まれ、左腹部にガラス片が'+n+'個残っています。',
     ol:['消毒ジェルで切開部を消毒','メスで切開','ガラス片を摘出し、傷を縫合','閉創して包帯'],
-    note:'バイタルが下がったら「安定剤」。瓶を長押しで吸い、患部を長押しで注射します。',
+    note:'バイタルが下がったら「安定剤」。ボタンを長押しで吸い、患部を長押しで注射します。',
     vet:'ベテラン:ガラス片が5個。バイタルが下がりやすく、切開と引き抜きの判定が厳しく、引き抜き方向の矢印が出ません。'},
  2:{p:()=>'患者は41歳の潜水士。深海調査から戻った後、腹腔内に未知の遊走体が見つかりました。組織を噛み裂きながら泳ぎ回っています。',
     ol:['消毒して切開','レーザーを当て続けて遊走体を焼く','残骸をピンセットでトレイへ。裂傷は縫合','閉創して包帯'],
@@ -680,69 +754,84 @@ const BRIEF={
     vet:'ベテラン:遊走体が1体多く、速く、よく噛みます。バイタルも下がりやすく、切開の判定も厳しくなります。'}
 };
 const caseLabel=()=>'CASE 0'+caseId+' '+CASES[caseId].name+' ・ '+DIFF[diff].label;
-function tabsHtml(){
-  return '<div class="cases">'+[[0,'臨床実習'],[1,'CASE 01'],[2,'CASE 02'],[3,'戦場医師']].map(t=>'<button type="button" data-case="'+t[0]+'" aria-pressed="'+(caseId===t[0])+'">'+t[1]+'</button>').join('')+'</div>';
-}
+let menu='top',erCase=1;
+function loadPref(){try{const p=JSON.parse(localStorage.getItem('shittou-menu')||'null');if(p){if(p.c===1||p.c===2){caseId=p.c;erCase=p.c;}if(p.d==='rookie'||p.d==='vet')diff=p.d;}}catch(e){}}
+function savePref(){try{localStorage.setItem('shittou-menu',JSON.stringify({c:erCase,d:diff}));}catch(e){}}
+function bestFor(id,d){try{return JSON.parse(localStorage.getItem('shittou0'+id+'-best'+(d==='vet'?'-vet':''))||'null');}catch(e){return null;}}
+function tile(key,name,desc,meta){return '<button type="button" class="tile" data-menu="'+key+'"><b>'+name+'</b><span>'+desc+'</span><small>'+meta+'</small></button>';}
 function showBrief(){
-  let h=tabsHtml();
-  if(caseId===0){
-    h+='<p class="eyebrow">臨床実習 ・ 時間制限なし</p><h1>器具と機材の練習</h1>'+
-      '<p>器具を1つずつ持ち替えて、塗る・切る・つかむ・縫う・焼く・打つ・貼るを実際に練習します。失敗してもその場でやり直せます。</p>'+
-      '<div class="lessons">'+LESSONS.map((L,i)=>'<button type="button" data-lesson="'+i+'">'+(i+1)+'. '+L.name+'</button>').join('')+'</div>'+
-      '<p class="note">項目をタップすると、そこから順に始まります。</p>'+
-      '<button class="go" id="start" type="button">最初から通しで始める</button>';
-  }else if(caseId===3){
+  if(menu!=='top')menu=caseId===0?'tut':caseId===3?'field':'er';
+  let h='';
+  if(menu==='top'){
     const fb=fieldBest();
-    h+='<p class="eyebrow">戦場医師 ・ 3人失うまで続く</p><h1>野戦病院</h1>'+
-      '<p>負傷者が次々に運び込まれます。患者は開創済みです。処置を終えて切開部を縫えば救命です。</p>'+
-      '<ol><li>上の待機カードをタップして、次の患者を選ぶ</li><li>待たせるほど患者のバイタルは下がる</li><li>安定剤は本数制限あり。3人救うごとに2本補給</li>'+
-      '<li>赤い「急患」は手術中でも交代できる。安定剤を1本渡すと、看護師が今の患者を約25秒維持する</li></ol>'+
-      (fb?'<p class="eyebrow">自己ベスト 救命 '+fb.saved+'人</p>':'')+
-      '<button class="go" id="start" type="button">出動する</button>';
+    h='<div class="mhead"><p class="eyebrow">外科手術アクション</p><h1>お医者さんごっこ</h1></div><div class="mbody">'+
+      tile('tut','臨床実習','器具と機材を1つずつ練習します。','全'+LESSONS.length+'項目 ・ 時間制限なし')+
+      tile('er','救急病院','症例を選んで執刀します。','症例 2 ・ 新人 / ベテラン')+
+      tile('field','野戦病院','次々に運ばれる負傷者を救います。',(fb?'ベスト 救命 '+fb.saved+'人':'ベスト —')+' ・ トロフィー '+TS.ids.length+' / '+TROPHIES.length)+'</div>'+HOME;
   }else{
-    const b=best(),B=BRIEF[caseId],lim=CASES[caseId].limit;
-    h+='<div class="cases">'+['rookie','vet'].map(d=>'<button type="button" data-diff="'+d+'" aria-pressed="'+(diff===d)+'">'+DIFF[d].label+'</button>').join('')+'</div>'+
-      '<p class="eyebrow">CASE 0'+caseId+' ・ 制限時間 '+Math.floor(lim/60)+':00</p><h1>'+CASES[caseId].name+'</h1>'+
-      '<p>'+B.p(DIFF[diff].frags)+'</p><ol>'+B.ol.map(x=>'<li>'+x+'</li>').join('')+'</ol>'+
-      '<p class="note">'+(diff==='vet'?B.vet:B.note)+'</p>'+
-      (b?'<p class="eyebrow">自己ベスト('+DIFF[diff].label+') ランク '+b.rank+' ・ '+b.score+'点</p>':'')+
-      '<button class="go" id="start" type="button">執刀開始</button>';
+    let body='',setRow='',go='';
+    if(menu==='tut'){
+      body='<p>器具を1つずつ持ち替えて、塗る・切る・つかむ・縫う・焼く・打つ・貼るを実際に練習します。項目をタップすると、そこから順に始まります。</p>'+
+        '<div class="lessons">'+LESSONS.map((L,i)=>'<button type="button" data-lesson="'+i+'">'+(i+1)+'. '+L.name+'</button>').join('')+'</div>';
+      setRow='<span>時間制限なし ・ 失敗してもやり直せます</span>';go='最初から通しで始める';
+    }else if(menu==='er'){
+      const B=BRIEF[caseId],lim=CASES[caseId].limit,b=best();
+      body=[1,2].map(id=>{const bb=bestFor(id,diff);return '<button type="button" class="caserow" data-case="'+id+'" aria-pressed="'+(caseId===id)+'"><span class="no">CASE 0'+id+'</span><span class="nm">'+CASES[id].name+'</span><span class="bs">'+(bb?bb.rank+' ・ '+bb.score:'—')+'</span></button>';}).join('')+
+        '<p class="eyebrow">CASE 0'+caseId+' ・ 制限時間 '+Math.floor(lim/60)+':00</p><p>'+B.p(DIFF[diff].frags)+'</p>'+
+        '<ol>'+B.ol.map(x=>'<li>'+x+'</li>').join('')+'</ol><p class="note">'+(diff==='vet'?B.vet:B.note)+'</p>'+
+        '<p class="note">'+(diff==='vet'?'COOLは150点。連続すると倍率が上がり、最大2倍になります。':'COOLを連続すると倍率が上がり、最大1.5倍になります。')+'</p>';
+      setRow='<div class="seg" role="group" aria-label="難易度">'+['rookie','vet'].map(d=>'<button type="button" data-diff="'+d+'" aria-pressed="'+(diff===d)+'">'+DIFF[d].label+'</button>').join('')+'</div>'+
+        '<span>'+(b?'ベスト '+b.rank+' ・ '+b.score:'ベスト —')+'</span>';
+      go='執刀開始';
+    }else{
+      const fb=fieldBest();
+      body='<p>負傷者が次々に運び込まれます。患者は開創済みです。処置を終えて切開部を縫えば救命です。3人失うと撤収になります。</p>'+
+        '<ol><li>上の待機カードをタップして、次の患者を選ぶ</li><li>待たせるほど患者のバイタルは下がる</li><li>安定剤は本数制限あり。3人救うごとに2本補給</li>'+
+        '<li>赤い「急患」は手術中でも交代できる。安定剤を1本渡すと、看護師が今の患者を約25秒維持する</li></ol>'+trophyHtml();
+      setRow='<span>3人失うまで続きます</span><span>'+(fb?'ベスト 救命 '+fb.saved+'人':'ベスト —')+'</span>';go='出動する';
+    }
+    h='<div class="mhead row"><button type="button" class="back" id="back">← 戻る</button><h1>'+{tut:'臨床実習',er:'救急病院',field:'野戦病院'}[menu]+'</h1>'+faceSvg(curWho(),'normal',56)+'</div>'+
+      '<div class="mbody">'+body+'</div><div class="mset">'+setRow+'</div><button class="go" id="start" type="button">'+go+'</button>';
   }
-  card.innerHTML=h+BACK;overlay.hidden=false;
-  $('start').addEventListener('click',()=>{tutFrom=0;start();});
-  card.querySelectorAll('[data-case]').forEach(el=>el.addEventListener('click',()=>{caseId=+el.dataset.case;reset();showBrief();}));
-  card.querySelectorAll('[data-diff]').forEach(el=>el.addEventListener('click',()=>{diff=el.dataset.diff;reset();showBrief();}));
+  card.className='card menu';card.innerHTML=h;overlay.hidden=false;document.body.classList.toggle('attop',menu==='top');document.body.classList.add('norail');
+  card.querySelectorAll('[data-menu]').forEach(el=>el.addEventListener('click',()=>{menu=el.dataset.menu;caseId=menu==='tut'?0:menu==='field'?3:erCase;reset();showBrief();}));
+  const bk=$('back');if(bk)bk.addEventListener('click',()=>{menu='top';showBrief();});
+  const st=$('start');if(st)st.addEventListener('click',()=>{tutFrom=0;start();});
+  card.querySelectorAll('[data-case]').forEach(el=>el.addEventListener('click',()=>{caseId=+el.dataset.case;erCase=caseId;savePref();reset();showBrief();}));
+  card.querySelectorAll('[data-diff]').forEach(el=>el.addEventListener('click',()=>{diff=el.dataset.diff;savePref();reset();showBrief();}));
   card.querySelectorAll('[data-lesson]').forEach(el=>el.addEventListener('click',()=>{tutFrom=+el.dataset.lesson;start();}));
   phaseEls[2].textContent=CASES[caseId].phase;
 }
 function menuBtn(toCase){
   const m=$('menu');if(!m)return;
-  m.addEventListener('click',()=>{if(toCase!=null)caseId=toCase;reset();showBrief();});
+  m.addEventListener('click',()=>{if(toCase!=null){caseId=toCase;if(toCase===1||toCase===2){erCase=toCase;savePref();}}if(menu==='top')menu='er';reset();showBrief();});
 }
 function showResult(){
   S.mode='result';
   const bt=Math.floor(S.time)*5,bv=Math.ceil(S.vit)*3,total=S.score+bt+bv;
-  const rank=total>=1500&&S.counts.BAD===0?'S':total>=1250?'A':total>=950?'B':'C';
+  const pct=Math.min(100,Math.round(100*total/(S.maxScore+CASES[caseId].limit*2.5+297)));
+  const rank=pct>=85&&S.counts.BAD===0?'S':pct>=65?'A':pct>=45?'B':'C';
   const b=best();let rec=false;
   if(!b||total>b.score){rec=true;try{localStorage.setItem(bestKey(),JSON.stringify({rank:rank,score:total}));}catch(e){}}
   const next=caseId===1;
-  card.innerHTML='<p class="eyebrow">'+caseLabel()+' ・ 手術成功</p>'+
+  card.className='card';card.innerHTML='<p class="eyebrow">'+caseLabel()+' ・ 手術成功</p>'+
    '<div class="rankrow"><h1>執刀評価</h1><span class="rank">'+rank+'</span></div>'+
    '<table><tr><td>COOL / GOOD / BAD</td><td>'+S.counts.COOL+' / '+S.counts.GOOD+' / '+S.counts.BAD+'</td></tr>'+
    '<tr><td>処置スコア</td><td>'+S.score+'</td></tr>'+
    '<tr><td>残り時間 '+Math.floor(S.time)+'秒 × 5</td><td>'+bt+'</td></tr>'+
    '<tr><td>バイタル '+Math.ceil(S.vit)+' × 3</td><td>'+bv+'</td></tr>'+
-   '<tr><td>合計'+(rec?'(自己ベスト更新)':'')+'</td><td>'+total+'</td></tr></table>'+
+   '<tr><td>合計'+(rec?'(自己ベスト更新)':'')+'</td><td>'+total+'</td></tr>'+
+   '<tr><td>達成率(S は85%以上かつ BAD なし)</td><td>'+pct+'%</td></tr></table>'+
    (next?'<button class="go" id="menu" type="button">次の症例へ</button><button class="go alt" id="start" type="button">もう一度執刀する</button>'
-        :'<button class="go" id="start" type="button">もう一度執刀する</button><button class="go alt" id="menu" type="button">症例選択へ</button>')+BACK;
-  overlay.hidden=false;$('start').addEventListener('click',start);menuBtn(next?2:null);
+        :'<button class="go" id="start" type="button">もう一度執刀する</button><button class="go alt" id="menu" type="button">症例選択へ</button>');
+  overlay.hidden=false;$('start').addEventListener('click',start);menuBtn(next?2:null);cardFace(rank==='C'?'normal':'praise');
 }
 function fail(reason){
   S.mode='fail';A=null;sfx.BAD();
-  card.innerHTML='<p class="eyebrow">'+caseLabel()+'</p><h1>手術失敗</h1><p>'+reason+'</p>'+
+  card.className='card';card.innerHTML='<p class="eyebrow">'+caseLabel()+'</p><h1>手術失敗</h1><p>'+reason+'</p>'+
    '<p class="note">出血中の傷は早めに縫合を。バイタルが30を切る前に安定剤を打つと立て直せます。</p>'+
-   '<button class="go" id="start" type="button">最初からやり直す</button><button class="go alt" id="menu" type="button">症例選択へ</button>'+BACK;
-  overlay.hidden=false;$('start').addEventListener('click',start);menuBtn(null);
+   '<button class="go" id="start" type="button">最初からやり直す</button><button class="go alt" id="menu" type="button">症例選択へ</button>';
+  overlay.hidden=false;$('start').addEventListener('click',start);menuBtn(null);cardFace('alert');
 }
 /* ---------- tutorial ---------- */
 function setupLesson(i){
@@ -771,7 +860,6 @@ function tutMsg(){
   const L=LESSONS[S.tut.i],ph=S.tut.ph;
   if(S.hint)return S.hint;
   if(ph==='eq0')return '機材の確認です。右上の「トレイ」をタップしてください。摘出した異物はここに置きます。';
-  if(ph==='eq1')return '左下の「安定剤」の瓶をタップしてください。バイタルが下がったら、ここから薬を吸います。';
   if(ph==='eq2')return '画面上の「VITAL」をタップしてください。患者の体力で、0になると手術失敗です。';
   if(ph==='tap')return '「'+L.name+'」をタップして持ち替えてください。';
   if(ph==='ok')return 'その調子です。';
@@ -779,20 +867,82 @@ function tutMsg(){
   return L.desc+L.todo;
 }
 function showTutEnd(){
-  S.mode='tutend';A=null;
-  card.innerHTML='<p class="eyebrow">臨床実習</p><h1>実習修了</h1>'+
+  S.mode='tutend';A=null;document.body.classList.add('norail');
+  card.className='card';card.innerHTML='<p class="eyebrow">臨床実習</p><h1>実習修了</h1>'+
    '<p>すべての器具を扱えました。本番では制限時間とバイタルに気を配ってください。</p>'+
-   '<button class="go" id="menu" type="button">CASE 01 へ進む</button><button class="go alt" id="start" type="button">もう一度実習する</button>'+BACK;
-  overlay.hidden=false;$('start').addEventListener('click',()=>{tutFrom=0;start();});menuBtn(1);
+   '<button class="go" id="menu" type="button">救急病院へ進む</button><button class="go alt" id="start" type="button">もう一度実習する</button>';
+  overlay.hidden=false;$('start').addEventListener('click',()=>{tutFrom=0;start();});menuBtn(1);cardFace('praise');
 }
 function start(){
   if(!AC){try{AC=new (window.AudioContext||window.webkitAudioContext)();}catch(e){AC=null;}}
   if(AC&&AC.state==='suspended'){try{AC.resume();}catch(e){}}
-  reset();S.mode='play';overlay.hidden=true;
+  reset();S.mode='play';overlay.hidden=true;document.body.classList.remove('norail');
   if(caseId===0)setupLesson(tutFrom);else if(caseId===3)startField();else setTool('gel');
 }
 $('quit').addEventListener('click',()=>{reset();showBrief();});
+const syrBtn=document.querySelector('[data-tool="syringe"]'),elGauge=$('syrGauge'),elStock=$('syrStock');
+syrBtn.addEventListener('pointerdown',e=>{fill.on=true;fill.paid=false;fill.warned=false;try{syrBtn.setPointerCapture(e.pointerId);}catch(_){}});
+['pointerup','pointercancel','lostpointercapture'].forEach(ev=>syrBtn.addEventListener(ev,()=>{fill.on=false;}));
+document.getElementById('rail').addEventListener('contextmenu',e=>e.preventDefault());
+addEventListener('keydown',e=>{if(e.key==='6'&&!e.repeat){fill.on=true;fill.paid=false;fill.warned=false;}});
+addEventListener('keyup',e=>{if(e.key==='6')fill.on=false;});
 elVitBox.addEventListener('click',()=>{if(S.tut&&S.mode==='play'&&S.tut.ph==='eq2')tutDone();});
+
+/* ---------- portraits (差し替え可: faceSvg が返すものを画像に替えればよい) ---------- */
+const SH='<path d="M-40 44Q-36 22-14 18L14 18Q36 22 40 44Z" fill="';
+const CH={
+  doc:{bg:'#dfe7dc',ey:-8,my:4,brow:'#6d757a',mouth:'#7a3b32',blush:false,sweat:24,
+    back:SH+'#fff"/><path d="M-6 18L0 30L6 18Z" fill="#1d7f86"/><rect x="-6" y="10" width="12" height="10" fill="#dcb190"/><ellipse cy="-6" rx="18" ry="21" fill="#e9c4a6"/><path d="M-18-10Q-20-30 0-30Q20-30 18-10Q12-20 0-20Q-12-20-18-10Z" fill="#9aa3a8"/><path d="M-13 2Q-12 16 0 17Q12 16 13 2Q8 11 0 11Q-8 11-13 2Z" fill="#9aa3a8"/>',
+    front:'<g fill="none" stroke="#243b3e" stroke-width="1.5"><rect x="-14" y="-12" width="11" height="8" rx="2"/><rect x="3" y="-12" width="11" height="8" rx="2"/><path d="M-3-8H3"/></g>'},
+  asst:{bg:'#cdeee6',ey:-6,my:5,brow:'#3b2a2a',mouth:'#a04a45',blush:true,sweat:24,
+    back:SH+'#1d8a8f"/><path d="M-21-8Q-24 15-13 15L13 15Q24 15 21-8Z" fill="#3b2a2a"/><rect x="-6" y="10" width="12" height="10" fill="#e6bfa3"/><ellipse cy="-6" rx="18" ry="21" fill="#f2d0b8"/><path d="M-19-10Q-20-31 0-31Q20-31 19-10Q0-18-19-10Z" fill="#2aa7a0"/><path d="M-10 14Q0 20 10 14L10 18Q0 25-10 18Z" fill="#bfe3f2"/>',front:''},
+  nurse:{bg:'#eadfc4',ey:-7,my:5,brow:'#5a2f1c',mouth:'#7a3b32',blush:false,sweat:-26,
+    back:SH+'#6f7d4c"/><path d="M15-19Q34-15 27 8Q23-3 15-6Z" fill="#8a4a2c"/><rect x="-6" y="10" width="12" height="10" fill="#cf9b78"/><ellipse cy="-6" rx="18" ry="21" fill="#dba985"/><path d="M-18-8Q-20-28 0-28Q20-28 18-8Q14-17 2-18Q-10-17-18-8Z" fill="#8a4a2c"/><path d="M-19-18Q-18-33 0-33Q18-33 19-18Z" fill="#59663c"/><rect x="-22" y="-19" width="44" height="3.5" fill="#454f2e"/><rect x="-5" y="-30" width="10" height="8" rx="1" fill="#f4f1e4"/><path d="M0-28.5V-23.5M-2.5-26H2.5" stroke="#2f8a4e" stroke-width="1.8"/><rect x="6" y="-1" width="8" height="3.5" rx="1" fill="#f6e7d0" transform="rotate(-18 10 1)"/>',front:''}
+};
+function curWho(){return caseId===0?'doc':caseId===3?'nurse':'asst';}
+function faceSvg(k,mood,size){
+  const c=CH[k],y=c.ey,m=c.my;let e;
+  if(mood==='alert')e='<circle cx="-8.5" cy="'+y+'" r="2.3" fill="#2a2a2a"/><circle cx="8.5" cy="'+y+'" r="2.3" fill="#2a2a2a"/><path d="M-13.5 '+(y-8)+'L-5 '+(y-5)+'M13.5 '+(y-8)+'L5 '+(y-5)+'" stroke="'+c.brow+'" stroke-width="1.9" fill="none" stroke-linecap="round"/><ellipse cy="'+(m+1)+'" rx="3.5" ry="2.9" fill="'+c.mouth+'"/><path d="M'+c.sweat+' -17q3 5 0 7q-3-2 0-7Z" fill="#6cc5e8"/>';
+  else if(mood==='praise')e='<path d="M-11.5 '+(y+1)+'Q-8.5 '+(y-3)+' -5.5 '+(y+1)+'M5.5 '+(y+1)+'Q8.5 '+(y-3)+' 11.5 '+(y+1)+'" stroke="#2a2a2a" stroke-width="1.8" fill="none" stroke-linecap="round"/><path d="M-6 '+(m-2)+'Q0 '+(m+5)+' 6 '+(m-2)+'Z" fill="'+c.mouth+'"/>'+(c.blush?'<circle cx="-12" cy="1" r="3" fill="#f2a59a"/><circle cx="12" cy="1" r="3" fill="#f2a59a"/>':'');
+  else e='<circle cx="-8.5" cy="'+y+'" r="1.9" fill="#2a2a2a"/><circle cx="8.5" cy="'+y+'" r="1.9" fill="#2a2a2a"/><path d="M-5 '+m+'Q0 '+(m+3)+' 5 '+m+'" stroke="'+c.mouth+'" stroke-width="1.6" fill="none" stroke-linecap="round"/>';
+  return '<svg class="face" width="'+size+'" height="'+size+'" viewBox="-42 -42 84 84" aria-hidden="true"><rect x="-42" y="-42" width="84" height="84" fill="'+c.bg+'"/>'+c.back+e+c.front+'</svg>';
+}
+function cardFace(mood){
+  const e=card.querySelector('.eyebrow');if(e){e.classList.add('withface');e.insertAdjacentHTML('afterbegin',faceSvg(curWho(),mood,56));}
+  document.body.classList.add('norail');
+  card.insertAdjacentHTML('beforeend','<button class="toplink" id="totop" type="button">トップに戻る</button>'+HOME);
+  $('totop').addEventListener('click',()=>{menu='top';reset();showBrief();});
+}
+
+/* ---------- trophies ---------- */
+const TROPHIES=[
+  {id:'first',n:'初陣',d:'1人救命する',t:F=>F.saved>=1},
+  {id:'medic',n:'衛生兵',d:'1回の出動で5人救命',t:F=>F.saved>=5},
+  {id:'surgeon',n:'軍医',d:'1回の出動で10人救命',t:F=>F.saved>=10},
+  {id:'master',n:'野戦の名医',d:'1回の出動で20人救命',t:F=>F.saved>=20},
+  {id:'nolost',n:'誰も失わない',d:'喪失0のまま8人救命',t:F=>F.saved>=8&&F.lost===0},
+  {id:'duo',n:'二正面作戦',d:'急患と預けた患者を両方救う',t:F=>F.duo},
+  {id:'thrift',n:'節約家',d:'安定剤を使わず5人救命',t:F=>F.saved>=5&&!F.usedStab},
+  {id:'precise',n:'精密機械',d:'BAD・MISSなしで5人救命',t:F=>F.saved>=5&&S.counts.BAD===0},
+  {id:'purge',n:'駆除班',d:'通算30体の寄生体を焼く',t:()=>TS.kills>=30},
+  {id:'legend',n:'百戦錬磨',d:'通算50人救命',t:()=>TS.total>=50}
+];
+let TS={ids:[],kills:0,total:0};
+function loadTrophies(){try{const p=JSON.parse(localStorage.getItem('shittou-trophies')||'null');if(p&&Array.isArray(p.ids))TS={ids:p.ids,kills:p.kills|0,total:p.total|0};}catch(e){}}
+function saveTrophies(){try{localStorage.setItem('shittou-trophies',JSON.stringify(TS));}catch(e){}}
+function trophyCheck(){
+  const F=S.field;if(!F)return;
+  TROPHIES.forEach(T=>{
+    if(TS.ids.indexOf(T.id)>=0||!T.t(F))return;
+    TS.ids.push(T.id);F.newT.push(T.n);hint('トロフィー獲得「'+T.n+'」');pop('トロフィー',{x:400,y:190});
+  });
+  saveTrophies();
+}
+const CUP='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4h10v5a5 5 0 0 1-10 0z"/><path d="M7 6H4a3 3 0 0 0 3 4M17 6h3a3 3 0 0 1-3 4M12 14v4M8 20h8"/></svg>';
+function trophyHtml(){
+  return '<p class="eyebrow">トロフィー '+TS.ids.length+' / '+TROPHIES.length+'</p><div class="trophies">'+
+    TROPHIES.map(T=>'<div class="trophy'+(TS.ids.indexOf(T.id)>=0?' got':'')+'">'+CUP+'<div><b>'+T.n+'</b><span>'+T.d+'</span></div></div>').join('')+'</div>';
+}
 
 /* ---------- field hospital ---------- */
 const PKEYS=['step','view','vit','frags','wounds','bugs','scorch','inc','misfire'];
@@ -819,7 +969,7 @@ function loadPatient(p){PKEYS.forEach(k=>{S[k]=p.d[k];});S.cur=p;A=null;S.fade=.
 function stashPatient(){const p=S.cur;PKEYS.forEach(k=>{p.d[k]=S[k];});return p;}
 function clearTable(){S.cur=null;A=null;S.step='idle';S.view='idle';S.vit=75;S.frags=[];S.wounds=[];S.bugs=[];S.scorch=[];}
 function startField(){
-  S.field={queue:[],held:null,saved:0,lost:0,stock:3,arrive:8,elapsed:0,nextId:1,spawned:0};
+  S.field={queue:[],held:null,saved:0,lost:0,stock:3,arrive:8,elapsed:0,nextId:1,spawned:0,usedStab:false,swapStage:0,duo:false,newT:[]};
   S.time=0;clearTable();S.field.queue.push(genPatient());setTool('forceps');
 }
 function cardRect(i){return{x:16+i*188,y:10,w:180,h:54};}
@@ -834,9 +984,9 @@ function fieldTap(p){
       else if(F.held)hint('すでに1人預けています。これ以上は交代できません。');
       else{
         const cur=stashPatient();
-        if(F.stock>0){F.stock--;cur.holdT=25;hint('安定剤を看護師に渡しました。約25秒は維持できます。');}
+        if(F.stock>0){F.stock--;F.usedStab=true;cur.holdT=25;hint('安定剤を預かりました。約25秒は私が維持します。');}
         else{cur.holdT=0;hint('安定剤がありません。預けた患者は弱っていきます。');}
-        F.held=cur;F.queue.splice(i,1);loadPatient(q);sfx.GOOD();
+        cur.wasHeld=true;q.viaSwap=true;F.swapStage=0;F.held=cur;F.queue.splice(i,1);loadPatient(q);sfx.GOOD();
       }
       return true;
     }
@@ -850,7 +1000,10 @@ function nextAfter(){
 }
 function fieldSaved(){
   const F=S.field;F.saved++;S.score+=200;pop('救命',{x:400,y:250});sfx.done();
+  const pt=S.cur;if(pt){if(pt.viaSwap)F.swapStage=1;else if(pt.wasHeld&&F.swapStage===1)F.duo=true;}
+  TS.total++;
   if(F.saved%3===0){F.stock=Math.min(5,F.stock+2);hint('補給が届きました。安定剤 +2。');}
+  trophyCheck();
   nextAfter();
 }
 function fieldLoss(msg){
@@ -877,7 +1030,7 @@ function fieldUpdate(dt){
 function fieldMsg(){
   const F=S.field;
   if(!S.cur)return F.queue.length?'上の待機カードをタップして、次の患者の手術を始めてください。':'次の搬入を待っています。';
-  if(F.queue.some(q=>q.urgent)&&!F.held)return '急患です! 赤いカードをタップすると、安定剤を1本看護師に渡して交代できます。';
+  if(F.queue.some(q=>q.urgent)&&!F.held)return '急患です! 赤いカードをタップすると、安定剤を1本私に預けて交代できます。';
   if(S.step==='close')return '処置完了。切開部を端から端までジグザグに縫えば救命です。';
   if(S.wounds.some(w=>!w.closed))return MSG.bleed;
   if(S.bugs.some(b=>b.state==='dead'))return MSG.husk;
@@ -889,13 +1042,14 @@ function fieldOver(){
   const b=fieldBest();let rec=false;
   if(F.saved>0&&(!b||F.saved>b.saved)){rec=true;try{localStorage.setItem('shittou-field-best',JSON.stringify({saved:F.saved}));}catch(e){}}
   const t=Math.floor(F.elapsed);
-  card.innerHTML='<p class="eyebrow">戦場医師 ・ 撤収</p>'+
+  card.className='card';card.innerHTML='<p class="eyebrow">野戦病院 ・ 撤収</p>'+
    '<div class="rankrow"><h1>救った人数</h1><span class="rank">'+F.saved+'</span></div>'+
    '<table><tr><td>活動時間</td><td>'+Math.floor(t/60)+':'+String(t%60).padStart(2,'0')+'</td></tr>'+
    '<tr><td>処置スコア</td><td>'+S.score+'</td></tr>'+
+   '<tr><td>今回のトロフィー</td><td>'+(F.newT.length?F.newT.join('、'):'—')+'</td></tr>'+
    '<tr><td>自己ベスト'+(rec?'(更新)':'')+'</td><td>'+(b?Math.max(b.saved,F.saved):F.saved)+'人</td></tr></table>'+
-   '<button class="go" id="start" type="button">もう一度出動する</button><button class="go alt" id="menu" type="button">症例選択へ</button>'+BACK;
-  overlay.hidden=false;$('start').addEventListener('click',start);menuBtn(null);
+   '<button class="go" id="start" type="button">もう一度出動する</button><button class="go alt" id="menu" type="button">戻る</button>';
+  overlay.hidden=false;$('start').addEventListener('click',start);menuBtn(null);cardFace(rec?'praise':'normal');
 }
 function vitBar(c,x,y,w,v){c.fillStyle='#06191b';c.fillRect(x,y,w,10);c.fillStyle=v<30?'#ff5d52':'#7fe6c4';c.fillRect(x,y,w*Math.max(0,v)/99,10);}
 function drawField(c){
@@ -936,7 +1090,7 @@ function frame(now){
   if(!(po&&po.classList.contains('show')))update(dt);
   draw();hud();requestAnimationFrame(frame);
 }
-showBrief();requestAnimationFrame(frame);
+loadPref();loadTrophies();reset();showBrief();requestAnimationFrame(frame);
 })();
 </script>
 <script>window.PAUSE_UI_CONFIG = { trigger: '#pauseTrigger' };</script>
