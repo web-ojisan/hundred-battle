@@ -18,7 +18,8 @@
     --bar:#0B0E19; --panel:#141930; --panel2:#1b2140; --line:#39456f;
     --gold:#FFD34D; --orange:#FF8A3D; --pink:#FF4D6D; --green:#2EBD6B; --ink:#E9EEFF;
   }
-  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  /* touch-action:manipulation … ダブルタップでの拡大を無効にする（スクロールは残る） */
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;touch-action:manipulation;}
   body{
     min-height:100dvh;background:var(--bar);color:var(--ink);
     font-family:"M PLUS Rounded 1c",system-ui,sans-serif;

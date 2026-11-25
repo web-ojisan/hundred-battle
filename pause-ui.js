@@ -18,6 +18,9 @@
   function init() {
     var style = document.createElement('style');
     style.textContent =
+      // ダブルタップでの拡大を全ゲーム共通で無効にする（ピンチ操作やスクロールは残る）。
+      // 個別に touch-action:none などを指定している要素は、そちらが優先される
+      '*{touch-action:manipulation;}' +
       '.pauseBtn{' +
         'position:fixed;z-index:2147483000;' +
         'width:36px;height:36px;border-radius:50%;' +
