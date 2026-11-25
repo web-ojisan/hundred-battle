@@ -175,13 +175,17 @@ header{display:flex;align-items:center;gap:12px;padding:6px 16px;border-bottom:1
 #dots i.on{background:var(--matcha)}
 
 /* 操作 */
-#ctl{display:flex;gap:8px;padding:10px 16px 16px;background:var(--ink)}
+/* 下段は常に同じ4マス。法廷記録は会話中も尋問中も右から2番目 */
+#ctl{display:grid;grid-template-columns:52px 1fr 1fr 52px;gap:8px;padding:10px 16px 16px;background:var(--ink)}
 #ctl button{min-height:52px;border-radius:8px;font-weight:700;font-size:16px;background:var(--panel);border:1px solid var(--line)}
 #ctl .nav{flex:0 0 52px;font-size:20px}
 #ctl .act{flex:1}
 #ctl .press{background:#2f4f86;border-color:#4d72b5}
 #ctl .show{background:var(--shu);border-color:#e8674f;color:#fff}
-#ctl .rec{flex:0 0 auto;padding:0 14px;font-size:14px}
+#ctl.two{grid-template-columns:34% 1fr}
+#ctl.one{grid-template-columns:1fr}
+#ctl .span2{grid-column:span 2}
+#ctl .recb{background:transparent;border:2px solid var(--paper);color:var(--paper)}
 #ctl .close{flex:0 0 34%}
 #ctl .next{flex:1;background:var(--paper);color:var(--sumi);border-color:var(--paper)}
 #ctl button:disabled{opacity:.35;cursor:default}
@@ -470,11 +474,16 @@ function showLine(who,text){
   $('text').classList.toggle('think',who==='you'&&text.charAt(0)==='(');
   type(text);
 }
-function ctlTalk(){$('ctl').innerHTML='<button class="rec" id="rc" type="button">法廷記録</button><button class="next" id="nx" type="button">次へ ▶</button>';$('nx').onclick=advance;$('rc').onclick=openRec;}
+function ctlTalk(){
+  $('ctl').className='';
+  $('ctl').innerHTML='<button class="next span2" id="nx" type="button">次へ</button><button class="recb" id="rc" type="button">法廷記録</button><button class="nav" id="nx2" type="button" aria-label="次へ">▶</button>';
+  $('nx').onclick=advance;$('nx2').onclick=advance;$('rc').onclick=openRec;
+}
 function ctlExam(){
+  $('ctl').className='';
   $('ctl').innerHTML='<button class="nav" id="pv" type="button" aria-label="前の証言">◀</button>'+
    '<button class="act press" id="ps" type="button">問いただす</button>'+
-   '<button class="act show" id="sh" type="button">法廷記録</button>'+
+   '<button class="recb" id="sh" type="button">法廷記録</button>'+
    '<button class="nav" id="nv" type="button" aria-label="次の証言">▶</button>';
   $('pv').disabled=S.si===0;
   $('pv').onclick=()=>move(-1);$('nv').onclick=()=>move(1,true);
@@ -482,9 +491,10 @@ function ctlExam(){
 }
 function ctlRec(){
   if(S.mode==='exam'){
+    $('ctl').className='two';
     $('ctl').innerHTML='<button class="close" id="cl" type="button">閉じる</button><button class="act show" id="go" type="button">突きつける</button>';
     $('go').onclick=()=>{const id=sel;recOpen=false;$('sheet').hidden=true;ctl();present(id);};
-  }else $('ctl').innerHTML='<button class="next" id="cl" type="button">閉じる</button>';
+  }else{$('ctl').className='one';$('ctl').innerHTML='<button class="next" id="cl" type="button">閉じる</button>';}
   $('cl').onclick=closeRec;
 }
 function ctl(){if(recOpen)ctlRec();else if(S.mode==='exam')ctlExam();else ctlTalk();}
