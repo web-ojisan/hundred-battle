@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>かずヒント たからさがし</title>
+<title>お宝ハンター</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=Zen+Maru+Gothic:wght@500;700;900&display=swap">
 <style>
 :root{
@@ -102,6 +102,35 @@ body{overflow:hidden}
 .seat span{position:absolute;left:50%;top:50%;white-space:nowrap;display:flex;gap:6px;align-items:center}
 .seat i{width:.9em;height:.9em;border-radius:50%;display:block}
 .seatc{display:flex;flex-direction:column;gap:16px;align-items:center;justify-content:center;text-align:center;min-height:0;overflow:auto}
+/* タイトルロゴ */
+.logo{display:flex;align-items:center;gap:.15em;font-size:clamp(46px,11vw,100px);line-height:1.1;color:var(--p2);
+  -webkit-text-stroke:.14em var(--dark);paint-order:stroke fill;text-shadow:0 .09em 0 var(--dark);transform:rotate(-3deg);margin:0 0 4px}
+.logo .gem.super{width:.95em;flex:none;animation:twinkle 1.6s infinite alternate ease-in-out}
+@keyframes twinkle{from{transform:rotate(-8deg) scale(.95)}to{transform:rotate(8deg) scale(1.08);filter:drop-shadow(0 0 .12em #fff)}}
+.subttl{margin:0;font-size:clamp(17px,3.6vw,24px);background:var(--sea-deep);border:2px solid var(--sand-edge);color:var(--sand);padding:4px 16px;border-radius:99px}
+.btn.alt{background:none;color:var(--ink);box-shadow:none;border:3px solid var(--ink-dim)}
+.btn.alt:active{transform:none;box-shadow:none}
+/* あそびかた(図解)。--d は出てくるまでの待ち時間。図をおすと もういちど再生 */
+.howt{color:var(--p2);font-size:clamp(24px,5.5vw,40px)}
+.howc{font-size:clamp(18px,4vw,26px);min-height:3.1em;line-height:1.5}
+.hdots{display:flex;gap:8px}
+.hdots i{width:12px;height:12px;border-radius:50%;background:var(--sea-deep);display:block}
+.hdots i.on{background:var(--p2)}
+.cell.hl{background:#fff1b8;outline:.07em solid #fff;outline-offset:-.07em;box-shadow:inset 0 -.16em 0 var(--sand-edge),0 0 .5em var(--p2);animation:hlin .45s both;animation-delay:var(--d)}
+@keyframes hlin{from{background:var(--sand);outline-color:transparent;box-shadow:inset 0 -.16em 0 var(--sand-edge),0 0 0 transparent;transform:scale(.88)}}
+.cell.no{filter:brightness(.7);animation:noin .3s both;animation-delay:var(--d)}
+@keyframes noin{from{filter:none}}
+.cell.no::after{content:"✕";color:#7a1e12;font-family:var(--body);font-weight:900;font-size:.9em;animation:fadein .3s both;animation-delay:var(--d)}
+@keyframes fadein{from{opacity:0;transform:scale(1.8)}}
+.cell.mine{outline:.06em dashed var(--p0);outline-offset:-.1em}
+.cell.mine .gem{animation:fadein .4s both;animation-delay:var(--d)}
+.scores{display:flex;flex-direction:column;gap:12px;width:min(100%,660px)}
+.srow{display:flex;align-items:center;gap:16px;background:var(--sea-deep);border-radius:16px;padding:10px 16px;font-size:clamp(16px,3.4vw,23px);animation:slidein .4s both;animation-delay:var(--d)}
+@keyframes slidein{from{opacity:0;transform:translateX(-24px)}}
+.cell.mini{width:64px;flex:none;font-size:40px;background:var(--sea);box-shadow:none}
+.pt{font-family:var(--display);font-weight:400;font-size:1.5em;min-width:2.2em;color:var(--p2)}
+.pt.neg{color:#ff7a6e}
+@media (prefers-reduced-motion:reduce){.logo .gem.super,.cell.hl,.cell.no,.cell.no::after,.cell.mine .gem,.srow{animation:none}}
 a.small{text-decoration:none;display:inline-block}
 .homebar{display:flex;justify-content:flex-end}
 </style>
@@ -115,7 +144,7 @@ function per(){return S.n>=5?2:3;}
 let S, ringAt=-1, askReset=false, ac;
 const app=document.getElementById('app');
 
-function fresh(n){return {phase:'setup',n:n||3,size:6,cur:0,hides:[],pick:[],open:[],score:[],msg:'',last:-1,seat:[]};}
+function fresh(n){return {phase:'setup',n:n||3,size:6,cur:0,hides:[],pick:[],open:[],score:[],msg:'',last:-1,seat:[],hp:0};}
 function el(tag,attrs,...kids){
   const e=document.createElement(tag);
   for(const k in (attrs||{})){
@@ -179,6 +208,42 @@ function home(direct){
     :el('button',{class:'small',type:'button',id:'home',on:()=>document.getElementById('pauseTrigger').dispatchEvent(new Event('pointerdown'))},'🏠 ゲームせんたく');
 }
 function homebar(){return el('div',{class:'homebar'},home());}
+
+/* あそびかた: g は盤面。数字=ほった数字 / h=ひかる / H=✕のあとでひかる / x=✕ / m=じぶんのたから / .=すな */
+const HOW=[
+ {t:'すうじの いみ',n:3,g:['hhh','h1h','hhh'],c:'すうじは、まわりの 8マスに たからの マスが いくつ あるか。「1」なら、ひかった どこかに 1マス!'},
+ {t:'0は あんぜん',n:3,g:['xxx','x0x','xxx'],c:'「0」なら、まわりは ぜんぶ ハズレ。ほらなくて いいよ。'},
+ {t:'くみあわせて しぼる',n:4,g:['xxxH','x01H','xxxH','....'],c:'「0」の まわりに ✕ を つける。すると「1」の たからは、のこった 3マスの どこか!'},
+ {t:'はしっこは しぼりやすい',n:3,g:['1h.','hh.','...'],c:'かどの「1」は、まわりが 3マスだけ。'},
+ {t:'じぶんの たからも かぞえる',n:3,g:['xxx','x1m','xxx'],c:'となりに じぶんの たからが あるなら、その「1」は それ。ほかは ぜんぶ ハズレ!'},
+ {t:'てんすう',score:true,c:'たからが ぜんぶ みつかったら おわり。てんすうの おおい ひとの かち!'}
+];
+function howBoard(pg){
+  const b=el('div',{class:'board',style:'--n:'+pg.n}),cells=pg.g.join('');
+  const nx=(cells.match(/x/g)||[]).length,x0=cells.indexOf('m')>=0?1.1:.5;
+  let xi=0,hi=0;
+  for(const ch of cells){
+    let c;
+    if(ch>='0'&&ch<='9')c=el('div',{class:'cell dug n'+ch},ch);
+    else if(ch==='x')c=el('div',{class:'cell no',style:'--d:'+(x0+.09*xi++).toFixed(2)+'s'});
+    else if(ch==='h')c=el('div',{class:'cell hl',style:'--d:'+(.4+.1*hi++).toFixed(2)+'s'});
+    else if(ch==='H')c=el('div',{class:'cell hl',style:'--d:'+(x0+.09*nx+.5).toFixed(2)+'s'});
+    else if(ch==='m')c=el('div',{class:'cell mine',style:'--d:.3s'},gem(0));
+    else c=el('div',{class:'cell'});
+    b.append(c);
+  }
+  return el('div',{class:'field',id:'howfield',on:()=>render()},b);
+}
+function howScores(){
+  const row=(i,gems,pt,text)=>el('div',{class:'srow',style:'--d:'+(.2+.35*i).toFixed(2)+'s'},
+    el('div',{class:'cell mini'+(gems.length>1?' multi':'')},gems.map(gem)),
+    el('b',{class:'pt'+(pt.charAt(0)==='−'?' neg':'')},pt),el('span',null,text));
+  return el('div',{class:'field',id:'howfield',on:()=>render()},el('div',{class:'scores'},
+    row(0,[1],'+1','ともだちの たから。もう 1かい ほれる'),
+    row(1,[1,3],'+3','たからが かさなっていたら ボーナス!'),
+    row(2,[0],'−1','じぶんの たからを ほっちゃった。こうたい'),
+    row(3,['S'],'+3','スーパーダイヤ! もう 1かい ほれる')));
+}
 
 /* 席と回転: 0=てまえ 1=ひだり 2=むこう 3=みぎ */
 const rot=document.getElementById('rot');
@@ -314,18 +379,28 @@ function render(){
   document.body.style.boxShadow=S.phase==='play'?'inset 0 0 0 8px '+pl.c:'none';
   if(S.phase==='setup'){
     app.append(el('div',{class:'center'},
-      el('h1',{html:'<span>かずヒント</span><br>たからさがし'}),
+      el('h1',{class:'logo'},gem('S'),'お宝ハンター'),
+      el('p',{class:'subttl'},'すうじが ヒントの たからさがし'),
       el('div',{class:'pick',role:'group','aria-label':'あそぶ にんずう'},[2,3,4,5].map(n=>
         el('button',{type:'button',id:'n'+n,'aria-pressed':String(S.n===n),on:()=>{S.n=n;render();}},n+'にん'))),
-      el('ol',{class:'rules'},
-        el('li',null,'ひとりずつ、たからを '+per()+'つ かくす。ほかの ひとは みない。'),
-        el('li',null,'じゅんばんに マスを ほる。ともだちの たからが でたら 1てんで、もう 1かい。かさなっていたら ボーナス +1てん。'),
-        el('li',null,'じぶんの たからを ほると 1てん へる。'),
-        el('li',null,'どこかに スーパーダイヤが 1こ ある。みつけたら 3てん!'),
-        el('li',null,'ハズレで でる すうじは、まわりの 8マスで、たからの ある マスが いくつ あるか。'),
-        el('li',null,'じぶんの ばんに なると、がめんが じぶんの せきの ほうを むくよ。')),
-      el('button',{class:'btn',type:'button',id:'start',on:()=>{S.seat=[];S.phase='seat';beep([523]);render();}},'はじめる'),
+      el('div',{class:'row',style:'justify-content:flex-start'},
+        el('button',{class:'btn',type:'button',id:'start',on:()=>{S.seat=[];S.phase='seat';beep([523]);render();}},'はじめる'),
+        el('button',{class:'btn alt',type:'button',id:'how',on:()=>{S.hp=0;S.phase='how';beep([523]);render();}},'あそびかた')),
+      el('p',{class:'sub'},'たからを '+per()+'つずつ かくして、すうじを ヒントに ほりあてよう。じぶんの ばんには、がめんが じぶんの せきを むくよ。'),
       home(true)));
+  }else if(S.phase==='how'){
+    const pg=HOW[S.hp],lastPg=S.hp===HOW.length-1;
+    app.append(
+      el('div',{class:'top'},
+        el('p',{class:'turn',style:'flex:1'},'あそびかた '+(S.hp+1)+' / '+HOW.length),
+        el('button',{class:'small',type:'button',id:'howclose',on:()=>{S.phase='setup';render();}},'とじる')),
+      el('p',{class:'big howt'},pg.t),
+      pg.score?howScores():howBoard(pg),
+      el('p',{class:'hint howc'},pg.c),
+      el('div',{class:'row'},
+        el('button',{class:'btn alt',type:'button',id:'howback',disabled:S.hp===0,on:()=>{S.hp--;beep([523]);render();}},'◀ まえへ'),
+        el('div',{class:'hdots'},HOW.map((_,i)=>el('i',{class:i===S.hp?'on':''}))),
+        el('button',{class:'btn',type:'button',id:'hownext',on:()=>{if(lastPg)S.phase='setup';else S.hp++;beep([660]);render();}},lastPg?'とじる':'つぎへ ▶')));
   }else if(S.phase==='seat'){
     app.append(homebar(),seatView(begin));
   }else if(S.phase==='pass'){
