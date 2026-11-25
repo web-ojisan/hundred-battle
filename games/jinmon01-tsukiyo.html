@@ -19,7 +19,7 @@
   --shu:#d1432b;      /* 朱印 */
   --matcha:#55793a;   /* 証言のしるし */
   --gold:#d9b25f;     /* 名札 */
-  --muted:#a3acc6;
+  --muted:#a3acc6;--wood:#5b422b;--wood-hi:#7a5a3a;
   --display:"Shippori Mincho B1","Hiragino Mincho ProN","Yu Mincho",serif;
   --body:"Zen Kaku Gothic New","Hiragino Sans","Yu Gothic",sans-serif;
 }
@@ -32,26 +32,105 @@ button:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
 #app{height:100%;max-width:760px;margin:0 auto;display:flex;flex-direction:column;position:relative;overflow:hidden}
 
 /* HUD */
-header{display:flex;align-items:center;gap:12px;padding:10px 16px;border-bottom:1px solid var(--line)}
+header{display:flex;align-items:center;gap:12px;padding:6px 16px;border-bottom:1px solid var(--line)}
 .ttl{flex:1;min-width:0}
+.ttl{display:flex;align-items:baseline;gap:10px}
 .ttl small{display:block;font-size:11px;letter-spacing:.18em;color:var(--muted)}
 .ttl b{display:block;font-family:var(--display);font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.life{display:flex;flex-direction:column;align-items:flex-end;gap:2px;font-size:11px;color:var(--muted)}
-.pips{display:flex;gap:4px}
-.pips i{width:12px;height:12px;border-radius:50%;background:var(--gold);transition:.3s}
-.pips i.off{background:transparent;box-shadow:inset 0 0 0 2px var(--line)}
 
 /* 舞台 */
-#stage{flex:1;min-height:190px;position:relative;display:flex;align-items:flex-end;justify-content:center;
+#stage{flex:1;min-height:270px;position:relative;overflow:hidden;display:flex;flex-direction:column}
+/* 上のコマ=法廷を見上げる引きの絵、下のコマ=証言台の寄り。間の帯で別カメラに見せる */
+#upper{flex:58;position:relative;overflow:hidden;
+  background:repeating-linear-gradient(90deg,transparent 0 46px,rgba(255,255,255,.035) 46px 48px),linear-gradient(#161c36,#252e52);}
+.gutter{flex:0 0 7px;background:var(--ink);border-top:1px solid rgba(243,236,220,.55);border-bottom:1px solid rgba(243,236,220,.55)}
+#lower{flex:42;min-height:120px;position:relative;overflow:hidden;
+  background:radial-gradient(120% 90% at 50% 100%,#3b4674,#1f2747 70%);}
+/* 裁判長まわりの飾り: 月の丸窓、行灯、柱、幕。話者の明暗とは別の層 */
+.deco{position:absolute;inset:0}
+.deco i{position:absolute;display:block}
+.valance{top:0;left:0;right:0;height:16px;background:radial-gradient(circle at 50% 0,#4a2f63 0 11px,transparent 12px) 0 6px/24px 16px repeat-x,linear-gradient(#4a2f63 0 7px,transparent 7px);border-top:2px solid var(--gold);z-index:1}
+.pillar{top:0;bottom:0;width:5%;background:linear-gradient(90deg,#2c2015,#6d4f33 45%,#3b2a1b);box-shadow:0 0 0 1px rgba(0,0,0,.3)}
+.pillar::before{content:"";position:absolute;left:-18%;right:-18%;top:16px;height:9px;background:var(--gold);border-radius:2px;opacity:.8}
+.pl{left:19%}.pr{right:19%}
+.moon{left:50%;top:calc(17% + 34px);width:32%;aspect-ratio:1;transform:translate(-50%,-50%);border-radius:50%;
   background:
-   repeating-linear-gradient(90deg,transparent 0 46px,rgba(255,255,255,.035) 46px 48px),
-   linear-gradient(#1b2240,#232c4c 70%,#2b2118 70%,#3a2c1f);}
-#stage::after{content:"";position:absolute;left:0;right:0;bottom:0;height:22px;background:#5b422b;border-top:3px solid #7a5a3a}
-#bust{width:min(46%,230px);position:relative;z-index:1;margin-bottom:8px;transition:opacity .2s}
-#bust svg{display:block;width:100%;height:auto}
-#bust.shock{animation:shake .5s}
-#plate{position:absolute;left:16px;bottom:30px;z-index:2;background:var(--ink);border:1px solid var(--gold);color:var(--gold);padding:2px 12px;font-family:var(--display);font-size:14px;border-radius:3px}
-#note{position:absolute;top:10px;left:50%;transform:translateX(-50%);z-index:3;background:var(--matcha);color:#fff;font-size:13px;font-weight:700;padding:4px 14px;border-radius:99px;white-space:nowrap}
+   repeating-linear-gradient(90deg,transparent 0 24%,rgba(58,42,27,.75) 24% 26%),
+   repeating-linear-gradient(0deg,transparent 0 24%,rgba(58,42,27,.75) 24% 26%),
+   radial-gradient(circle at 50% 45%,#fff3c9,#e7c873 70%,#c79f45);
+  border:6px solid #6d4f33;box-shadow:0 0 0 2px var(--gold),0 0 34px rgba(240,214,140,.45);filter:brightness(.72);transition:filter .25s}
+#upper:has(#judge.on) .moon{filter:none}
+.andon{top:21%;width:7.5%;height:38px;border-radius:5px;background:linear-gradient(#fff0b8,#f0b455);border-top:5px solid #2a1e14;border-bottom:5px solid #2a1e14;box-shadow:0 0 18px rgba(255,214,120,.75)}
+.andon::before{content:"";position:absolute;left:50%;bottom:100%;width:2px;height:60px;margin-bottom:5px;background:#2a1e14}
+.al{left:27%}.ar{right:27%}
+
+.seat{position:absolute;display:flex;flex-direction:column;align-items:center;transition:transform .25s}
+/* 話していない人は人物だけ暗く。机は飾りが読める明るさを残す */
+.seat .bust{filter:brightness(.45) saturate(.6);transition:filter .25s}
+.seat .desk,.seat .desk3{filter:brightness(.78);transition:filter .25s}
+.seat.on .bust,.seat.on .desk,.seat.on .desk3{filter:none}
+.seat svg{display:block;width:100%;height:auto}
+.bust{position:relative}
+.desk{background:var(--wood);border-top:3px solid var(--wood-hi);position:relative;z-index:1}
+
+#judge{top:17%;bottom:0;left:50%;width:50%;transform:translateX(-50%)}
+#judge .bust{width:34%}
+/* 裁判長の机はコマの下まで続く。見上げるほど高い壇 */
+#judge .desk{flex:1;width:100%;margin-top:-8px;border-radius:4px 4px 0 0;border-top:4px solid var(--gold);display:flex;align-items:flex-start;justify-content:center;gap:8px;padding-top:9px;
+  background:repeating-linear-gradient(90deg,transparent 0 31%,rgba(0,0,0,.18) 31% 32%),linear-gradient(#6d4f33,#3b2a1b 85%)}
+#judge .desk span{font-size:10px;color:#e9d9b8;letter-spacing:.1em;line-height:11px}
+.pips{display:flex;gap:5px}
+.pips i{width:11px;height:11px;border-radius:50%;background:var(--gold);box-shadow:0 0 6px rgba(217,178,95,.7);transition:.3s}
+.pips i.off{background:transparent;box-shadow:inset 0 0 0 2px #8a6c48}
+
+#pros,#def{top:39%;bottom:0;width:40%;z-index:1}
+#pros{left:0}#def{right:0}
+#pros .bust,#def .bust{width:80%}
+/* 斜めの机: 外側が手前、中央側が奥。前面はコマの下の帯まで伸びる */
+.desk3{flex:1;width:108%;margin-top:-26px;position:relative;z-index:1}
+.desk3 i{position:absolute;inset:0}
+.desk3 .top{background:var(--d-top);clip-path:polygon(0 20px,86% 0,100% 10px,8% 32px)}
+.desk3 .front{background:var(--d-front);clip-path:polygon(8% 32px,100% 10px,100% 100%,8% 100%)}
+.desk3 .sidef{background:var(--d-side);clip-path:polygon(0 20px,8.2% 32px,8.2% 100%,0 100%)}
+/* 検事席=黒漆に銀の縁と書類の束。被告人席=白木の格子に朱の縁と湯のみ */
+.desk3 .trim{background:var(--d-trim);clip-path:polygon(8% 32px,100% 10px,100% 15px,8% 37px)}
+.desk3 .tag{position:absolute;left:36%;top:41px;padding:0 9px 1px;font-family:var(--display);font-weight:800;font-size:13px;line-height:1.5;letter-spacing:.2em;border:1px solid var(--d-trim);border-radius:2px;background:var(--d-tagbg);color:var(--d-tagfg);transform:skewY(-8deg)}
+.desk3 .item{position:absolute}
+.papers{left:34%;top:9px;width:26%;height:9px;background:#f3ecdc;transform:skewY(-8deg) skewX(-32deg);box-shadow:2px -3px 0 #cfc5ae,0 -6px 0 #f3ecdc,3px -9px 0 #cfc5ae}
+.cup{left:52%;top:0;width:13px;height:15px;background:#55793a;border-radius:2px 2px 5px 5px;border-top:3px solid #7fa05a}
+#pros .desk3{--d-top:#4a5270;--d-front:linear-gradient(#262c40,#10131c);--d-side:linear-gradient(#171b28,#0b0d14);--d-trim:#b9c7dc;--d-tagbg:#10131c;--d-tagfg:#d7e3f2}
+#def .desk3{--d-top:#d2a86e;--d-front:repeating-linear-gradient(90deg,transparent 0 13px,rgba(60,36,14,.42) 13px 16px),linear-gradient(#b0834f,#7a5630);--d-side:linear-gradient(#7a5630,#4e3519);--d-trim:#c9432b;--d-tagbg:#f3ecdc;--d-tagfg:#7a2a1c}
+#def .desk3 .tag{transform:skewY(-8deg) scaleX(-1)}
+#pros .desk3{align-self:flex-start}
+#def .desk3{align-self:flex-end;transform:scaleX(-1)}
+
+#wit{bottom:0;left:50%;width:min(44%,210px);transform:translateX(-50%);z-index:2}
+#wit.on{transform:translateX(-50%) scale(1.04);transform-origin:50% 100%}
+#wit .bust{width:100%}
+#wit .desk{width:124%;height:26px;margin-top:-14px;border-radius:60px 60px 0 0}
+
+/* 汗 */
+.drop{position:absolute;width:9px;height:13px;background:#bfe1ff;border-radius:50% 50% 50% 50%/65% 65% 35% 35%;opacity:0}
+.d1{left:22%;top:26%}.d2{right:20%;top:34%}.d3{left:30%;top:10%}
+#wit[data-sweat="1"] .d1,#wit[data-sweat="2"] .d1,#wit[data-sweat="2"] .d2,#wit[data-sweat="3"] .drop{opacity:1;animation:drip 1.3s infinite ease-in}
+.d2{animation-delay:.4s!important}.d3{animation-delay:.8s!important}
+#wit[data-sweat="3"] .bust{animation:tremble .18s infinite}
+@keyframes drip{0%{transform:translateY(-4px);opacity:0}25%{opacity:1}100%{transform:translateY(16px);opacity:0}}
+@keyframes tremble{0%,100%{transform:translateX(-1.5px)}50%{transform:translateX(1.5px)}}
+
+/* 反応 */
+#wit.shock{animation:wshake .5s}
+@keyframes wshake{0%,100%{margin-left:0}20%{margin-left:-10px}40%{margin-left:9px}60%{margin-left:-6px}80%{margin-left:4px}}
+#pros.recoil .bust{animation:recoil 1.1s cubic-bezier(.2,1.4,.4,1)}
+@keyframes recoil{0%{transform:none}18%,70%{transform:translate(-9%,-8%) rotate(-20deg)}100%{transform:none}}
+.mark{position:absolute;right:-4%;top:-6%;font-family:var(--display);font-weight:800;font-size:32px;color:var(--shu);opacity:0}
+#pros.recoil .mark{animation:pop 1.1s}
+@keyframes pop{0%{opacity:0;transform:scale(.3)}18%,70%{opacity:1;transform:scale(1)}100%{opacity:0}}
+
+#def.joy .bust{animation:hop .7s}
+@keyframes hop{0%,50%,100%{transform:none}25%,75%{transform:translateY(-12%)}}
+
+#note{position:absolute;top:10px;left:50%;transform:translateX(-50%);z-index:6;background:var(--matcha);color:#fff;font-size:13px;font-weight:700;padding:4px 14px;border-radius:99px;white-space:nowrap}
 @keyframes shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-10px)}40%{transform:translateX(9px)}60%{transform:translateX(-6px)}80%{transform:translateX(4px)}}
 
 /* 発言 */
@@ -94,7 +173,7 @@ header{display:flex;align-items:center;gap:12px;padding:10px 16px;border-bottom:
 .card ul{padding-left:1.2em;font-size:14px;display:flex;flex-direction:column;gap:4px}
 .card .go{min-height:52px;border-radius:8px;background:var(--shu);color:#fff;font-weight:700;font-size:17px}
 .back{align-self:center;font-size:14px;font-weight:700;color:#6b6252;padding:4px 8px}
-#pauseTrigger{flex:none;min-height:36px;padding:0 12px;border:1px solid var(--line);border-radius:8px;font-size:13px;font-weight:700;color:var(--muted)}
+#pauseTrigger{flex:none;min-height:34px;padding:0 12px;border:1px solid var(--line);border-radius:8px;font-size:13px;font-weight:700;color:var(--muted)}
 .verdict{display:flex;align-items:center;justify-content:space-between;gap:12px}
 .rank{font-family:var(--display);font-weight:800;font-size:56px;line-height:1;color:var(--shu)}
 .card table{width:100%;border-collapse:collapse;font-size:14px;font-variant-numeric:tabular-nums}
@@ -118,14 +197,21 @@ header{display:flex;align-items:center;gap:12px;padding:10px 16px;border-bottom:
 <div id="app">
   <header>
     <div class="ttl"><small>CASE 01</small><b id="phase">月夜の番頭</b></div>
-    <div class="life" aria-label="裁判長の信頼"><span>信頼</span><div class="pips" id="pips"></div></div>
     <button id="pauseTrigger" type="button" aria-label="一時停止">中断</button>
   </header>
 
   <div id="stage">
     <div id="note" hidden></div>
-    <div id="bust"></div>
-    <div id="plate"></div>
+    <div id="upper">
+      <div class="deco" aria-hidden="true"><i class="valance"></i><i class="pillar pl"></i><i class="pillar pr"></i><i class="moon"></i><i class="andon al"></i><i class="andon ar"></i></div>
+      <div class="seat" id="judge"><div class="bust" data-k="judge"></div><div class="desk"><span>信頼</span><div class="pips" id="pips" role="img"></div></div></div>
+      <div class="seat" id="pros"><div class="bust" data-k="pros"><b class="mark">！？</b></div><div class="desk3"><i class="top"></i><i class="front"></i><i class="sidef"></i><i class="trim"></i><span class="item papers"></span><span class="tag">検察</span></div></div>
+      <div class="seat" id="def"><div class="bust" data-k="def"></div><div class="desk3"><i class="top"></i><i class="front"></i><i class="sidef"></i><i class="trim"></i><span class="item cup"></span><span class="tag">被告</span></div></div>
+    </div>
+    <div class="gutter"></div>
+    <div id="lower">
+      <div class="seat" id="wit" data-sweat="0"><div class="bust" data-k="wit"><i class="drop d1"></i><i class="drop d2"></i><i class="drop d3"></i></div><div class="desk"></div></div>
+    </div>
     <div id="sheet" hidden role="dialog" aria-label="法廷記録">
       <p class="shead">法廷記録</p>
       <div id="evlist"></div>
@@ -161,16 +247,25 @@ const WHO={
   def:{n:'被告人 小麦沢 ハル',c:'#c98a2b'},
   narr:{n:'',c:''}
 };
+function side(k){
+  /* 斜め向き(右向きで描き、被告は左右反転)。手前の肩を大きく、目と鼻を内側へ寄せる */
+  const c=WHO[k].c,skin='#e8c9a8';let x='';
+  if(k==='pros')x='<path d="M71 76a37 37 0 0 1 68-27c-18-5-36 3-45 15-5 8-6 14-8 22z" fill="#1c2233"/><path d="M107 110h9l5 30-9 8-9-8z" fill="#d7e3f2"/><path d="M118 91h12" stroke="#1e1b17" stroke-width="3" stroke-linecap="round"/>';
+  if(k==='def')x='<path d="M72 68a36 36 0 0 1 71-9z" fill="#c9432b"/><path d="M73 64l-15-7 3 17z" fill="#c9432b"/><polygon points="84,132 134,132 138,180 80,180" fill="#f3ecdc"/><circle cx="84" cy="77" r="7" fill="#d9b592"/><path d="M119 90q5 4 10 0" stroke="#1e1b17" stroke-width="3" fill="none" stroke-linecap="round"/>';
+  const inner='<path d="M20 180c2-48 30-72 74-72 30 0 52 18 60 72z" fill="'+c+'"/><circle cx="108" cy="70" r="36" fill="'+skin+'"/><path d="M141 67l10 14-11 3z" fill="'+skin+'"/><circle cx="116" cy="72" r="3" fill="#1e1b17"/><circle cx="133" cy="72" r="2.6" fill="#1e1b17"/>'+x;
+  return '<svg viewBox="0 0 200 180" aria-hidden="true">'+(k==='def'?'<g transform="translate(200 0) scale(-1 1)">'+inner+'</g>':inner)+'</svg>';
+}
 function bust(k){
+  if(k==='pros'||k==='def')return side(k);
   const c=WHO[k].c;let x='';
   const apron='<path d="M72 132h56v48H72z" fill="#f3ecdc"/>';
   if(k==='judge')x='<path d="M64 66a36 36 0 0 1 72 0c-10-16-62-16-72 0z" fill="#b9b9c4"/><path d="M84 112l16 22 16-22z" fill="#f3ecdc"/>';
   if(k==='pros')x='<path d="M64 70a36 36 0 0 1 72-4c-18-6-30-20-72 4z" fill="#1c2233"/><path d="M96 112h8l4 30-8 8-8-8z" fill="#d7e3f2"/>';
   if(k==='wit')x='<rect x="66" y="24" width="68" height="28" rx="6" fill="#f3ecdc"/><path d="M86 88q14 8 28 0" stroke="#5a4a3a" stroke-width="4" fill="none" stroke-linecap="round"/>'+apron;
   if(k==='def')x='<path d="M64 62a36 36 0 0 1 72 0z" fill="#c9432b"/>'+apron;
-  if(k==='you')x='<path d="M64 68a36 36 0 0 1 72 0c-12-10-60-10-72 0z" fill="#3a2a20"/><path d="M84 112l16 26 16-26" stroke="#f3ecdc" stroke-width="5" fill="none"/><circle cx="130" cy="142" r="5" fill="#d9b25f"/>';
   return '<svg viewBox="0 0 200 180" aria-hidden="true"><path d="M30 180c0-46 30-70 70-70s70 24 70 70z" fill="'+c+'"/><circle cx="100" cy="70" r="36" fill="#e8c9a8"/><circle cx="88" cy="72" r="3" fill="#1e1b17"/><circle cx="112" cy="72" r="3" fill="#1e1b17"/>'+x+'</svg>';
 }
+document.querySelectorAll('.bust').forEach(b=>b.insertAdjacentHTML('afterbegin',bust(b.dataset.k)));
 
 /* ---------- 証拠 ---------- */
 const EV=[
@@ -307,12 +402,9 @@ function beep(f,d,type,v){if(!AC)return;try{const o=AC.createOscillator(),g=AC.c
 const sfx={tick:()=>beep(520,.05,'square',.025),hit:()=>{beep(140,.35,'sawtooth',.08);setTimeout(()=>beep(90,.4,'sawtooth',.08),90);},bad:()=>beep(110,.4,'square',.06),add:()=>{beep(660,.1,'triangle',.06);setTimeout(()=>beep(880,.15,'triangle',.06),100);}};
 
 /* ---------- 表示 ---------- */
-function pips(){let h='';for(let i=0;i<MAXLIFE;i++)h+='<i class="'+(i<S.life?'':'off')+'"></i>';$('pips').innerHTML=h;$('pips').parentNode.setAttribute('aria-label','裁判長の信頼 '+S.life+' / '+MAXLIFE);}
-function speaker(k){
-  const b=$('bust'),p=$('plate');
-  if(k==='narr'){b.style.opacity='0';p.hidden=true;return;}
-  b.style.opacity='1';b.innerHTML=bust(k);p.hidden=false;p.textContent=WHO[k].n;
-}
+function pips(){let h='';for(let i=0;i<MAXLIFE;i++)h+='<i class="'+(i<S.life?'':'off')+'"></i>';$('pips').innerHTML=h;$('pips').setAttribute('aria-label','裁判長の信頼 '+S.life+' / '+MAXLIFE);}
+function speaker(k){['judge','pros','def','wit'].forEach(x=>$(x).classList.toggle('on',x===k));}
+function sweat(n){$('wit').dataset.sweat=Math.min(3,n===undefined?S.ti+(S.unlocked?1:0):n);}
 function type(text){
   clearInterval(typing);typing=null;full=text;const el=$('text');
   if(reduce){el.textContent=text;return;}
@@ -361,7 +453,7 @@ function advance(){
 
 /* ---------- 尋問 ---------- */
 function startTestimony(i){
-  S.ti=i;S.si=0;S.unlocked=false;
+  S.ti=i;S.si=0;S.unlocked=false;sweat();
   S.sts=T[i].st.map(s=>({k:s.k,t:s.t,p:s.p,add:s.add,done:false}));
   $('phase').textContent=T[i].title;
   talk([['narr','尋問開始 「'+T[i].title+'」  証言を読み、あやしい発言は問いただす。証拠と食い違う発言には、法廷記録から突きつける。']],exam);
@@ -384,7 +476,7 @@ function press(){
   if(busy)return;
   const st=S.sts[S.si];st.done=true;S.press++;sfx.tick();
   talk(st.p,()=>{
-    if(st.add&&!S.unlocked){S.unlocked=true;S.sts.splice(S.si+1,0,{k:st.add.k,t:st.add.t,p:st.add.p,done:false});S.si++;sfx.add();note('証言が追加された');}
+    if(st.add&&!S.unlocked){S.unlocked=true;sweat();S.sts.splice(S.si+1,0,{k:st.add.k,t:st.add.t,p:st.add.p,done:false});S.si++;sfx.add();note('証言が追加された');}
     else if(S.si<S.sts.length-1)S.si++;
     exam();
   });
@@ -399,11 +491,13 @@ function present(id){
 }
 function success(){
   busy=true;sfx.hit();
-  const s=$('stamp');s.hidden=false;$('bust').classList.add('shock');
+  const s=$('stamp'),p=$('pros'),w=$('wit'),d=$('def');
+  [p,w,d].forEach(e=>{e.classList.remove('recoil','shock','joy');void e.offsetWidth;});
+  s.hidden=false;p.classList.add('recoil');w.classList.add('shock');d.classList.add('joy');sweat(S.ti+1);
   setTimeout(()=>{
-    s.hidden=true;$('bust').classList.remove('shock');busy=false;
+    s.hidden=true;[p,w,d].forEach(e=>e.classList.remove('recoil','shock','joy'));busy=false;
     talk(T[S.ti].after,()=>{if(S.ti<T.length-1)startTestimony(S.ti+1);else verdict();});
-  },reduce?700:1100);
+  },reduce?700:1200);
 }
 function wrong(){
   S.life--;S.miss++;pips();sfx.bad();
@@ -444,7 +538,7 @@ function begin(){
   if(!AC){try{AC=new (window.AudioContext||window.webkitAudioContext)();}catch(e){AC=null;}}
   if(AC&&AC.state==='suspended'){try{AC.resume();}catch(e){}}
   S={mode:'talk',ti:0,si:0,life:MAXLIFE,miss:0,press:0,unlocked:false,sts:[]};
-  pips();$('phase').textContent='月夜の番頭';$('overlay').hidden=true;
+  pips();sweat(0);$('phase').textContent='月夜の番頭';$('overlay').hidden=true;
   talk(INTRO,()=>startTestimony(0));
 }
 function verdict(){
