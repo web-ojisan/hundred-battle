@@ -143,6 +143,13 @@ body{overflow:hidden}
 .pt{font-family:var(--display);font-weight:400;font-size:1.5em;min-width:2.2em;color:var(--p2)}
 .pt.neg{color:#ff7a6e}
 @media (prefers-reduced-motion:reduce){.logo .gem.super,.cell.hl,.cell.no,.cell.no::after,.cell.mine .gem,.srow{animation:none}}
+/* ヒントの ✕: たからが ないと わかった マス。ほることは できる */
+.cell.xed{filter:brightness(.9)}
+.cell.xed::after{content:"✕";color:rgba(122,30,18,.55);font-family:var(--body);font-weight:900;font-size:.8em;pointer-events:none}
+.cell.xnew::after{animation:fadein .3s var(--d) both}
+.hintrow{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.hintrow>span{font-size:clamp(16px,3.4vw,20px);color:var(--ink-dim)}
+.hintrow .pick button{font-size:18px;padding:8px 14px}
 /* ---- かざり・エフェクト ---- */
 .deco{position:absolute;width:30%;height:30%;left:var(--x);top:var(--y);transform:rotate(var(--r));pointer-events:none;filter:drop-shadow(0 .03em 0 rgba(90,60,20,.35))}
 .deco svg{display:block;width:100%;height:100%}
@@ -195,7 +202,7 @@ body{overflow:hidden}
 @keyframes biggem{0%{transform:scale(0) rotate(-180deg);opacity:0}16%{transform:scale(1.2) rotate(8deg);opacity:1}26%{transform:scale(1)}80%{transform:scale(1.05) rotate(-4deg);opacity:1}100%{transform:scale(1.6);opacity:0}}
 .tw{position:absolute;left:var(--l);top:var(--tp);font-size:var(--w);line-height:1;color:#fff;text-shadow:0 0 .4em #fff,0 0 .8em #ffe58a;animation:tw .7s var(--dl) both}
 @keyframes tw{0%,100%{transform:scale(0) rotate(0);opacity:0}50%{transform:scale(1) rotate(90deg);opacity:1}}
-@media (prefers-reduced-motion:reduce){.cell.justdug,.cell.justdug .num,.cell.justdug .gem,.gem.dropin,.cell.ring,.chip b.bump{animation:none}}
+@media (prefers-reduced-motion:reduce){.cell.xnew::after,.cell.justdug,.cell.justdug .num,.cell.justdug .gem,.gem.dropin,.cell.ring,.chip b.bump{animation:none}}
 a.small{text-decoration:none;display:inline-block}
 .homebar{display:flex;justify-content:flex-end}
 </style>
@@ -313,6 +320,22 @@ function howScores(){
 /* ---- かざり・エフェクト ---- */
 const reduce=window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches;
 let fxDig=null,fxPick=-1,fxUnpick=-1,busyHide=false;
+/* ヒント: 0=なし 1=やさしい(0の まわり) 2=しっかり(すうじの ぶんが みつかった ところも)。端末に保存 */
+const HINTS=[['なし','✕は つかない。じぶんで かんがえよう'],['やさしい','「0」の まわりに ✕ が つく'],['しっかり','たからが ないと わかった マスに ✕ が つく']];
+let HINT=2,xPrev=new Set();
+try{const v=localStorage.getItem('otakara-hint');if(v==='0'||v==='1'||v==='2')HINT=+v;}catch(e){}
+function setHint(v){HINT=v;try{localStorage.setItem('otakara-hint',String(v));}catch(e){}}
+/* みんなに 見えている 情報(ほった すうじ と みつかった たから)だけから、たからが ない マスを 出す */
+function xCells(){
+  const out=new Set();
+  if(!HINT)return out;
+  for(let i=0;i<S.size*S.size;i++){
+    if(!S.open[i]||has(i))continue;
+    const nb=neighbors(i),k=count(i),found=nb.filter(j=>S.open[j]&&has(j)).length;
+    if(k===0||(HINT===2&&found===k))nb.forEach(j=>{if(!S.open[j])out.add(j);});
+  }
+  return out;
+}
 const DECO=[
  '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21c-5 0-9-4-9-9 0-4 4-8 9-8s9 4 9 8c0 5-4 9-9 9z" fill="#fff4e0" stroke="#c98f5a" stroke-width="1.4"/><path d="M12 21V5M12 21L6 7M12 21l6-14M12 21L3.500 12M12 21l8.500-9" stroke="#c98f5a" stroke-width="1" fill="none"/></svg>',
  '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2l2.600 6.600 7 .500-5.400 4.500 1.800 6.900L12 16.800 6 20.500l1.800-6.900L2.400 9.100l7-.500z" fill="#ff8a5c" stroke="#b5522c" stroke-width="1.3" stroke-linejoin="round"/></svg>',
@@ -416,7 +439,7 @@ function begin(){
   for(let p=0;p<n;p++){S.hides.push([]);S.score.push(0);}
   S.open=new Array(S.size*S.size).fill(false);
   S.finder=new Array(S.size*S.size).fill(-1);
-  S.deco=makeDeco(S.size*S.size);
+  S.deco=makeDeco(S.size*S.size);xPrev=new Set();
   S.cur=0;S.pick=[];S.msg='';S.last=-1;S.phase='pass';
   beep([523]);render();
 }
@@ -502,6 +525,7 @@ function chips(){
 function board(mode){
   const b=el('div',{class:'board',style:'--n:'+S.size});
   const ring=ringAt>=0?neighbors(ringAt):[];
+  const xs=mode==='play'?xCells():new Set();let xn=0;
   for(let i=0;i<S.size*S.size;i++){
     let c;
     const fd=fxDig&&fxDig.i===i?fxDig:null;
@@ -515,7 +539,9 @@ function board(mode){
     }else{
       const sup=i===S.super,owners=ownersAt(i),shown=S.open[i]||(mode==='end'&&has(i));
       if(!shown){
-        c=el('button',{class:'cell'+(ring.includes(i)?' ring':''),style:sandVars(i),type:'button','aria-label':'マス '+(i+1),disabled:mode==='end',on:()=>dig(i)},decoEl(i));
+        const x=xs.has(i),nw=x&&!xPrev.has(i);
+        c=el('button',{class:'cell'+(ring.includes(i)?' ring':'')+(x?' xed':'')+(nw?' xnew':''),style:sandVars(i)+(nw?';--d:'+(.4+.07*xn++).toFixed(2)+'s':''),type:'button',
+          'aria-label':'マス '+(i+1)+(x?' たから なし':''),disabled:mode==='end',on:()=>dig(i)},decoEl(i));
       }else if(owners.length||sup){
         c=el('div',{class:'cell found'+(owners.length>1?' multi':'')+(i===S.last?' last':'')+(fd?' justdug'+(fd.kind==='own'?' sad':''):'')},sup?gem('S'):owners.map(gem),
           (S.finder&&S.finder[i]>=0)?el('span',{class:'mark',style:'--c:'+P[S.finder[i]].c,title:P[S.finder[i]].name+' さんが みつけた'}):null,
@@ -528,6 +554,7 @@ function board(mode){
     }
     b.append(c);
   }
+  if(mode==='play')xPrev=xs;
   return el('div',{class:'field'},b);
 }
 function render(){
@@ -541,6 +568,10 @@ function render(){
       el('p',{class:'subttl'},'すうじが ヒントの たからさがし'),
       el('div',{class:'pick',role:'group','aria-label':'あそぶ にんずう'},[2,3,4,5].map(n=>
         el('button',{type:'button',id:'n'+n,'aria-pressed':String(S.n===n),on:()=>{S.n=n;render();}},n+'にん'))),
+      el('div',{class:'hintrow'},el('span',null,'ヒント'),
+        el('div',{class:'pick',role:'group','aria-label':'ヒント'},HINTS.map((h,v)=>
+          el('button',{type:'button',id:'hint'+v,'aria-pressed':String(HINT===v),on:()=>{setHint(v);render();}},h[0]))),
+        el('span',{id:'hintdesc'},HINTS[HINT][1])),
       el('div',{class:'row',style:'justify-content:flex-start'},
         el('button',{class:'btn',type:'button',id:'start',on:()=>{S.seat=[];S.phase='seat';beep([523]);render();}},'はじめる'),
         el('button',{class:'btn alt',type:'button',id:'how',on:()=>{S.hp=0;S.phase='how';beep([523]);render();}},'あそびかた')),
