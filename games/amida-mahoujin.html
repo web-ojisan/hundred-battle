@@ -126,7 +126,7 @@ button:focus-visible,input:focus-visible{outline:3px solid var(--gold);outline-o
       </div></li>
       <li><div class="num">3</div><div>
         <h2>まるで かこむ</h2>
-        <p>かこんだ とたんに うごきだす。おおきく かこむと ひろく よわく、ちいさく かこむと つよい。</p>
+        <p>ちいさく かこむと つよくて ながもち。おおきく かこむと ひろいけれど、よわくて みじかく、うごきだすまで すこし かかる。</p>
         <div class="demo"><svg viewBox="0 0 120 54" fill="none" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><path d="M50 16 62 38H38Z" stroke="#ff7a4d"/><path d="M66 27h20" stroke="#ff7a4d"/><ellipse cx="60" cy="27" rx="46" ry="23" stroke="#ffcf5a"/></svg></div>
       </div></li>
     </ol>
@@ -349,7 +349,7 @@ function segDist(px,py,ax,ay,bx,by){
 }
 function rungBlocked(r){
   const ax=Lay.xs[r.a],bx=Lay.xs[r.a+1];
-  return circles.some(c=>c.els.includes('earth')&&!c.dir&&segDist(c.x,c.y,ax,r.y,bx,r.y)<c.r);
+  return circles.some(c=>!c.warm&&c.els.includes('earth')&&!c.dir&&segDist(c.x,c.y,ax,r.y,bx,r.y)<c.r);
 }
 function findRung(g,y0,y1){
   let best=null;
@@ -363,7 +363,7 @@ function findRung(g,y0,y1){
     if(g.type!=='earth'&&rungBlocked(r))continue;
     test(r);
   }
-  if(g.type!=='earth')for(const c of circles)if(c.bridge)test(c.bridge);
+  if(g.type!=='earth')for(const c of circles)if(c.bridge&&!c.warm)test(c.bridge);
   return best;
 }
 function inCapsule(g,c){
@@ -383,6 +383,7 @@ function applyWind(g,c){
 function stepGhost(g,dt){
   let slow=1;
   for(const c of circles){
+    if(c.warm>0)continue;
     const inside=Math.hypot(g.x-c.x,g.y-c.y)<c.r+8;
     for(const el of c.els){
       const immune=g.type===el;
@@ -506,9 +507,12 @@ function activate(a,pts,marks){
   const used=marks.filter(m=>els.includes(m.el));
   const tm=used.find(m=>m.tail);
   const r=clamp(a.r,26,280);
+  /* おおきい円ほど、もちが わるく、うごきだすまでに ためが いる */
+  const lifeMul=clamp(90/r,0.5,1),warm=clamp((r-70)/150,0,1)*1.2;
+  const life=cfg.life?cfg.life*lifeMul:Infinity;
   const c={id:uid++,x:a.cx,y:a.cy,r,els,dir:tm?tm.tail.dir:null,tailLen:tm?tm.tail.len:0,
-    life:cfg.life||Infinity,max:cfg.life||Infinity,ring:pts,marks:used,hit:new Set(),cool:0.25,
-    pow:clamp(64/r,0.55,1.8),bridge:null,born:now};
+    life,max:life,ring:pts,marks:used,hit:new Set(),cool:0.25,
+    pow:clamp(64/r,0.55,1.8),bridge:null,born:now,warm,warmMax:warm};
   c.range=clamp(c.tailLen*3.5,130,620);c.hw=clamp(r*0.7,22,60);
   drafts=drafts.filter(m=>!marks.includes(m));
   if(els.includes('earth')&&c.dir){
@@ -517,17 +521,21 @@ function activate(a,pts,marks){
     c.bridge={id:'b'+c.id,a:Math.min(a0,b),y:clamp(c.y,Lay.top+10,Lay.bot-10),bridge:true};
   }
   if(els.includes('wind')&&c.dir&&Math.abs(c.dir.x)>Math.abs(c.dir.y)){
-    for(let i=0;i<cfg.lanes;i++){
-      if(plates[i]>0&&Math.hypot(Lay.xs[i]-c.x,Lay.plateY-c.y)<c.r+26){
-        const t=i+(c.dir.x>0?1:-1);
-        if(t>=0&&t<cfg.lanes&&plates[t]<2){plates[i]--;plates[t]++;floatText((Lay.xs[i]+Lay.xs[t])/2,Lay.plateY-40,'ひゅーん',EL.wind.c,18)}
-        break;
-      }
-    }
+    if(c.warm>0)c.windPending=true;else blowTreasure(c);
   }
   circles.push(c);
   const name=els.length===2?COMBO[els.slice().sort().join('+')]:EL[els[0]].name;
-  floatText(c.x,c.y-c.r-16,name,C.gold,22,1.4);
+  floatText(c.x,c.y-c.r-16,c.warm>0?name+' ためちゅう…':name,C.gold,22,1.4);
+}
+/* かぜ の しっぽで おたからを となりへ ひとつ ずらす */
+function blowTreasure(c){
+  for(let i=0;i<cfg.lanes;i++){
+    if(plates[i]>0&&Math.hypot(Lay.xs[i]-c.x,Lay.plateY-c.y)<c.r+26){
+      const t=i+(c.dir.x>0?1:-1);
+      if(t>=0&&t<cfg.lanes&&plates[t]<2){plates[i]--;plates[t]++;floatText((Lay.xs[i]+Lay.xs[t])/2,Lay.plateY-40,'ひゅーん',EL.wind.c,18)}
+      break;
+    }
+  }
 }
 
 /* ----- update ----- */
@@ -554,6 +562,11 @@ function update(dt){
   rungs=rungs.filter(r=>!r.dead);
   if(refillT>0){refillT-=dt;if(refillT<=0){plates=Lay.xs.map((_,i)=>i%2===0?1:0);floatText(W/2,Lay.plateY-50,'おたからが もどった',C.gold,18)}}
   for(const c of circles){
+    if(c.warm>0){
+      c.warm-=dt;
+      if(c.warm<=0){c.warm=0;floatText(c.x,c.y-c.r-16,'はつどう!',C.gold,20,1.0);if(c.windPending){c.windPending=false;blowTreasure(c)}}
+      continue;
+    }
     c.life-=dt;
     if(c.els.includes('fire')&&c.dir){
       c.cool-=dt;
@@ -648,7 +661,7 @@ function drawLanes(){
       }
     }
   }
-  for(const c of circles)if(c.bridge){
+  for(const c of circles)if(c.bridge&&!c.warm){
     const b=c.bridge;ctx.strokeStyle=EL.earth.c;ctx.lineWidth=12;ctx.globalAlpha=fadeOf(c);
     ctx.beginPath();ctx.moveTo(Lay.xs[b.a],b.y);ctx.lineTo(Lay.xs[b.a+1],b.y);ctx.stroke();ctx.globalAlpha=1;
   }
@@ -672,6 +685,14 @@ function drawPlates(){
 function fadeOf(c){return c.life===Infinity?1:clamp(c.life/2.5,0,1)}
 function drawCircle(c){
   const al=fadeOf(c),col=EL[c.els[0]].c,col2=EL[c.els[c.els.length-1]].c,t=now-c.born;
+  if(c.warm>0){
+    ctx.save();ctx.globalAlpha=.55;
+    ctx.setLineDash([7,11]);ink(c.ring,'#b9b3d9',4,0);ctx.setLineDash([]);
+    for(const m of c.marks){ink(m.pts,EL[m.el].c,4,0);if(m.tail)ink(m.tail.pts,EL[m.el].c,4,0)}
+    ctx.strokeStyle=C.gold;ctx.lineWidth=5;ctx.lineCap='round';
+    ctx.beginPath();ctx.arc(c.x,c.y,c.r+7,-Math.PI/2,-Math.PI/2+Math.PI*2*clamp(1-c.warm/c.warmMax,0,1));ctx.stroke();
+    ctx.restore();return;
+  }
   ctx.save();ctx.globalAlpha=al;
   if(c.els.includes('water')&&c.dir){
     const ex=c.x+c.dir.x*c.range,ey=c.y+c.dir.y*c.range;
