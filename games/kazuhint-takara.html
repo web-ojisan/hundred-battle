@@ -51,6 +51,17 @@ ol.rules li{margin-bottom:6px}
 .chip i{width:.9em;height:.9em;border-radius:50%;background:var(--c);display:block}
 .chip b{font-family:var(--display);font-weight:400;font-size:1.3em;font-variant-numeric:tabular-nums;min-width:1.2em;text-align:right}
 .chip.on{border-color:var(--c)}
+/* のこりの たから: チップの 2だんめに その色の 宝石を ならべる。ほられた分は りんかくだけ */
+.chip{display:grid;grid-template-columns:auto auto auto;justify-content:start;column-gap:8px;row-gap:2px}
+.left{grid-column:1/-1;display:flex;gap:4px;align-items:center;min-height:18px;font-size:11px;color:var(--ink-dim);white-space:nowrap}
+.left .gem{width:18px;flex:none}
+.gem.gone{opacity:.7}
+.gem.gone svg path{stroke:#8fb0b3}
+.gem.gone svg path:first-child{fill:transparent}
+.chip.sup{grid-template-columns:auto auto;color:var(--ink-dim);font-size:clamp(12px,2.6vw,15px);align-content:center}
+.chip.sup .gem{width:24px;flex:none}
+.band.gone{top:38%;background:#22363b;color:#fff;border-color:var(--c);font-size:clamp(24px,6vw,48px)}
+.band.gone em{font-style:normal;color:var(--c)}
 .turn{font-size:clamp(22px,5.4vw,36px);line-height:1.2}
 .turn em{font-style:normal;color:var(--c)}
 .hint{margin:0;font-size:clamp(17px,4vw,24px);min-height:1.5em;color:var(--ink)}
@@ -313,7 +324,7 @@ function howScores(){
   return el('div',{class:'field',id:'howfield',on:()=>render()},el('div',{class:'scores'},
     row(0,[1],'+1','ともだちの たから。もう 1かい ほれる'),
     row(1,[1,3],'+3','たからが かさなっていたら ボーナス!'),
-    row(2,[0],'−1','じぶんの たからを ほっちゃった。こうたい'),
+    row(2,[0],'−1','じぶんの たから(かさなっていても)。こうたい'),
     row(3,['S'],'+3','スーパーダイヤ! もう 1かい ほれる')));
 }
 
@@ -482,18 +493,20 @@ function dig(i){
     beep([523,659,784,1047,1319,1568]);fx.kind='super';fx.text='+3';fx.color='#fff';
   }else if(owners.length){
     const others=owners.filter(q=>q!==p).length;
-    if(others>=2){
+    if(owners.includes(p)){
+      /* じぶんの たからが 入っていたら、ともだちの たからと かさなっていても −1 で こうたい */
+      bad=true;fx.kind='own';
+      const head=others?'じぶんの たからも はいっていた!':'じぶんの たからを ほっちゃった!';
+      if(S.score[p]>0){S.score[p]-=1;S.msg=head+' 1てん へった。こうたい';fx.text='−1';}
+      else{S.msg=head+' こうたい';fx.text='ブブー';}
+      beep([233,175,131]);
+    }else if(others>=2){
       const g=others+1;S.score[p]+=g;pass=false;
       S.msg='おおあたり! '+others+'こ かさなって ボーナス。'+g+'てん。もう 1かい ほれるよ';
       beep([523,659,784,1047]);fx.kind='bonus';fx.text='+'+g;
-    }else if(others===1){
+    }else{
       S.score[p]+=1;pass=false;
       S.msg='あたり! 1てん。もう 1かい ほれるよ';beep([659,880,1047]);fx.kind='hit';fx.text='+1';
-    }else{
-      bad=true;fx.kind='own';
-      if(S.score[p]>0){S.score[p]-=1;S.msg='じぶんの たからを ほっちゃった! 1てん へった。こうたい';fx.text='−1';}
-      else{S.msg='じぶんの たからを ほっちゃった! こうたい';fx.text='ブブー';}
-      beep([233,175,131]);
     }
   }else{
     const k=count(i);
@@ -505,7 +518,15 @@ function dig(i){
   fxDig=fx;
   render();
   celebrate(fx);
-  if(S.phase==='play'&&pass)showTurn(S.cur,bad?1150:800);
+  /* ほりつくされた色が あれば、発見の演出の あとに 帯を 出し、こうたいの 帯は その あとに まわす */
+  const gone=owners.filter(q=>leftOf(q)===0);
+  let wait=0;
+  if(gone.length&&S.phase==='play'){
+    wait={hit:1100,bonus:1650,super:1850,own:950}[fx.kind]||0;
+    if(reduce)showGone(gone);else setTimeout(()=>showGone(gone),wait);
+    wait+=1500;
+  }
+  if(S.phase==='play'&&pass)showTurn(S.cur,Math.max(wait,bad?1150:800));
 }
 function showTurn(p,delay){
   document.querySelectorAll('.turnfx').forEach(e=>e.remove());
@@ -517,10 +538,24 @@ function showTurn(p,delay){
 }
 
 /* views */
+function leftOf(p){return S.hides[p].filter(i=>!S.open[i]).length;}
 function chips(){
-  return el('div',{class:'chips'},P.slice(0,S.n).map((pl,p)=>
-    el('div',{class:'chip'+(S.phase==='play'&&p===S.cur?' on':''),style:'--c:'+pl.c},
-      el('i'),pl.name,el('b',null,String(S.score[p])))));
+  const end=S.phase==='end',supGone=!!S.open[S.super];
+  const sg=gem('S');if(supGone)sg.classList.add('gone');
+  return el('div',{class:'chips'},P.slice(0,S.n).map((pl,p)=>{
+    const tot=S.hides[p].length,l=leftOf(p);
+    return el('div',{class:'chip'+(S.phase==='play'&&p===S.cur?' on':''),style:'--c:'+pl.c},
+      el('i'),pl.name,el('b',null,String(S.score[p])),
+      end?null:el('span',{class:'left','aria-label':'のこりの たから '+l+'こ'},
+        l?Array.from({length:tot},(_,k)=>{const g=gem(p);if(k>=l)g.classList.add('gone');return g;}):'ほりつくされた…'));
+  }),end?null:el('div',{class:'chip sup',id:'supchip'},sg,supGone?'みつかった':'あと 1こ'));
+}
+/* その色の さいごの 1こが ほられたときの 帯 */
+function showGone(list){
+  const kids=[];list.forEach((q,j)=>{if(j)kids.push(' と ');kids.push(el('em',{style:'color:'+P[q].c},P[q].name));});
+  kids.push(' の たからは ほりつくされた…');
+  fxLayer('',1700,[el('div',{class:'band gone',style:'--c:'+P[list[0]].c+';--t:1.6s'},kids)]);
+  beep([392,330,262,196]);
 }
 function board(mode){
   const b=el('div',{class:'board',style:'--n:'+S.size});
