@@ -1,0 +1,1010 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>しかくいせかいの大ぼうけん</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DotGothic16&family=Zen+Maru+Gothic:wght@500;700&display=swap" rel="stylesheet">
+<style>
+/* layout: one narrow column like a handheld game screen: side-view picture, story text, big choice blocks */
+:root{
+  color-scheme: light;
+  --soil:#3b2a1d;        /* page background, dug earth */
+  --paper:#fff6dc;       /* story panel */
+  --ink:#2a2118;         /* text */
+  --grass:#4f9a34;       /* primary action */
+  --grass-dark:#35701f;
+  --stone:#8d949c;       /* secondary */
+  --lava:#d9432c;        /* wrong answer, lost fight */
+  --gold:#ffd447;        /* rewards */
+  --font-display:"DotGothic16","Hiragino Maru Gothic ProN","BIZ UDGothic","Yu Gothic",sans-serif;
+  --font-body:"Zen Maru Gothic","Hiragino Maru Gothic ProN","BIZ UDGothic","Yu Gothic",sans-serif;
+}
+*{box-sizing:border-box}
+[hidden]{display:none !important}
+html,body{margin:0}
+body{
+  background:var(--soil);
+  background-image:
+    linear-gradient(rgba(255,255,255,.04) 2px,transparent 2px),
+    linear-gradient(90deg,rgba(0,0,0,.12) 2px,transparent 2px);
+  background-size:32px 32px;
+  color:var(--ink);
+  font-family:var(--font-body);
+  font-weight:500;
+  padding:16px;
+}
+main{max-width:560px;margin:0 auto;display:flex;flex-direction:column;gap:12px}
+header{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap;color:var(--paper)}
+h1{font-family:var(--font-display);font-weight:400;font-size:22px;line-height:1.3;margin:0;text-wrap:balance}
+.endings{display:flex;align-items:center;gap:6px;font-family:var(--font-display);font-size:14px}
+.endings i{width:16px;height:16px;background:#5a4635;border:2px solid #241910;display:block}
+.endings i.on{background:var(--gold)}
+canvas{width:100%;height:auto;display:block;image-rendering:pixelated;border:4px solid #1a120b}
+.panel{background:var(--paper);border:4px solid #1a120b;padding:16px 16px 18px;display:flex;flex-direction:column;gap:12px}
+.badge{font-family:var(--font-display);font-size:20px;background:var(--gold);border:3px solid #1a120b;padding:4px 10px;align-self:flex-start}
+.badge.miss{background:var(--lava);color:#fff}
+.story{font-size:21px;line-height:2.3;display:flex;flex-direction:column;gap:6px}
+.story p{margin:0}
+.story p.sign{background:#c79a5b;border:3px solid #6b4423;padding:2px 12px;font-family:var(--font-display);font-size:22px;align-self:flex-start}
+.hint{font-size:18px;line-height:2.2;border-top:3px dashed #c9b88a;padding-top:8px;display:flex;flex-direction:column;gap:4px}
+.hint p{margin:0}
+ruby{ruby-position:over}
+rt{font-size:.5em;font-weight:700;color:#7a4a1e;user-select:none}
+ruby.hid{border-bottom:3px dotted var(--stone);cursor:pointer}
+ruby.hid rt{visibility:hidden}
+ruby.hid.peek rt{visibility:visible}
+.items{display:flex;align-items:center;gap:6px 14px;flex-wrap:wrap;font-size:15px;min-height:34px}
+.items .group{display:flex;align-items:center;gap:6px}
+.items .chip{font-family:var(--font-display);font-size:18px;background:#e7dcb8;border:2px solid #1a120b;padding:0 8px;line-height:1.6}
+.items .chip.gem{background:var(--gold)}
+.items .chip.mat{background:#cfe3c2}
+.items .chip.num{background:#1a120b;color:var(--gold);min-width:1.6em;text-align:center}
+.hearts{display:flex;gap:3px;flex-wrap:wrap}
+.hearts i{width:18px;height:18px;border:2px solid #1a120b;background:var(--lava);display:block}
+.hearts i.off{background:#e7dcb8}
+.tools{display:flex;gap:8px;flex-wrap:wrap}
+.tools:empty{display:none}
+.tool{font-size:17px;font-weight:700;line-height:2;background:var(--gold);border:3px solid #1a120b;padding:2px 10px}
+.tool[disabled]{opacity:.45;cursor:default}
+.tag{display:block;width:fit-content;font-size:16px;line-height:2;background:#1a120b;color:var(--gold);padding:0 8px;margin-top:2px}
+.tag rt{color:var(--gold)}
+.bookbtn{font-family:var(--font-display);font-size:16px;line-height:2;background:var(--gold);color:var(--ink);border:3px solid #1a120b;padding:0 10px}
+.book{gap:4px}
+.book h2{font-family:var(--font-display);font-weight:400;font-size:22px;line-height:2;margin:0}
+.book h3{font-family:var(--font-display);font-weight:400;font-size:18px;line-height:2;margin:10px 0 0;background:#e7dcb8;padding:0 8px}
+.entry{display:flex;flex-direction:column;border-bottom:2px dashed #c9b88a;padding:4px 0}
+.entry .nm{font-size:20px;font-weight:700;line-height:2.1}
+.entry .ds{font-size:16px;line-height:2.1}
+.entry.locked .nm{font-family:var(--font-display);color:var(--stone)}
+.book .choice{margin-top:12px}
+.choices{display:flex;flex-direction:column;gap:10px}
+button{font-family:inherit;color:inherit;cursor:pointer}
+.choice{
+  font-size:21px;font-weight:700;line-height:2.1;text-align:left;
+  background:var(--grass);color:#fff;border:4px solid #1a120b;
+  box-shadow:inset 0 -6px 0 var(--grass-dark), inset 0 4px 0 rgba(255,255,255,.25);
+  padding:6px 16px 12px;
+}
+.choice rt{color:#eaffd9}
+.choice.quiz{font-size:30px;letter-spacing:.04em}
+.choice.back{background:var(--stone);box-shadow:inset 0 -6px 0 #5d646c, inset 0 4px 0 rgba(255,255,255,.25)}
+.choice.next{background:#2f6fb0;box-shadow:inset 0 -6px 0 #1f4f80, inset 0 4px 0 rgba(255,255,255,.25)}
+.choice.next small{font-family:var(--font-display);font-size:15px;font-weight:400;margin-left:8px}
+.choice.done{background:var(--stone);box-shadow:none;cursor:default;opacity:.8}
+.tag.mark{background:#fff6dc;color:var(--ink)}
+.choice:active{transform:translateY(2px)}
+:focus-visible{outline:4px solid var(--gold);outline-offset:2px}
+footer{display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center;justify-content:space-between;color:var(--paper);font-size:14px}
+.seg{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.seg button,.reset{font-size:14px;background:#5a4635;color:var(--paper);border:2px solid #1a120b;padding:6px 10px}
+.seg button[aria-pressed="true"]{background:var(--gold);color:var(--ink)}
+.back-link{color:var(--gold);font-size:16px;line-height:2;align-self:flex-start}
+.note{color:#d9c9a8;font-size:13px;line-height:1.7;margin:0}
+@media (max-width:400px){
+  .story{font-size:19px}.choice{font-size:19px}.choice.quiz{font-size:26px}
+}
+@media (prefers-reduced-motion:reduce){.choice:active{transform:none}}
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>しかくいせかいの 大ぼうけん</h1>
+    <div class="endings" id="endings" aria-label="みつけた おわりかた"></div>
+    <button type="button" class="bookbtn" id="bookbtn"></button>
+  </header>
+
+  <canvas id="art" width="320" height="160" role="img" aria-label="ばめんの え"></canvas>
+
+  <section class="panel" id="main" aria-live="polite">
+    <div id="badge" class="badge" hidden></div>
+    <div id="story" class="story"></div>
+    <div id="hint" class="hint" hidden></div>
+    <div class="items" id="items"></div>
+    <div class="tools" id="tools"></div>
+    <div class="choices" id="choices"></div>
+  </section>
+
+  <section class="panel book" id="book" hidden></section>
+
+  <footer>
+    <div class="seg" role="group" aria-label="ふりがな">
+      <span>ふりがな</span>
+      <button type="button" id="ruby-auto" data-mode="auto">じどう</button>
+      <button type="button" id="ruby-always" data-mode="always">いつも</button>
+      <button type="button" id="ruby-never" data-mode="never">なし</button>
+    </div>
+    <button type="button" class="reset" id="reset">きろくを ぜんぶ けす</button>
+  </footer>
+  <a href="../index.html" class="back-link">← ゲームせんたくにもどる</a>
+  <p class="note">おうちの方へ:たびの きろくは この たんまつに のこり、さいごの しょうの ないようが かわります。かてない あいてからは にげて、べつの ばしょで ざいりょうを さがすか、村で ぶきを つくれます。体力が なくなると ざいりょうと アイテムを おとし、ベッドで 休んで いなければ 出発地点に もどります。おとした ざいりょうは 村で かえって きます。「じどう」では、もんだいで せいかいした かん字の ふりがなが つぎから きえます。てん線の ことばは タッチすると ふりがなが 出ます。</p>
+</main>
+
+<script>
+/* ---------- helpers that read the journey so far ---------- */
+const AREAS=['forest','desert','snow','cave'];
+const AREA_NAME={forest:'{森|もり}',desert:'{砂原|すなはら}',snow:'{雪山|ゆきやま}',cave:'{洞窟|どうくつ}'};
+const PAL={forest:'{犬|いぬ}',desert:'{鳥|とり}',snow:'{雪|ゆき}だるま',cave:'{骸骨|がいこつ}'};
+const PAL_CHIP={forest:'犬',desert:'鳥',snow:'雪だるま',cave:'骸骨'};
+const COUNT=['','{一|いっ}こ','{二|に}こ','{三|さん}こ','{四|よん}こ'];
+const WEAPON={
+  wood:{name:'{木|き}の {剣|けん}',atk:2,need:['木'],hit:'{木|き}の {剣|けん}で、{王|おう}の {足|あし}を ぽかりと たたいた。\n{王|おう}は ぴょんぴょん とびはねた。'},
+  bow:{name:'{金|きん}の {弓矢|ゆみや}',atk:3,need:['木','金'],hit:'{金|きん}の {矢|や}が {光|ひか}って とび、{王|おう}の {冠|かんむり}を はじきとばした。'},
+  spear:{name:'{氷|こおり}の {槍|やり}',atk:3,need:['木','こおり'],hit:'{氷|こおり}の {槍|やり}を ゆかに つきさすと、ゆかが こおって、{王|おう}は つるんと ころんだ。'},
+  sword:{name:'{鉱石|こうせき}の {剣|けん}',atk:4,need:['木','鉱石'],hit:'{鉱石|こうせき}の {剣|けん}が きらりと {光|ひか}り、{王|おう}の マントを まっぷたつに した。'}
+};
+const ARMOR={
+  shield:{name:'{木|き}の {盾|たて}',def:1,need:['木']},
+  gold:{name:'{金|きん}の {鎧|よろい}',def:2,need:['金']},
+  ore:{name:'{鉱石|こうせき}の {鎧|よろい}',def:3,need:['金','鉱石']}
+};
+const BASEHP=3;
+const atk=r=>WEAPON[r.weapon]?WEAPON[r.weapon].atk:1;
+const def=r=>ARMOR[r.armor]?ARMOR[r.armor].def:0;
+const maxHp=r=>BASEHP+def(r);
+
+/* ---------- picture book: a record that survives new journeys ---------- */
+const MATR={'木':'{木|き}','金':'{金|きん}','こおり':'{氷|こおり}','鉱石':'{鉱石|こうせき}'};
+const recipe=x=>x.need.map(m=>MATR[m]).join('と ')+'で つくれる。';
+const BOOK=[
+  {title:'ぶき',items:Object.keys(WEAPON).map(id=>({id:'w_'+id,name:WEAPON[id].name,
+    desc:'{攻撃力|こうげきりょく} '+WEAPON[id].atk+'。'+recipe(WEAPON[id]),hint:recipe(WEAPON[id])}))},
+  {title:'ぼうぐ',items:Object.keys(ARMOR).map(id=>({id:'a_'+id,name:ARMOR[id].name,
+    desc:'{防御力|ぼうぎょりょく} '+ARMOR[id].def+'。'+recipe(ARMOR[id]),hint:recipe(ARMOR[id])}))},
+  {title:'{仲間|なかま}',items:[
+    {id:'p_forest',name:'{犬|いぬ}',desc:'{森|もり}の しげみで ふるえていた。{川|かわ}の あさい ところを {見|み}つける。',hint:'{森|もり}に いる。'},
+    {id:'p_desert',name:'{赤|あか}い {鳥|とり}',desc:'はねを いためていた。{空|そら}から {泉|いずみ}を {見|み}つける。',hint:'{砂原|すなはら}に いる。'},
+    {id:'p_snow',name:'{雪|ゆき}だるま',desc:'さびしがりや。{雪|ゆき}で {階段|かいだん}を つくる。',hint:'{雪山|ゆきやま}に いる。'},
+    {id:'p_cave',name:'{骸骨|がいこつ}',desc:'{蜘蛛|くも}が こわい。{溶岩|ようがん}の あつさは へいき。',hint:'{洞窟|どうくつ}に いる。'}]},
+  {title:'ばんにんと {王|おう}',items:[
+    {id:'g_cave',name:'{大|おお}{蜘蛛|ぐも}',desc:'つよさ 2。{腐|くさ}った {肉|にく}が だいすき。',hint:'{洞窟|どうくつ}の {宝箱|たからばこ}を まもっている。かつと のる。'},
+    {id:'g_snow',name:'{氷|こおり}{男|おとこ}',desc:'つよさ 3。{火|ひ}と まぶしい {光|ひかり}が にがて。',hint:'{雪山|ゆきやま}の さかの {上|うえ}に いる。かつと のる。'},
+    {id:'g_desert',name:'{火|ひ}とかげ',desc:'つよさ 4。つめたい ものが にがて。',hint:'{砂原|すなはら}の {泉|いずみ}を まもっている。かつと のる。'},
+    {id:'g_king',name:'カゲぼうずの {王|おう}',desc:'つよさ 3。ほんとうは さびしがりや。',hint:'{空|そら}の {城|しろ}に いる。{旅|たび}を おえると のる。'}]},
+  {title:'おわりかた',items:[
+    {id:'e_end_team',name:'{仲間|なかま}エンド',desc:'{仲間|なかま}を {二人|ふたり}いじょう つれて、{王|おう}に かった。',hint:'{仲間|なかま}を {二人|ふたり}いじょう つれて、{王|おう}に かつ。'},
+    {id:'e_end_pair',name:'{相棒|あいぼう}エンド',desc:'{仲間|なかま}を {一人|ひとり}だけ つれて、{王|おう}に かった。',hint:'{仲間|なかま}を {一人|ひとり}だけ つれて、{王|おう}に かつ。'},
+    {id:'e_end_solo',name:'ひとり{旅|たび}エンド',desc:'だれも つれずに、{王|おう}に かった。',hint:'だれも つれずに、{王|おう}に かつ。'},
+    {id:'e_end_friend',name:'ともだちエンド',desc:'{王|おう}の はなしを きいた。',hint:'たたかわずに おわる {道|みち}が ある。'}]}
+];
+const ENTRIES=BOOK.flatMap(s=>s.items);
+const GUARD={d5:'g_desert',s5:'g_snow',c5:'g_cave'};
+const isDone=(r,a)=>!!(r.areas[a]&&r.areas[a].done);
+const isReached=(r,a)=>!!(r.areas[a]&&r.areas[a].reached&&!r.areas[a].done);
+const doneAreas=r=>AREAS.filter(a=>isDone(r,a));
+const pals=r=>AREAS.filter(a=>r.areas[a]&&r.areas[a].comp);
+const palNames=r=>pals(r).map(a=>PAL[a]).join('と ');
+const has=(r,m)=>r.mats.includes(m);
+const tool=r=>WEAPON[r.weapon]||null;
+
+function epilogue(r){
+  const left=AREAS.filter(a=>!isDone(r,a));
+  const lines=[];
+  lines.push(left.length
+    ? 'とおくに、まだ かけらを {見|み}つけていない '+left.map(a=>AREA_NAME[a]).join('と ')+'が {見|み}える。つぎの {旅|たび}で いってみよう。'
+    : '{世界|せかい}の すみずみまで、ぜんぶ あかるく なった。');
+  lines.push(r.misses===0
+    ? 'かん{字|じ}を {一|ひと}つも まちがえなかった。きみは かん{字|じ}めいじんだ!'
+    : 'まちがえた かん{字|じ}も、もう おぼえたね。');
+  lines.push('{攻撃力|こうげきりょく} '+atk(r)+'、{防御力|ぼうぎょりょく} '+def(r)+'で {旅|たび}を おえた。');
+  if(r.kos===0) lines.push('いちども たおれずに {旅|たび}を おえた。きみは {強|つよ}い!');
+  return lines.join('\n');
+}
+
+/* ---------- story data ---------- */
+const ENDINGS=['end_team','end_pair','end_solo','end_friend'];
+
+const NODES={
+  hub:{art:'map',
+    text:r=>{
+      const n=doneAreas(r).length;
+      const fled=AREAS.some(a=>isReached(r,a));
+      const L=[];
+      if(n===0&&!fled) L.push('ここは しかくい ブロックの {世界|せかい}。','カゲぼうずの {王|おう}が、{空|そら}の {城|しろ}から {世界|せかい}を くらく しようと している。','かけらを {二|ふた}つ あつめると、{城|しろ}への みちが ひらく。');
+      else if(n===0) L.push('かけらは まだ ない。');
+      else L.push('かけらは いま '+COUNT[n]+'。');
+      if(n>=2) L.push('{空|そら}の {城|しろ}への みちが ひらいた!');
+      if(fled) L.push('にげて きた ばしょには、{材料|ざいりょう}を もって もどれる。');
+      if(r.dropped.length) L.push('おとした {材料|ざいりょう}は、{村|むら}に あるかも しれない。');
+      L.push('どこへ いく?');
+      return L.join('\n');
+    },
+    choices:r=>{
+      const c=[];
+      if(!isDone(r,'forest')) c.push({t:'{森|もり}へ いく',to:'f1'});
+      if(!isDone(r,'desert')) c.push(isReached(r,'desert')?{t:'{砂原|すなはら}に もどる',to:'d5'}:{t:'{砂原|すなはら}へ いく',to:'d1'});
+      if(!isDone(r,'snow')) c.push(isReached(r,'snow')?{t:'{雪山|ゆきやま}に もどる',to:'s5'}:{t:'{雪山|ゆきやま}へ いく',to:'s1'});
+      if(!isDone(r,'cave')) c.push(isReached(r,'cave')?{t:'{洞窟|どうくつ}に もどる',to:'c5'}:{t:'{洞窟|どうくつ}へ いく',to:'c1'});
+      if(doneAreas(r).length>=2) c.push({t:'{空|そら}の {城|しろ}へ いく',to:'z1'});
+      c.push({t:'{村|むら}へ いく',to:'v1'});
+      return c;
+    }},
+
+  ko:{art:'map',lose:'たおれた!',heal:true,
+    text:r=>'{体力|たいりょく}が なくなって、きみは たおれた……。\n'+
+      (r.bed==='v1'?'きがつくと、{村|むら}の やどやの ベッドの {上|うえ}だった。'
+        :r.bed?'きがつくと、{小屋|こや}の ベッドの {上|うえ}だった。'
+        :'きがつくと、{旅|たび}を はじめた {世界地図|せかいちず}の まえだった。\nベッドで {休|やす}んで いなかったからだ。')+
+      (r.lost?'\nもっていた {材料|ざいりょう}や アイテムは、おとして しまった。\n{材料|ざいりょう}は {村人|むらびと}が ひろって くれている かも しれない。':'')+
+      '\nぶきと ぼうぐと かけらは ぶじだ。{体力|たいりょく}も ぜんぶ もどった。',
+    choices:r=>r.bed?[{t:'ベッドから おきあがる',to:r.bed}]:[{t:'たちあがる',to:'hub'}]},
+
+  /* forest: material 木 */
+  f1:{art:'forest',
+    text:'{森|もり}に ついた。{木|き}が たくさん ある。\nまずは {材料|ざいりょう}が いる。「き」を きろう。\nどっちの「き」?',
+    choices:[{t:'木を きる',quiz:true,to:'f2',learn:'木'},{t:'気を きる',quiz:true,to:'f1m'}]},
+  f1m:{art:'forest',miss:true,back:'f1',
+    text:'「気」は きもちの「気」。\nきろうと しても きれない!\nきみの やる気が ちょっと へった……。'},
+  f2:{art:'forestNpc',mat:'木',
+    text:'{木|き}を きって、{材料|ざいりょう}の {木|き}を {手|て}に {入|い}れた!\nしげみの {中|なか}で、{小|ちい}さな {犬|いぬ}が ふるえている。',
+    choices:[{t:'{犬|いぬ}を {仲間|なかま}に する',to:'f3c'},{t:'ひとりで さきへ いく',to:'f3s'},{t:'しげみの {薬草|やくそう}を つむ',pick:'herb',once:'f2herb'}]},
+  f3c:{art:'river',join:'forest',
+    text:'{犬|いぬ}は しっぽを ふって ついてきた。\n{大|おお}きな {川|かわ}が みちを ふさいでいる。\n{犬|いぬ}が あさい ところを {見|み}つけて、ワン!と ないた。',
+    choices:[{t:'{犬|いぬ}に ついて {川|かわ}を わたる',to:'f4'}]},
+  f3s:{art:'river',alone:'forest',
+    text:'きみは ひとりで あるく。{足音|あしおと}だけが きこえる。\n{大|おお}きな {川|かわ}が みちを ふさいでいる。\nなにかを ならべて わたろう。',
+    choices:[{t:'右を ならべる',quiz:true,to:'f3sm'},{t:'石を ならべる',quiz:true,to:'f4',learn:'石'}]},
+  f3sm:{art:'river',miss:true,back:'f3s',
+    text:'それは「みぎ」! 「右」は ならべられない。\nよく {見|み}て。「右」は {上|うえ}に ぼうが つきでている。\n「石」は つきでていない。'},
+  f4:{art:'forestEnd',done:'forest',
+    text:'{川|かわ}を わたると、みどりに {光|ひか}る かけらが あった。\n{森|もり}の かけらを {手|て}に {入|い}れた!',
+    choices:[{t:'{世界地図|せかいちず}に もどる',to:'hub'}]},
+
+  /* desert: material 金, guardian needs {氷|こおり} */
+  d1:{art:'desert',
+    text:'{砂原|すなはら}に ついた。あつい!\nつよい「ひ」ざしが てりつける。\nどっちの「ひ」?',
+    choices:[{t:'火ざし',quiz:true,to:'d1m'},{t:'日ざし',quiz:true,to:'d2',learn:'日'}]},
+  d1m:{art:'desert',miss:true,back:'d1',
+    text:'「火」は めらめら もえる「火」。\n{空|そら}から てらすのは おひさまの ほうだよ。'},
+  d2:{art:'desertNpc',mat:'金',
+    text:'{帽子|ぼうし}を かぶって {日|ひ}ざしを よけた。\n{砂|すな}の {中|なか}で なにかが {光|ひか}った。{金|きん}を {手|て}に {入|い}れた!\nそばに、はねを いためた {赤|あか}い {鳥|とり}が いる。',
+    choices:[{t:'{水|みず}を あげて {仲間|なかま}に する',to:'d3c'},{t:'ひとりで さきへ いく',to:'d3s'}]},
+  d3c:{art:'desert',join:'desert',
+    text:'{鳥|とり}は {水|みず}を のんで げんきに なった。\n{空|そら}へ とびあがり、とおくの {泉|いずみ}を {見|み}つけて くれた!',
+    choices:[{t:'{鳥|とり}に ついて いく',to:'d5'}]},
+  d3s:{art:'desertSign',alone:'desert',
+    text:'きみは ひとりで あるく。のどが からからだ。\n{看板|かんばん}が {立|た}っている。\n【{東|ひがし}に {水|みず}。{西|にし}に {岩|いわ}。】',
+    choices:[{t:'{西|にし}へ すすむ',to:'d3sm'},{t:'{東|ひがし}へ すすむ',to:'d5'}]},
+  d3sm:{art:'desertSign',miss:true,dmg:1,back:'d3s',
+    text:'{西|にし}には {大|おお}きな {岩|いわ}しか なかった。\nのどが もっと かわいた……。\n{看板|かんばん}を もういちど よもう。'},
+  d5:{art:'desertBoss',reach:'desert',
+    text:'{泉|いずみ}の まえに、{火|ひ}とかげが ねそべっている。\nからだが めらめら もえていて、ちかづけない!\n【{火|ひ}とかげの つよさ 4】\nそばの {小屋|こや}には ベッドが ある。\nもっている {材料|ざいりょう}で どうする?',
+    choices:r=>{
+      const c=[];
+      if(has(r,'こおり')) c.push({t:'{氷|こおり}を なげる',to:'d5w'});
+      if(has(r,'木')) c.push({t:'{木|き}の ぼうで たたく',to:'d5a'});
+      if(has(r,'金')) c.push({t:'{金|きん}を なげる',to:'d5b'});
+      if(r.weapon) c.push({t:tool(r).name+'で たたかう',to:atk(r)>=4?'d5wf':'d5f'});
+      if(r.bed!=='d5') c.push({t:'ベッドで {休|やす}む',rest:true});
+      c.push({t:'ここは にげる',to:'d5run'});
+      return c;
+    }},
+  d5a:{art:'desertBoss',dmg:1,lose:'かてない!',back:'d5',
+    text:'{木|き}の ぼうは もえて、はいに なった!\n{火|ひ}に {木|き}は かてない。'},
+  d5b:{art:'desertBoss',dmg:1,lose:'かてない!',back:'d5',
+    text:'{金|きん}を なげたら、あつくて ぐにゃりと まがった。\n{火|ひ}とかげは あくびを している。'},
+  d5run:{art:'desertBoss',lose:'にげろ!',
+    text:'きみは はしって にげた。\nあつい {火|ひ}とかげには、つめたい ものが ききそうだ。\nべつの ばしょで さがして こよう。',
+    choices:[{t:'{世界地図|せかいちず}へ にげる',to:'hub'}]},
+  d5w:{art:'desertEnd',win:true,
+    text:'{氷|こおり}が あたって、じゅうっ! {火|ひ}は きえた。\n{火|ひ}とかげは ただの とかげに なって、{砂|すな}に もぐって いった。',
+    choices:[{t:'{泉|いずみ}を のぞく',to:'d4'}]},
+  d4:{art:'desertEnd',done:'desert',heal:'{泉|いずみ}の {水|みず}を のんで、{体力|たいりょく}が ぜんぶ もどった!',
+    text:'{泉|いずみ}の そこに、{金|きん}いろに {光|ひか}る かけらが あった。\n{砂|すな}の かけらを {手|て}に {入|い}れた!',
+    choices:[{t:'{世界地図|せかいちず}に もどる',to:'hub'}]},
+
+  /* snow mountain: material {氷|こおり}, guardian needs 木 or 金 */
+  s1:{art:'snow',
+    text:'{雪山|ゆきやま}に ついた。さむい!\n{吹雪|ふぶき}が くる まえに、{洞穴|ほらあな}に かくれよう。',
+    choices:[{t:'ほらあなに 入る',quiz:true,to:'s2',learn:'入'},{t:'ほらあなに 人る',quiz:true,to:'s1m'}]},
+  s1m:{art:'snow',miss:true,back:'s1',
+    text:'それは「ひと」! 「人」と「入」は そっくり。\n「入」は {右|みぎ}の ぼうが ながい。\n「人」は {左|ひだり}の ぼうが ながい。'},
+  s2:{art:'snowNpc',mat:'こおり',
+    text:'{洞穴|ほらあな}の かべで、とけない {氷|こおり}を {手|て}に {入|い}れた!\n{外|そと}に {出|で}ると、{雪|ゆき}だるまが ひとりで {立|た}っている。\nさびしそうだ。',
+    choices:[{t:'{雪|ゆき}だるまを {仲間|なかま}に する',to:'s3c'},{t:'ひとりで さきへ いく',to:'s3s'},{t:'{体力|たいりょく}を {一|ひと}つ つかって、がけを よじのぼる',to:'s3x',cost:1,if:r=>r.hp>=2}]},
+  s3x:{art:'snowSlope',alone:'snow',herb:1,
+    text:'きみは がけを よじのぼった。{手|て}が じんじん する。\nでも、つるつるの さかを とばして、いっきに {上|うえ}まで きた!\n{雪|ゆき}の {下|した}で {薬草|やくそう}も {一|ひと}つ {見|み}つけた。',
+    choices:[{t:'さきへ すすむ',to:'s5'}]},
+  s3c:{art:'snowSlope',join:'snow',
+    text:'{雪|ゆき}だるまは ころころ ついてきた。\nつるつるの さかが みちを ふさいでいる。\n{雪|ゆき}だるまが {雪|ゆき}を かためて、{階段|かいだん}を つくって くれた!',
+    choices:[{t:'{階段|かいだん}を のぼる',to:'s5'}]},
+  s3s:{art:'snowSlope',alone:'snow',
+    text:'きみは ひとりで あるく。{白|しろ}い いきが {出|で}る。\nつるつるの さかの まえに、{字|じ}を ほった {石|いし}が ある。\n【{上|うえ}は {氷|こおり}。{下|した}は {抜|ぬ}け{道|みち}。】',
+    choices:[{t:'{上|うえ}の みちを いく',to:'s3sm'},{t:'{下|した}の みちを いく',to:'s5'}]},
+  s3sm:{art:'snowSlope',miss:true,dmg:1,back:'s3s',
+    text:'{上|うえ}の みちは {氷|こおり}で つるつる!\nつるーん! きみは すべって もとの ばしょに もどった。\n{石|いし}の {字|じ}を もういちど よもう。'},
+  s5:{art:'snowBoss',reach:'snow',
+    text:'さかの {上|うえ}に、{氷|こおり}{男|おとこ}が {立|た}っている。\nからだは かちかちの {氷|こおり}。たたいても びくとも しなさそうだ。\n【{氷|こおり}{男|おとこ}の つよさ 3】\nそばの {小屋|こや}には ベッドが ある。\nもっている {材料|ざいりょう}で どうする?',
+    choices:r=>{
+      const c=[];
+      if(has(r,'木')) c.push({t:'{木|き}で {松明|たいまつ}を つくる',to:'s5wa'});
+      if(has(r,'金')) c.push({t:'{金|きん}で {鏡|かがみ}を つくる',to:'s5wb'});
+      if(has(r,'こおり')) c.push({t:'{氷|こおり}を なげる',to:'s5a'});
+      if(r.weapon) c.push({t:tool(r).name+'で たたかう',to:atk(r)>=3?'s5wf':'s5f'});
+      if(r.bed!=='s5') c.push({t:'ベッドで {休|やす}む',rest:true});
+      c.push({t:'ここは にげる',to:'s5run'});
+      return c;
+    }},
+  s5a:{art:'snowBoss',dmg:1,lose:'かてない!',back:'s5',
+    text:'{氷|こおり}{男|おとこ}は {氷|こおり}を ぱくりと たべて、{大|おお}きく なった!\n{氷|こおり}に {氷|こおり}は きかない。'},
+  s5run:{art:'snowBoss',lose:'にげろ!',
+    text:'きみは すべりながら にげた。\n{氷|こおり}には、あたたかい {火|ひ}か、まぶしい {光|ひかり}が ききそうだ。\nべつの ばしょで {材料|ざいりょう}を さがして こよう。',
+    choices:[{t:'{世界地図|せかいちず}へ にげる',to:'hub'}]},
+  s5wa:{art:'snowEnd',win:true,
+    text:'{松明|たいまつ}の {火|ひ}で、{氷|こおり}{男|おとこ}は とろとろ とけた。\n「あったかい……」と いって、{小|ちい}さな {水|みず}たまりに なった。',
+    choices:[{t:'さきへ すすむ',to:'s4'}]},
+  s5wb:{art:'snowEnd',win:true,
+    text:'{金|きん}の {鏡|かがみ}で {日|ひ}の {光|ひかり}を あつめた。\nまぶしい {光|ひかり}で、{氷|こおり}{男|おとこ}は とろとろ とけた。',
+    choices:[{t:'さきへ すすむ',to:'s4'}]},
+  s4:{art:'snowEnd',done:'snow',
+    text:'{氷|こおり}{男|おとこ}が いた ばしょに、{青|あお}く {光|ひか}る かけらが あった。\n{雪|ゆき}の かけらを {手|て}に {入|い}れた!',
+    choices:[{t:'{世界地図|せかいちず}に もどる',to:'hub'}]},
+
+  /* cave: material 鉱石, guardian can be tricked */
+  c1:{art:'cave',
+    text:'{洞窟|どうくつ}に {入|はい}った。ひんやり している。\n{道|みち}が {二|ふた}つ ある。かべに {字|じ}が ほってある。\n【ひだりの {道|みち}に {宝箱|たからばこ}。】\nどっちが「ひだり」?',
+    choices:[{t:'右の みち',quiz:true,to:'c1m'},{t:'左の みち',quiz:true,to:'c2',learn:'左'}]},
+  c1m:{art:'cave',miss:true,back:'c1',
+    text:'それは「みぎ」! いきどまりだった。\n「左」には「エ」が {入|はい}っている。\n「右」には「ロ」が {入|はい}っている。'},
+  c2:{art:'caveNpc',mat:'鉱石',
+    text:'かべが きらきら {光|ひか}っている。{鉱石|こうせき}を {手|て}に {入|い}れた!\nくらい かどで、{骸骨|がいこつ}が カタカタ ふるえている。\n「{蜘蛛|くも}が こわいんだ……」\nそばに、あつそうな {宝箱|たからばこ}も ある。',
+    choices:[{t:'{骸骨|がいこつ}を {仲間|なかま}に する',to:'c3c'},{t:'ひとりで さきへ いく',to:'c3s'},{t:'{体力|たいりょく}を {一|ひと}つ つかって、あつい {宝箱|たからばこ}を あける',to:'c2x',cost:1,if:r=>r.hp>=2&&!r.got.eye}]},
+  c2x:{art:'caveNpc',eye:3,
+    text:'あちち! でも {宝箱|たからばこ}は あいた。\n{中|なか}には {未来|みらい}の {眼鏡|めがね}が {入|はい}っていた!\nかけると、えらぶ まえに さきの ことが {見|み}える。つかえるのは {三|さん}かい。',
+    choices:[{t:'{骸骨|がいこつ}を {仲間|なかま}に する',to:'c3c'},{t:'ひとりで さきへ いく',to:'c3s'}]},
+  c3c:{art:'lava',join:'cave',
+    text:'{骸骨|がいこつ}は カタカタ ついてきた。\n{道|みち}の さきに、{溶岩|ようがん}の {川|かわ}が ながれている。\n{骸骨|がいこつ}は あつさが へいき。きみを かついで わたって くれた!',
+    choices:[{t:'おくへ すすむ',to:'c5'}]},
+  c3s:{art:'lava',alone:'cave',
+    text:'きみは ひとりで あるく。しずくの {音|おと}が ひびく。\n{道|みち}の さきに、{溶岩|ようがん}の {川|かわ}が ながれている。\n【{赤|あか}い {石|いし}は あつい。{青|あお}い {石|いし}は あんぜん。】',
+    choices:[{t:'{赤|あか}い {石|いし}を ふむ',to:'c3sm'},{t:'{青|あお}い {石|いし}を ふむ',to:'c5'}]},
+  c3sm:{art:'lava',miss:true,dmg:1,back:'c3s',
+    text:'あちち! {赤|あか}い {石|いし}は {溶岩|ようがん}で あつあつ だった。\nかべの {字|じ}を もういちど よもう。'},
+  c5:{art:'caveBoss',reach:'cave',
+    text:'{宝箱|たからばこ}の {上|うえ}に、{大|おお}きな {蜘蛛|くも}が すを はっている。\nゆかには {腐|くさ}った {肉|にく}が おちている。\n【{蜘蛛|くも}の つよさ 2】\nそばの {小屋|こや}には ベッドが ある。\nどうする?',
+    choices:r=>{
+      const c=[];
+      if(has(r,'木')) c.push({t:'{松明|たいまつ}で すを やく',to:'c5wa'});
+      c.push({t:'{腐|くさ}った {肉|にく}を たべて {力|ちから}を つける',to:'c5a'});
+      c.push({t:'{腐|くさ}った {肉|にく}を {蜘蛛|くも}に なげる',to:'c5wb'});
+      if(r.weapon) c.push({t:tool(r).name+'で たたかう',to:atk(r)>=2?'c5wf':'c5f'});
+      if(r.bed!=='c5') c.push({t:'ベッドで {休|やす}む',rest:true});
+      c.push({t:'ここは にげる',to:'c5run'});
+      return c;
+    }},
+  c5a:{art:'caveBoss',dmg:1,lose:'おなかが いたい!',back:'c5',
+    text:'うっ……おなかが ぐるぐる する。\n{腐|くさ}った {肉|にく}は たべては いけない!'},
+  c5run:{art:'caveBoss',lose:'にげろ!',
+    text:'きみは はしって にげた。\n{蜘蛛|くも}は おなかが すいている みたいだ。\nそれとも、すを {火|ひ}で やけば いいかも しれない。',
+    choices:[{t:'{世界地図|せかいちず}へ にげる',to:'hub'}]},
+  c5wa:{art:'caveEnd',win:true,
+    text:'{松明|たいまつ}の {火|ひ}で、すが めらめら もえた。\n{蜘蛛|くも}は あわてて てんじょうへ にげて いった。',
+    choices:[{t:'{宝箱|たからばこ}を あける',to:'c4'}]},
+  c5wb:{art:'caveEnd',win:true,
+    text:'{蜘蛛|くも}は {腐|くさ}った {肉|にく}に とびついた。\nむちゅうで たべている。いまの うちだ!',
+    choices:[{t:'{宝箱|たからばこ}を あける',to:'c4'}]},
+  c4:{art:'caveEnd',done:'cave',
+    text:'{宝箱|たからばこ}の {中|なか}に、むらさきに {光|ひか}る かけらが あった。\n{洞窟|どうくつ}の かけらを {手|て}に {入|い}れた!',
+    choices:[{t:'{世界地図|せかいちず}に もどる',to:'hub'}]},
+
+  /* fighting a guardian with a crafted weapon */
+  d5wf:{art:'desertEnd',win:true,
+    text:r=>tool(r).name+'で たたかった。{攻撃力|こうげきりょく}は じゅうぶんだ!\n{火|ひ}とかげは しっぽを まいて、{砂|すな}に もぐって いった。',
+    choices:[{t:'{泉|いずみ}を のぞく',to:'d4'}]},
+  d5f:{art:'desertBoss',dmg:1,lose:'かてない!',back:'d5',
+    text:r=>tool(r).name+'で たたかったが、はねかえされた!\n{攻撃力|こうげきりょく}が たりない。{村|むら}で もっと {強|つよ}い ぶきを つくろう。'},
+  s5wf:{art:'snowEnd',win:true,
+    text:r=>tool(r).name+'で たたかった。{攻撃力|こうげきりょく}は じゅうぶんだ!\n{氷|こおり}{男|おとこ}は ひびが {入|はい}って、がらがらと くずれた。',
+    choices:[{t:'さきへ すすむ',to:'s4'}]},
+  s5f:{art:'snowBoss',dmg:1,lose:'かてない!',back:'s5',
+    text:r=>tool(r).name+'で たたかったが、はねかえされた!\n{攻撃力|こうげきりょく}が たりない。{村|むら}で もっと {強|つよ}い ぶきを つくろう。'},
+  c5wf:{art:'caveEnd',win:true,
+    text:r=>tool(r).name+'で たたかった。{攻撃力|こうげきりょく}は じゅうぶんだ!\n{蜘蛛|くも}は びっくりして、てんじょうへ にげて いった。',
+    choices:[{t:'{宝箱|たからばこ}を あける',to:'c4'}]},
+  c5f:{art:'caveBoss',dmg:1,lose:'かてない!',back:'c5',
+    text:r=>tool(r).name+'で たたかったが、はねかえされた!\n{攻撃力|こうげきりょく}が たりない。{村|むら}で もっと {強|つよ}い ぶきを つくろう。'},
+
+  /* village: lost materials come back, weapons and armour are crafted, the inn is a bed */
+  v1:{art:'village',
+    text:r=>'{村|むら}に ついた。{村人|むらびと}が {手|て}を ふっている。\n'+
+      (r.back?'「おとしものを ひろって おいたよ」\n{村人|むらびと}が {材料|ざいりょう}を かえして くれた!\n':'')+
+      'いまの ぶきは '+(tool(r)?tool(r).name:'なし')+'。ぼうぐは '+(ARMOR[r.armor]?ARMOR[r.armor].name:'なし')+'。\n{作業台|さぎょうだい}で、ぶきや ぼうぐを つくれる。',
+    choices:[{t:'ぶきを つくる',to:'vw'},{t:'ぼうぐを つくる',to:'va'},{t:'やどやの ベッドで {休|やす}む',rest:true},{t:'{世界地図|せかいちず}に もどる',to:'hub'}]},
+  vw:{art:'craft',
+    text:'ぶきの つくりかたが かいてある。\n【{木|き}で {木|き}の {剣|けん}。{攻撃力|こうげきりょく} 2】\n【{木|き}と {金|きん}で {弓矢|ゆみや}。{攻撃力|こうげきりょく} 3】\n【{木|き}と {氷|こおり}で {槍|やり}。{攻撃力|こうげきりょく} 3】\n【{木|き}と {鉱石|こうせき}で {剣|けん}。{攻撃力|こうげきりょく} 4】\nきみの {材料|ざいりょう}で つくれる ものは?',
+    choices:r=>Object.keys(WEAPON).map(id=>{const x=WEAPON[id];return x.need.every(m=>has(r,m))?{t:x.name+'を つくる',to:'vwok',weapon:id}:{t:x.name+'を つくる',to:'vwx'};}).concat([{t:'やめる',to:'v1'}])},
+  vwx:{art:'craft',lose:'つくれない!',back:'vw',
+    text:'{材料|ざいりょう}が たりない!\nつくりかたと、もっている {材料|ざいりょう}を よく {見|み}よう。'},
+  vwok:{art:'craft',
+    text:r=>tool(r).name+'が できた!\n{攻撃力|こうげきりょく}が '+atk(r)+'に なった!',
+    choices:[{t:'{村|むら}に もどる',to:'v1'}]},
+  va:{art:'craft',
+    text:'ぼうぐの つくりかたが かいてある。\n【{木|き}で {木|き}の {盾|たて}。{防御力|ぼうぎょりょく} 1】\n【{金|きん}で {金|きん}の {鎧|よろい}。{防御力|ぼうぎょりょく} 2】\n【{金|きん}と {鉱石|こうせき}で {鉱石|こうせき}の {鎧|よろい}。{防御力|ぼうぎょりょく} 3】\n{防御力|ぼうぎょりょく}の ぶんだけ、{体力|たいりょく}が ふえる。',
+    choices:r=>Object.keys(ARMOR).map(id=>{const x=ARMOR[id];return x.need.every(m=>has(r,m))?{t:x.name+'を つくる',to:'vaok',armor:id}:{t:x.name+'を つくる',to:'vax'};}).concat([{t:'やめる',to:'v1'}])},
+  vax:{art:'craft',lose:'つくれない!',back:'va',
+    text:'{材料|ざいりょう}が たりない!\nつくりかたと、もっている {材料|ざいりょう}を よく {見|み}よう。'},
+  vaok:{art:'craft',
+    text:r=>ARMOR[r.armor].name+'が できた!\n{防御力|ぼうぎょりょく}が '+def(r)+'に なった! {体力|たいりょく}の ハートは ぜんぶで '+maxHp(r)+'こ。',
+    choices:[{t:'{村|むら}に もどる',to:'v1'}]},
+
+  /* final chapter: built from what was chosen and collected */
+  z1:{art:'castle',
+    text:r=>{
+      const glow={forest:'{森|もり}の かけらが みどりに {光|ひか}る。',desert:'{砂|すな}の かけらが {金|きん}いろに {光|ひか}る。',snow:'{雪|ゆき}の かけらが {青|あお}く {光|ひか}る。',cave:'{洞窟|どうくつ}の かけらが むらさきに {光|ひか}る。'};
+      const L=['きみは かけらを {空|そら}に かざした。'];
+      doneAreas(r).forEach(a=>L.push(glow[a]));
+      L.push('{光|ひかり}の はしごが のびて、{空|そら}の {城|しろ}に ついた。');
+      L.push(pals(r).length===0
+        ? 'となりには だれも いない。でも きみの {足|あし}は ふるえていない。'
+        : palNames(r)+'が きみの よこに ならんだ。');
+      L.push('{扉|とびら}が {二|ふた}つ ある。「おう」の へやは どっち?');
+      return L.join('\n');
+    },
+    choices:[{t:'玉の へや',quiz:true,to:'z1m'},{t:'王の へや',quiz:true,to:'z2',learn:'王'}]},
+  z1m:{art:'castle',miss:true,back:'z1',
+    text:'それは「たま」! 「玉」には てんが ついている。\n「王」には てんが ない。'},
+  z2:{art:'boss',
+    text:r=>{
+      const n=pals(r).length;
+      const style=n===0?'きみは ここまで ひとりで きた。じぶんの {力|ちから}を しんじよう。'
+        :n===1?'{相棒|あいぼう}の '+palNames(r)+'が、きみを {見|み}て うなずいた。'
+        :'{仲間|なかま}たちが きみの まわりに あつまった。';
+      return 'へやの おくに、カゲぼうずの {王|おう}が いた。\n「{世界|せかい}を まっくらに してやる!」\n【{王|おう}の つよさ 3】\n'+style;
+    },
+    choices:r=>{
+      const n=pals(r).length, strong=atk(r)>=3;
+      const win=n===0?'end_solo':n===1?'end_pair':'end_team';
+      const label=!r.weapon?'すでで たたかう'
+        :n===0?'ひとりで '+tool(r).name+'を かまえる'
+        :n===1?palNames(r)+'と はさみうちに する'
+        :'みんなで {力|ちから}を あわせる';
+      return [{t:label,to:strong?win:'z2f'},{t:'「どうして くらく したいの?」と きく',to:'zq'},{t:'{世界地図|せかいちず}へ にげる',to:'hub'}];
+    }},
+  z2f:{art:'boss',dmg:1,lose:'かてない!',back:'z2',
+    text:'{王|おう}の {暗闇|くらやみ}に はじきとばされた!\n{攻撃力|こうげきりょく}が たりない。{村|むら}で もっと {強|つよ}い ぶきを つくろう。'},
+  end_solo:{art:'dawn',end:'ひとり{旅|たび}エンド',
+    text:r=>tool(r).hit+'\n{王|おう}は「まいった!」と さけんで、にげて いった。\nだれの {力|ちから}も かりずに、きみは {世界|せかい}を すくった!',
+    hint:epilogue},
+  end_pair:{art:'dawn',end:'{相棒|あいぼう}エンド',
+    text:r=>tool(r).hit+'\nそこへ '+palNames(r)+'が とびかかった。{王|おう}は「まいった!」と さけんだ。\nきみと '+palNames(r)+'は さいこうの {相棒|あいぼう}だ!',
+    hint:epilogue},
+  end_team:{art:'dawn',end:'{仲間|なかま}エンド',
+    text:r=>tool(r).hit+'\nそこへ '+palNames(r)+'が いっせいに とびかかった。\n{王|おう}は「まいった!」と さけんだ。{仲間|なかま}が いれば、こわい ものは ない!',
+    hint:epilogue},
+  end_friend:{art:'dawnKing',end:'ともだちエンド',
+    text:r=>(tool(r)?'きみは '+tool(r).name+'を そっと おろした。':'きみは ぶきを もっていない。りょうてを ひろげて みせた。')+'\n{王|おう}は {小|ちい}さな こえで いった。\n「あかるいと、ひとりぼっちなのが よく {見|み}えるから……」\n'+
+      (pals(r).length===0
+        ? '「ぼくも ひとりで {旅|たび}を してきた。いっしょに いこう」\nきみに はじめての {仲間|なかま}が できた!'
+        : '「じゃあ、{仲間|なかま}に {入|はい}りなよ」\n'+palNames(r)+'の わに、{王|おう}も くわわった!'),
+    hint:epilogue}
+};
+
+/* ---------- longer, paged story text (arrays are pages) ---------- */
+const HINT={
+  desert:'あついから、つめたい ものが ききそうだよ',
+  snow:'{氷|こおり}は、{火|ひ}か まぶしい {光|ひかり}で とけるよ',
+  cave:'{蜘蛛|くも}は おなかが すいている みたいだよ',
+  king:'{攻撃力|こうげきりょく}が 3 いるよ。でも、{王|おう}は さびしそうな {目|め}を しているね'
+};
+function palHint(r,key){
+  const ps=pals(r);
+  return ps.length
+    ? '{仲間|なかま}の '+PAL[ps[0]]+'が、きみに ささやいた。\n「'+HINT[key]+'」\n'
+    : 'おしえて くれる {仲間|なかま}は いない。じぶんで かんがえよう。\n';
+}
+function guard(key,first,second,strength,again){
+  return r=>{
+    const tail=palHint(r,key)+'そばの {小屋|こや}には ベッドが ある。\nもっている {材料|ざいりょう}や ぶきで、どうする?';
+    return r.again?[again+'\n'+strength+'\n'+tail]:[first,second+'\n'+strength,tail];
+  };
+}
+function fightWin(enemy,need,ending){
+  return r=>[tool(r).name+'を かまえた。\n{攻撃力|こうげきりょく}は '+atk(r)+'。'+enemy+'の つよさは '+need+'。\nまけない!','えいっ!\n'+ending];
+}
+const LONG={
+  hub:r=>{
+    const n=doneAreas(r).length;
+    const fled=AREAS.some(a=>isReached(r,a));
+    const fresh=n===0&&!fled&&r.mats.length===0&&r.dropped.length===0&&r.kos===0&&!Object.keys(r.visited||{}).length;
+    if(fresh) return [
+      'ここは しかくい ブロックで できた {世界|せかい}。\n{山|やま}も {木|き}も {雲|くも}も、ぜんぶ しかくい。\nきみは この {世界|せかい}を {旅|たび}する ぼうけんしゃだ。',
+      'ところが さいきん、{空|そら}が だんだん くらく なってきた。\n{空|そら}の {城|しろ}に すむ カゲぼうずの {王|おう}が、{世界|せかい}を {暗闇|くらやみ}で つつもうと している らしい。',
+      '{城|しろ}へ いくには、{光|ひか}る かけらが {二|ふた}つ いる。\nかけらは {森|もり}、{砂原|すなはら}、{雪山|ゆきやま}、{洞窟|どうくつ}に ある。\n{体力|たいりょく}の ハートが なくなると たおれるので、きを つけよう。\nこまったら {村|むら}へ いくと いい。\nどこへ いく?'];
+    const L=['{世界地図|せかいちず}の まえに もどって きた。'];
+    L.push(n===0?'かけらは まだ ない。':'かけらは いま '+COUNT[n]+'。');
+    if(n>=2) L.push('{空|そら}の {城|しろ}への {道|みち}が ひらいている!');
+    else if(n===1) L.push('あと {一|ひと}つで、{城|しろ}への {道|みち}が ひらく。');
+    if(fled) L.push('にげて きた ばしょには、{材料|ざいりょう}や ぶきを もって もどれる。');
+    if(r.dropped.length) L.push('おとした {材料|ざいりょう}は、{村|むら}に あるかも しれない。');
+    L.push('どこへ いく?');
+    return L.join('\n');
+  },
+
+  f1:['{森|もり}に ついた。\nせの たかい {木|き}が、どこまでも ならんでいる。\nはっぱの あいだから、{日|ひ}の {光|ひかり}が ちらちら おちてくる。',
+      '{旅|たび}には {材料|ざいりょう}が いる。\n{木|き}が あれば、ぶきも {松明|たいまつ}も つくれる。\nまずは「き」を きろう。\nどっちの「き」?'],
+  f2:['こん、こん、こん。\n{木|き}を きって、{材料|ざいりょう}の {木|き}を {手|て}に {入|い}れた!',
+      'その とき、しげみが がさがさ ゆれた。\nのぞいて みると、{小|ちい}さな {犬|いぬ}が ふるえている。\nあしに とげが ささって、うごけない みたいだ。',
+      'とげを ぬいて あげると、{犬|いぬ}は きみの {手|て}を なめた。\n{犬|いぬ}は はなが よく きく。{道|みち}を さがすのが とくいだ。\nつれて いけば、たすけて くれるかも しれない。\nひとりで いけば、じぶんの {力|ちから}だけで すすむ ことに なる。\nどうする?'],
+  f3c:['{犬|いぬ}は しっぽを ふって ついてきた。\n{仲間|なかま}が できた!',
+       'しばらく あるくと、{大|おお}きな {川|かわ}が {道|みち}を ふさいでいた。\n{水|みず}は はやくて、ふかそうだ。',
+       '{犬|いぬ}が くんくんと においを かいで、{川|かわ}ぞいを はしって いく。\n「ワン!」\n{犬|いぬ}が あさい ところを {見|み}つけて くれた。{仲間|なかま}の おかげだ!'],
+  f3s:['きみは {犬|いぬ}に {手|て}を ふって、ひとりで あるきだした。\n{足音|あしおと}だけが きこえる。',
+       'しばらく あるくと、{大|おお}きな {川|かわ}が {道|みち}を ふさいでいた。\n{水|みず}は はやくて、ふかそうだ。\nたすけて くれる {仲間|なかま}は いない。じぶんで かんがえよう。',
+       '{川|かわ}に なにかを ならべれば、その {上|うえ}を わたれそうだ。\nなにを ならべる?'],
+  f4:['むこうぎしに ついた。\nくさの {中|なか}で、なにかが みどりに {光|ひか}っている。',
+      '{光|ひか}る かけらだ!\n{森|もり}の かけらを {手|て}に {入|い}れた!\n{手|て}に もつと、ほんのり あたたかい。'],
+
+  d1:['{砂原|すなはら}に ついた。\n{見|み}わたす かぎり、{砂|すな}、{砂|すな}、{砂|すな}。\nあしの {下|した}が じりじり あつい。',
+      '{空|そら}から、つよい「ひ」ざしが てりつける。\nこのままでは たおれて しまう。\nどっちの「ひ」?'],
+  d2:['{帽子|ぼうし}を かぶって、{日|ひ}ざしを よけた。\nこれで すこし らくに なった。',
+      'あるいて いると、{砂|すな}の {中|なか}で なにかが きらりと {光|ひか}った。\nほって みると、{金|きん}の かたまりだ。\n{材料|ざいりょう}の {金|きん}を {手|て}に {入|い}れた!',
+      'その そばに、{赤|あか}い {鳥|とり}が うずくまっている。\nはねを いためて、とべない みたいだ。のども かわいて いそうだ。\n{鳥|とり}は {空|そら}から とおくを {見|み}る ことが できる。\nげんきに なれば、{道|みち}あんないを して くれるかも しれない。\nどうする?'],
+  d3c:['すいとうの {水|みず}を あげると、{鳥|とり}は ごくごく のんだ。\nはねを ばさばさ うごかして、げんきに なった。\n{仲間|なかま}が できた!',
+       '{鳥|とり}は {空|そら}たかく とびあがった。\nくるりと まわって、{東|ひがし}の ほうを むいて ないた。\n「ピィー!」',
+       '{鳥|とり}が {空|そら}から {泉|いずみ}を {見|み}つけて くれた。\n{仲間|なかま}の おかげで、まよわずに すすめる!'],
+  d3s:['きみは {鳥|とり}の そばに {水|みず}を すこし おいて、ひとりで あるきだした。\nのどが からからだ。',
+       'どちらを むいても {砂|すな}ばかり。\n{道|みち}を おしえて くれる {仲間|なかま}は いない。\nふるい {看板|かんばん}が {立|た}っている。よく よもう。',
+       '【{東|ひがし}に {水|みず}。{西|にし}に {岩|いわ}。】\nどっちへ すすむ?'],
+  d5:guard('desert',
+       '{泉|いずみ}が {見|み}えた! {水|みず}が きらきら {光|ひか}っている。\nでも、その まえに なにかが ねそべっている。',
+       '{火|ひ}とかげだ。\nからだが めらめら もえていて、ちかづく だけで あつい。\nこの {泉|いずみ}の ばんにん らしい。',
+       '【{火|ひ}とかげの つよさ 4】',
+       'また {火|ひ}とかげの まえに きた。めらめら もえている。'),
+  d5w:['{氷|こおり}を なげると、{火|ひ}とかげに あたって、じゅうっ!と {音|おと}が した。\n{白|しろ}い けむりが もくもく あがる。',
+       'けむりが きえると、{火|ひ}は すっかり きえていた。\n{火|ひ}とかげは ただの {小|ちい}さな とかげに なって、{砂|すな}に もぐって いった。'],
+  d5wf:fightWin('{火|ひ}とかげ',4,'{火|ひ}とかげは しっぽを まいて、{砂|すな}に もぐって いった。'),
+  d4:['{泉|いずみ}の {水|みず}は つめたくて おいしい。\nのむと、からだじゅうに {力|ちから}が もどってきた。',
+      '{泉|いずみ}の そこで、なにかが {金|きん}いろに {光|ひか}っている。\n{手|て}を のばすと……かけらだ!\n{砂|すな}の かけらを {手|て}に {入|い}れた!'],
+
+  s1:['{雪山|ゆきやま}に ついた。\nいきが {白|しろ}い。{足|あし}が {雪|ゆき}に ずぼずぼ しずむ。',
+      '{空|そら}が きゅうに くらく なった。\n{吹雪|ふぶき}が くる!\nちかくに {洞穴|ほらあな}が ある。かくれよう。'],
+  s2:['{洞穴|ほらあな}の {中|なか}は しずかだった。\nかべに、とけない {氷|こおり}が はりついている。\n{材料|ざいりょう}の {氷|こおり}を {手|て}に {入|い}れた!',
+      '{吹雪|ふぶき}が やんで {外|そと}に {出|で}ると、{雪|ゆき}だるまが ぽつんと {立|た}っていた。\n「だれも あそんで くれないんだ……」\n{雪|ゆき}だるまは {雪|ゆき}を かためて、いろいろな ものを つくれる らしい。',
+      '{山|やま}の {上|うえ}へ いく {道|みち}は、つるつるの さかだ。\nよこには きりたった がけも ある。\nがけを よじのぼれば ちかみちだが、{手|て}を けがして {体力|たいりょく}が へりそうだ。\nどうする?'],
+  s3c:['{雪|ゆき}だるまは うれしそうに、ころころ ついてきた。\n{仲間|なかま}が できた!',
+       'つるつるの さかの まえに きた。\nのぼろうと しても、すべって おちて しまう。',
+       '{雪|ゆき}だるまが {雪|ゆき}を ぎゅっ、ぎゅっと かためはじめた。\nあっと いう まに、{階段|かいだん}が できた!\n{仲間|なかま}の おかげで、らくに のぼれる。'],
+  s3s:['きみは {雪|ゆき}だるまに {手|て}を ふって、ひとりで あるきだした。\n{白|しろ}い いきが {出|で}る。',
+       'つるつるの さかの まえに きた。\n{階段|かいだん}を つくって くれる {仲間|なかま}は いない。\nさかの まえに、{字|じ}を ほった {石|いし}が ある。よく よもう。',
+       '【{上|うえ}は {氷|こおり}。{下|した}は {抜|ぬ}け{道|みち}。】\nどっちへ すすむ?'],
+  s3x:['きみは がけに {手|て}を かけた。\nつめたい {岩|いわ}が {手|て}に くいこむ。いたい!\nでも、すこしずつ のぼって いく。',
+       'やっと がけの {上|うえ}に ついた。{手|て}が じんじん する。\nでも、つるつるの さかを とばして、いっきに {上|うえ}まで きた!\n{雪|ゆき}の {下|した}で {薬草|やくそう}も {一|ひと}つ {見|み}つけた。'],
+  s5:guard('snow',
+       'さかを のぼりきると、{山|やま}の てっぺんが {見|み}えた。\nそこに、{大|おお}きな かげが {立|た}っている。',
+       '{氷|こおり}{男|おとこ}だ。\nからだは かちかちの {氷|こおり}。たたいても びくとも しなさそうだ。\nこの {山|やま}の ばんにん らしい。',
+       '【{氷|こおり}{男|おとこ}の つよさ 3】',
+       'また {氷|こおり}{男|おとこ}の まえに きた。かちかちに こおっている。'),
+  s5wa:['{木|き}に {火|ひ}を つけて、{松明|たいまつ}を つくった。\nめらめら もえる {火|ひ}を、{氷|こおり}{男|おとこ}に むける。',
+        '{氷|こおり}{男|おとこ}は とろとろ とけはじめた。\n「あったかい……」\nそう いって、{小|ちい}さな {水|みず}たまりに なった。'],
+  s5wb:['{金|きん}を ぴかぴかに みがいて、{鏡|かがみ}を つくった。\n{鏡|かがみ}で {日|ひ}の {光|ひかり}を あつめて、{氷|こおり}{男|おとこ}に むける。',
+        'まぶしい {光|ひかり}で、{氷|こおり}{男|おとこ}は とろとろ とけはじめた。\n「まぶしい……」\nそう いって、{小|ちい}さな {水|みず}たまりに なった。'],
+  s5wf:fightWin('{氷|こおり}{男|おとこ}',3,'{氷|こおり}{男|おとこ}は ひびが {入|はい}って、がらがらと くずれた。'),
+  s4:['{氷|こおり}{男|おとこ}が いた ばしょに、なにかが のこっている。',
+      '{青|あお}く {光|ひか}る かけらだ!\n{雪|ゆき}の かけらを {手|て}に {入|い}れた!\n{手|て}に もつと、ひんやり つめたい。'],
+
+  c1:['{洞窟|どうくつ}に {入|はい}った。\nひんやりして、しずくの {音|おと}が ぽたん、ぽたんと ひびく。',
+      'すこし すすむと、{道|みち}が {二|ふた}つに わかれていた。\nかべに {字|じ}が ほってある。\n【ひだりの {道|みち}に {宝箱|たからばこ}。】\nどっちが「ひだり」?'],
+  c2:['{道|みち}の さきで、かべが きらきら {光|ひか}っていた。\n{鉱石|こうせき}だ! かたくて つよい {材料|ざいりょう}に なる。\n{鉱石|こうせき}を {手|て}に {入|い}れた!',
+      'くらい かどで、カタカタと {音|おと}が する。\n{骸骨|がいこつ}が ひざを かかえて ふるえている。\n「{蜘蛛|くも}が こわくて、ここから うごけないんだ……」\n{骸骨|がいこつ}は ほねだけ なので、あつい ものが へいき らしい。',
+      'そばには、{溶岩|ようがん}で あたためられた {宝箱|たからばこ}も ある。\nふたが あつくて、さわると やけどを して {体力|たいりょく}が へりそうだ。\nでも、すきまから なにかが {光|ひか}っている。\nどうする?'],
+  c2x:['きみは おもいきって、あつい ふたに {手|て}を かけた。\nあちち! {手|て}が ひりひり する。',
+       'でも、{宝箱|たからばこ}は あいた。\n{中|なか}には {未来|みらい}の {眼鏡|めがね}が {入|はい}っていた!\nかけると、えらぶ まえに さきの ことが {見|み}える。つかえるのは {三|さん}かい。\nさて、{骸骨|がいこつ}は どうする?'],
+  c3c:['「いっしょに いって くれるの?」\n{骸骨|がいこつ}は カタカタ わらって ついてきた。\n{仲間|なかま}が できた!',
+       '{道|みち}の さきに、{溶岩|ようがん}の {川|かわ}が ながれている。\nまっかで、ちかづく だけで あつい。',
+       '「ぼくに まかせて」\n{骸骨|がいこつ}は きみを かついで、{溶岩|ようがん}の {中|なか}を ざぶざぶ あるいた。\n{仲間|なかま}の おかげで、ぶじに わたれた!'],
+  c3s:['きみは {骸骨|がいこつ}に {手|て}を ふって、ひとりで あるきだした。\nしずくの {音|おと}が ひびく。',
+       '{道|みち}の さきに、{溶岩|ようがん}の {川|かわ}が ながれている。\nかついで くれる {仲間|なかま}は いない。\n{川|かわ}には {赤|あか}い {石|いし}と {青|あお}い {石|いし}が ならんでいる。かべの {字|じ}を よく よもう。',
+       '【{赤|あか}い {石|いし}は あつい。{青|あお}い {石|いし}は あんぜん。】\nどっちを ふむ?'],
+  c5:guard('cave',
+       '{洞窟|どうくつ}の いちばん おくに ついた。\n{大|おお}きな {宝箱|たからばこ}が ある!',
+       'でも、その {上|うえ}に {大|おお}きな {蜘蛛|くも}が すを はっている。\n{目|め}が {赤|あか}く {光|ひか}って、こちらを {見|み}ている。\nゆかには {腐|くさ}った {肉|にく}が おちている。',
+       '【{蜘蛛|くも}の つよさ 2】',
+       'また {蜘蛛|くも}の まえに きた。ゆかには {腐|くさ}った {肉|にく}が おちている。'),
+  c5wa:['{木|き}に {火|ひ}を つけて、{松明|たいまつ}を つくった。\n{松明|たいまつ}を すに ちかづける。',
+        'すが めらめら もえた。\n{蜘蛛|くも}は あわてて、てんじょうの あなへ にげて いった。'],
+  c5wb:['きみは {腐|くさ}った {肉|にく}を、えいっ!と なげた。',
+        '{蜘蛛|くも}は {肉|にく}に とびついた。\nむちゅうで たべている。こちらを {見|み}て いない。\nいまの うちだ!'],
+  c5wf:fightWin('{蜘蛛|くも}',2,'{蜘蛛|くも}は びっくりして、てんじょうの あなへ にげて いった。'),
+  c4:['{宝箱|たからばこ}の ふたを、そっと あけた。\n{中|なか}から むらさきの {光|ひかり}が あふれる。',
+      '{光|ひか}る かけらだ!\n{洞窟|どうくつ}の かけらを {手|て}に {入|い}れた!'],
+
+  z1:r=>{
+    const glow={forest:'{森|もり}の かけらが みどりに {光|ひか}る。',desert:'{砂|すな}の かけらが {金|きん}いろに {光|ひか}る。',snow:'{雪|ゆき}の かけらが {青|あお}く {光|ひか}る。',cave:'{洞窟|どうくつ}の かけらが むらさきに {光|ひか}る。'};
+    return [
+      'きみは かけらを {空|そら}に かざした。\n'+doneAreas(r).map(a=>glow[a]).join('\n'),
+      '{光|ひかり}の はしごが、{雲|くも}の {上|うえ}まで のびて いく。\nきみは {一|いち}だん、{一|いち}だん、のぼって いった。\n{雲|くも}を ぬけると、くろい {城|しろ}が {立|た}っていた。',
+      (pals(r).length===0?'となりには だれも いない。でも きみの {足|あし}は ふるえていない。':palNames(r)+'が きみの よこに ならんだ。')+
+      '\n{城|しろ}の {中|なか}は しんと している。\nろうかの さきに、{扉|とびら}が {二|ふた}つ ある。\n「おう」の へやは どっち?'];
+  },
+  z2:r=>{
+    const n=pals(r).length;
+    const style=n===0?'きみは ここまで ひとりで きた。じぶんの {力|ちから}を しんじよう。'
+      :n===1?'{相棒|あいぼう}の '+palNames(r)+'が、きみを {見|み}て うなずいた。'
+      :'{仲間|なかま}たちが きみの まわりに あつまった。';
+    const tail=style+'\n'+palHint(r,'king')+'きみの {攻撃力|こうげきりょく}は '+atk(r)+'。\nどうする?';
+    if(r.again) return ['{王|おう}は まだ いすに すわっている。\n【{王|おう}の つよさ 3】\n'+tail];
+    return [
+      '{扉|とびら}を あけると、ひろい へやだった。\nおくの いすに、くろい かげが すわっている。\nカゲぼうずの {王|おう}だ。',
+      '「よく きたな、ぼうけんしゃ。\nわたしは この {世界|せかい}を まっくらに する。\nとめられる ものなら、とめて みろ!」\n【{王|おう}の つよさ 3】',
+      tail];
+  },
+  end_solo:r=>[
+    'きみは '+tool(r).name+'を かまえた。\n{攻撃力|こうげきりょく}は '+atk(r)+'。{王|おう}の つよさは 3。\n「いくぞ!」',
+    tool(r).hit,
+    '{王|おう}は「まいった!」と さけんで、にげて いった。\n{暗闇|くらやみ}が きえて、まどから {朝日|あさひ}が さしこんだ。\nだれの {力|ちから}も かりずに、きみは {世界|せかい}を すくった!'],
+  end_pair:r=>[
+    'きみは '+tool(r).name+'を かまえた。\n{攻撃力|こうげきりょく}は '+atk(r)+'。{王|おう}の つよさは 3。\n「いくぞ!」',
+    tool(r).hit+'\nそこへ '+palNames(r)+'が、うしろから とびかかった。',
+    '{王|おう}は「まいった!」と さけんだ。\n{暗闇|くらやみ}が きえて、まどから {朝日|あさひ}が さしこんだ。\nきみと '+palNames(r)+'は さいこうの {相棒|あいぼう}だ!'],
+  end_team:r=>[
+    'きみは '+tool(r).name+'を かまえた。\n{攻撃力|こうげきりょく}は '+atk(r)+'。{王|おう}の つよさは 3。\n「いくぞ!」',
+    tool(r).hit+'\nそこへ '+palNames(r)+'が、いっせいに とびかかった。',
+    '{王|おう}は「まいった!」と さけんだ。\n{暗闇|くらやみ}が きえて、まどから {朝日|あさひ}が さしこんだ。\n{仲間|なかま}が いれば、こわい ものは ない!'],
+  end_friend:r=>{
+    const solo=pals(r).length===0;
+    return [
+      'きみは {王|おう}に {手|て}を のばした。'+(tool(r)?'\nもっていた '+tool(r).name+'は、ゆかに そっと おいた。':'')+'\n{王|おう}は その {手|て}を、じっと {見|み}ている。',
+      solo?'「ぼくも ひとりで {旅|たび}を してきたんだ。\nひとりの さびしさは、よく しっている。\nだから、いっしょに いこう」'
+          :'「{仲間|なかま}に {入|はい}りなよ。\n'+palNames(r)+'も、さいしょは ひとりぼっち だったんだ」',
+      '{王|おう}は ゆっくり、きみの {手|て}を にぎった。\nすると、まどの {外|そと}が すこしずつ あかるく なって いく。\n'+
+        (solo?'きみに はじめての {仲間|なかま}が できた!':palNames(r)+'の わに、{王|おう}も くわわった!')+'\n{世界|せかい}に {朝|あさ}が きた。'];
+  }
+};
+Object.keys(LONG).forEach(k=>{NODES[k].text=LONG[k];});
+
+/* the question to the king now leads to a conversation before the ending */
+NODES.zq={art:'boss',
+  text:['きみは ぶきを かまえずに、{王|おう}に きいた。\n「どうして、{世界|せかい}を くらく したいの?」\n{王|おう}は びっくりして、しばらく だまっていた。',
+        '「……あかるいと、よく {見|み}えるからだ」\n{王|おう}は {小|ちい}さな こえで いった。\n「みんなが たのしそうに しているのが {見|み}える。\nわたしが ひとりぼっちなのも、よく {見|み}える」',
+        '{王|おう}は うつむいている。\nさっきまでの こわい かおは、もう して いない。\nどうする?'],
+  choices:[{t:'「いっしょに いこう」と {手|て}を のばす',to:'end_friend'},{t:'なにも いわずに、ぶきを かまえる',to:'z2'}]};
+
+/* world map: every area is listed, with a mark for where you have been */
+NODES.hub.choices=r=>{
+  const START={forest:['f1',null],desert:['d1','d5'],snow:['s1','s5'],cave:['c1','c5']};
+  const seen=r.visited||{};
+  const c=AREAS.map(a=>isDone(r,a)?{t:AREA_NAME[a],disabled:true,mark:'★ かけらを とった'}
+    :isReached(r,a)?{t:AREA_NAME[a]+'に もどる',to:START[a][1],mark:'ばんにんから にげて きた'}
+    :{t:AREA_NAME[a]+'へ いく',to:START[a][0],mark:seen[a]?'いった ことが ある':''});
+  if(doneAreas(r).length>=2) c.push({t:'{空|そら}の {城|しろ}へ いく',to:'z1',mark:seen.castle?'いった ことが ある':''});
+  c.push({t:'{村|むら}へ いく',to:'v1'});
+  return c;
+};
+const VISIT={f1:'forest',d1:'desert',s1:'snow',c1:'cave',z1:'castle'};
+
+/* ---------- saved journey (this browser only) ---------- */
+const KEY='shikakui-v5';
+const freshRun=()=>({areas:{},misses:0,mats:[],dropped:[],back:false,weapon:null,armor:null,visited:{},again:false,hp:BASEHP,herb:0,eye:0,got:{},kos:0,bed:null,bedArea:null,lost:false});
+let save={known:{},endings:[],book:{},mode:'auto',run:freshRun()};
+try{
+  const raw=localStorage.getItem(KEY);
+  if(raw){
+    const d=JSON.parse(raw);
+    if(d&&typeof d==='object'){
+      save=Object.assign(save,d);
+      if(!save.book||typeof save.book!=='object') save.book={};
+      if(!save.run||!save.run.areas||!Array.isArray(save.run.mats)||typeof save.run.hp!=='number'||!save.run.got||!Array.isArray(save.run.dropped)) save.run=freshRun();
+    }
+  }
+}catch(e){}
+function persist(){try{localStorage.setItem(KEY,JSON.stringify(save));}catch(e){}}
+let node='hub';
+
+/* ---------- ruby rendering ---------- */
+function esc(s){return s.replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));}
+function hideRuby(word){
+  if(save.mode==='always') return false;
+  if(save.mode==='never') return true;
+  return [...word].every(ch=>save.known[ch]);
+}
+function rubyHtml(s){
+  return esc(s).replace(/\{([^|}]+)\|([^}]+)\}/g,(m,w,r)=>
+    '<ruby'+(hideRuby(w)?' class="hid" tabindex="0"':'')+'>'+w+'<rt>'+r+'</rt></ruby>');
+}
+function linesHtml(s){
+  return s.split('\n').map(line=>{
+    const sign=/^【.*】$/.test(line);
+    return '<p'+(sign?' class="sign"':'')+'>'+rubyHtml(sign?line.slice(1,-1):line)+'</p>';
+  }).join('');
+}
+
+/* ---------- side-view block art ---------- */
+const cv=document.getElementById('art'), g=cv.getContext('2d'), U=20;
+const P={sky:'#8fd3ff',pale:'#cfe8ff',eve:'#ffb36b',night:'#2a1f4d',grass:'#5fae3b',dirt:'#8a5a34',wood:'#6b4423',leaf:'#2f8a3a',
+  pine:'#1f6b4a',stone:'#8d949c',dstone:'#5d646c',water:'#3a7bd5',sand:'#e8cf7a',dsand:'#c9a94f',snow:'#ffffff',ice:'#a9e1f5',
+  sun:'#ffc928',skin:'#f1c59a',shirt:'#19a6a0',dog:'#f4efe6',dogd:'#a8744a',bird:'#e23b4e',dark:'#11131c',gold:'#ffd447',
+  shadow:'#3a2d5c',board:'#c79a5b',gemG:'#4ade80',gemY:'#ffd447',gemB:'#5aa9ff',cloud:'#ffffff',flame:'#ff6a2a'};
+function b(x,y,w,h,c){
+  for(let i=0;i<w;i++)for(let j=0;j<h;j++){
+    const px=(x+i)*U,py=(y+j)*U;
+    g.fillStyle=c;g.fillRect(px,py,U,U);
+    g.fillStyle='rgba(255,255,255,.18)';g.fillRect(px,py,U,2);g.fillRect(px,py,2,U);
+    g.fillStyle='rgba(0,0,0,.2)';g.fillRect(px,py+U-2,U,2);g.fillRect(px+U-2,py,2,U);
+  }
+}
+function eyes(x,y,c){g.fillStyle=c;g.fillRect(x*U+4,y*U+7,4,4);g.fillRect(x*U+12,y*U+7,4,4);}
+function sky(c){g.fillStyle=c;g.fillRect(0,0,320,160);}
+function ground(top,under){b(0,6,16,1,top);b(0,7,16,1,under);}
+function tree(x){b(x,4,1,2,P.wood);b(x-1,2,3,2,P.leaf);}
+function pine(x){b(x,5,1,1,P.wood);b(x-1,4,3,1,P.pine);b(x,3,1,1,P.pine);}
+function cactus(x){b(x,4,1,2,P.leaf);b(x+1,4,1,1,P.leaf);}
+function dog(x,y){b(x,y,2,1,P.dog);b(x+1,y-1,1,1,P.dogd);}
+function bones(x,y){b(x,y-1,1,2,'#e9e4d4');eyes(x,y-1,P.dark);}
+function cavebg(){sky(P.dark);b(0,0,16,1,P.dstone);b(0,6,16,2,P.dstone);}
+function box(x){b(x,5,2,1,P.board);g.fillStyle=P.gold;g.fillRect(x*U+16,5*U+6,8,8);}
+function snowman(x,y){b(x,y-1,1,2,P.snow);eyes(x,y-1,P.dark);}
+function party(r,x,y=4){
+  b(x,y,1,1,P.skin);b(x,y+1,1,1,P.shirt);
+  let cx=x-1;
+  const a=r.areas;
+  if(a.forest&&a.forest.comp){dog(cx-1,y+1);cx-=2;}
+  if(a.snow&&a.snow.comp){snowman(cx,y+1);cx-=1;}
+  if(a.cave&&a.cave.comp){bones(cx,y+1);cx-=1;}
+  if(a.desert&&a.desert.comp){b(x+1,y-1,1,1,P.bird);}
+}
+function king(x,y){b(x,y,3,4,P.shadow);b(x,y-1,1,1,P.gold);b(x+2,y-1,1,1,P.gold);
+  g.fillStyle='#fff';g.fillRect(x*U+10,y*U+10,8,8);g.fillRect((x+2)*U+2,y*U+10,8,8);}
+function bed(){b(0,5,1,1,P.snow);b(1,5,1,1,P.bird);}
+function hall(){sky(P.night);b(0,6,16,2,P.dstone);}
+function sandy(){sky(P.sky);b(13,1,2,2,P.sun);ground(P.sand,P.dsand);}
+function snowy(){sky(P.pale);ground(P.snow,P.dstone);}
+const ART={
+  map(){sky(P.sky);b(6,1,4,1,P.cloud);b(7,0,2,1,P.stone);
+    b(0,6,5,1,P.grass);b(0,7,5,1,P.dirt);b(5,6,6,1,P.sand);b(5,7,6,1,P.dsand);b(11,6,5,1,P.snow);b(11,7,5,1,P.dstone);b(5,7,2,1,P.dark);
+    tree(2);cactus(7);pine(13);},
+  forest(r){sky(P.sky);ground(P.grass,P.dirt);tree(1);tree(13);party(r,8);},
+  forestNpc(r){sky(P.sky);ground(P.grass,P.dirt);tree(1);tree(14);party(r,6);dog(10,5);},
+  river(r){sky(P.sky);ground(P.grass,P.dirt);b(10,6,4,2,P.water);tree(15);party(r,7);},
+  forestEnd(r){sky(P.sky);ground(P.grass,P.dirt);tree(1);b(12,5,1,1,P.gemG);party(r,8);},
+  desert(r){sandy();cactus(1);party(r,8);},
+  desertNpc(r){sandy();cactus(1);party(r,7);b(11,5,1,1,P.bird);},
+  desertSign(r){sandy();b(11,5,1,1,P.wood);b(10,3,3,2,P.board);party(r,7);},
+  desertBoss(r){sandy();bed();b(13,6,3,1,P.water);b(9,5,3,1,P.flame);b(10,4,1,1,P.sun);eyes(11,5,P.dark);party(r,6);},
+  desertEnd(r){sandy();b(10,6,4,1,P.water);b(12,5,1,1,P.gemY);party(r,7);},
+  snow(r){snowy();pine(1);b(12,3,4,3,P.dstone);b(13,4,2,2,P.dark);party(r,8);},
+  snowNpc(r){snowy();pine(1);pine(14);party(r,6);snowman(10,5);},
+  snowSlope(r){snowy();b(11,5,5,1,P.ice);b(13,4,3,1,P.ice);b(15,3,1,1,P.ice);b(9,5,1,1,P.dstone);party(r,7);},
+  snowBoss(r){snowy();bed();b(11,2,2,4,P.ice);b(10,3,1,2,P.ice);b(13,3,1,2,P.ice);eyes(11,2,P.dark);eyes(12,2,P.dark);party(r,6);},
+  snowEnd(r){snowy();pine(1);b(12,5,1,1,P.gemB);party(r,8);},
+  cave(r){cavebg();b(13,4,1,1,P.gemB);b(14,3,1,1,P.gemB);party(r,7);},
+  caveNpc(r){cavebg();b(14,3,1,1,P.gemB);party(r,6);bones(11,5);},
+  lava(r){cavebg();b(9,6,6,2,P.flame);b(10,6,1,1,P.gemB);b(12,6,1,1,P.bird);b(13,6,1,1,P.gemB);party(r,7);},
+  caveBoss(r){cavebg();bed();box(12);b(11,2,3,2,'#2b2b33');b(10,3,1,1,'#2b2b33');b(14,3,1,1,'#2b2b33');eyes(12,2,P.bird);party(r,7);},
+  caveEnd(r){cavebg();box(12);b(12,4,1,1,'#b46bff');party(r,7);},
+  village(r){sky(P.sky);ground(P.grass,P.dirt);b(9,3,3,3,P.board);b(8,2,5,1,P.bird);b(10,4,1,2,P.dark);b(13,4,2,2,P.board);b(13,3,2,1,P.bird);b(7,4,1,1,P.skin);b(7,5,1,1,P.dogd);party(r,4);},
+  castle(r){hall();b(8,2,8,4,P.stone);b(9,3,2,3,P.dark);b(13,3,2,3,P.dark);party(r,6);},
+  craft(r){hall();b(9,1,5,3,P.board);b(10,5,3,1,P.wood);party(r,6);},
+  boss(r){hall();king(11,2);party(r,6);},
+  dawn(r){sky(P.eve);b(12,3,2,2,P.sun);ground(P.grass,P.dirt);tree(1);party(r,8);},
+  dawnKing(r){sky(P.eve);b(12,2,2,2,P.sun);ground(P.grass,P.dirt);party(r,8);b(10,4,1,2,P.shadow);b(10,3,1,1,P.gold);}
+};
+
+/* ---------- render ---------- */
+const $=id=>document.getElementById(id);
+const val=(v,r)=>typeof v==='function'?v(r):v;
+function renderEndings(){
+  $('endings').innerHTML='おわり '+ENDINGS.map(e=>'<i class="'+(save.endings.includes(e)?'on':'')+'"></i>').join('')+
+    ' '+save.endings.length+'/'+ENDINGS.length;
+  renderBook();
+}
+function renderMode(){
+  document.querySelectorAll('.seg button').forEach(bn=>bn.setAttribute('aria-pressed',String(bn.dataset.mode===save.mode)));
+}
+function pruneUnfinished(){
+  AREAS.forEach(a=>{const x=save.run.areas[a]; if(x&&!x.done&&!x.reached) delete save.run.areas[a];});
+}
+let revealed=false, flash='', page=0, seenHere={};
+const PG='\n@@\n';
+function toPages(t){return (Array.isArray(t)?t.join(PG):t).split(PG);}
+function onLast(){return page>=toPages(val(NODES[node].text,save.run)).length-1;}
+function outcome(c){
+  if(c.rest) return 'たおれた ときに、ここで {目|め}が さめる';
+  if(c.disabled) return '';
+  if(c.pick) return 'アイテムが {手|て}に {入|はい}る';
+  const T=NODES[c.to];
+  if(c.cost) return '{体力|たいりょく}が へるが、いい ことが ある';
+  if(T.dmg) return '{体力|たいりょく}が へる';
+  if(T.win) return 'かてる';
+  if(T.join) return '{仲間|なかま}が ふえる';
+  if(T.lose) return T.back?'うまく いかない':'にげられる';
+  return 'あんぜん';
+}
+function choicesOf(n,r){
+  return val(n.choices,r).filter(c=>(!c.if||c.if(r))&&!(c.once&&r.got[c.once]));
+}
+function choose(c){
+  const r=save.run;
+  if(c.disabled) return;
+  if(c.pick){
+    r.got[c.once]=1;r.herb++;
+    flash='{薬草|やくそう}を {一|ひと}つ {手|て}に {入|い}れた!';
+    persist();render();return;
+  }
+  if(c.rest){
+    r.bed=node;r.bedArea=NODES[node].reach||null;
+    if(node==='v1') r.hp=maxHp(r);
+    flash=node==='v1'?'やどやで ぐっすり {休|やす}んだ。{体力|たいりょく}が ぜんぶ もどった。\nたおれても、つぎは ここで {目|め}が さめる。':'ベッドで {休|やす}んだ。たおれても、つぎは ここで {目|め}が さめる。';
+    persist();render();return;
+  }
+  if(c.cost) r.hp-=c.cost;
+  go(c.to,c);
+}
+function isUnlocked(id){return !!save.book[id]||(id.slice(0,2)==='e_'&&save.endings.includes(id.slice(2)));}
+function unlock(id){
+  const e=ENTRIES.find(x=>x.id===id);
+  if(!e||save.book[id]) return;
+  save.book[id]=1;
+  flash+=(flash?'\n':'')+'{図鑑|ずかん}に「'+e.name+'」が のった!';
+}
+function go(id,choice){
+  const r=save.run, n=NODES[id];
+  revealed=false;flash='';page=0;
+  if(id==='hub') seenHere={};
+  r.again=!!seenHere[id]||!!(n.reach&&r.areas[n.reach]&&r.areas[n.reach].reached);
+  seenHere[id]=1;
+  if(VISIT[id]){r.visited=r.visited||{};r.visited[VISIT[id]]=1;}
+  if(choice&&choice.weapon) unlock('w_'+choice.weapon);
+  if(choice&&choice.armor) unlock('a_'+choice.armor);
+  if(n.join) unlock('p_'+n.join);
+  if(n.win) unlock(GUARD[id.slice(0,2)]);
+  if(n.end) unlock('g_king');
+  if(choice&&choice.learn) save.known[choice.learn]=(save.known[choice.learn]||0)+1;
+  if(choice&&choice.weapon) r.weapon=choice.weapon;
+  if(choice&&choice.armor){const before=def(r);r.armor=choice.armor;r.hp=Math.max(1,r.hp+def(r)-before);}
+  if(id==='v1'){r.back=r.dropped.length>0;r.dropped.forEach(m=>{if(!r.mats.includes(m))r.mats.push(m);});r.dropped=[];}
+  if(n.miss) r.misses++;
+  if(n.dmg) r.hp=Math.max(0,r.hp-n.dmg);
+  if(n.heal) r.hp=maxHp(r);
+  if(n.herb) r.herb+=n.herb;
+  if(n.eye){r.eye+=n.eye;r.got.eye=1;}
+  if(id==='ko'){
+    r.kos++;r.lost=r.herb>0||r.eye>0||r.mats.length>0;
+    r.mats.forEach(m=>{if(!r.dropped.includes(m))r.dropped.push(m);});
+    r.mats=[];r.herb=0;r.eye=0;r.got={};
+  }
+  if(n.mat&&!r.mats.includes(n.mat)) r.mats.push(n.mat);
+  if(n.join) r.areas[n.join]={comp:true,done:false};
+  if(n.alone) r.areas[n.alone]={comp:false,done:false};
+  if(n.reach&&r.areas[n.reach]) r.areas[n.reach].reached=true;
+  if(n.done&&r.areas[n.done]) r.areas[n.done].done=true;
+  if(n.done&&r.bedArea===n.done){r.bed=null;r.bedArea=null;}
+  if(id==='hub') pruneUnfinished();
+  if(n.end&&!save.endings.includes(id)) save.endings.push(id);
+  node=id;persist();render();
+  window.scrollTo(0,0);
+}
+function newJourney(){save.run=freshRun();go('hub');}
+function isDown(){const n=NODES[node];return save.run.hp<=0&&!n.end&&node!=='ko';}
+function canUseEye(){
+  const r=save.run,n=NODES[node];
+  if(r.eye<=0||revealed||n.end||n.back||isDown()||!onLast()) return false;
+  const cs=choicesOf(n,r);
+  return cs.some(c=>!c.disabled)&&!cs.some(c=>c.quiz);
+}
+function useHerb(){
+  const r=save.run;
+  if(r.herb>0&&r.hp<maxHp(r)&&!isDown()){r.herb--;r.hp++;flash='{薬草|やくそう}を たべて、{体力|たいりょく}が {一|ひと}つ もどった。';persist();render();}
+}
+function useEye(){
+  if(canUseEye()){save.run.eye--;revealed=true;persist();render();}
+}
+function render(){
+  const r=save.run, n=NODES[node], down=isDown();
+  ART[n.art](r);
+  const badge=$('badge');
+  if(n.end){badge.hidden=false;badge.className='badge';badge.innerHTML=rubyHtml(n.end);}
+  else if(n.miss||n.lose){badge.hidden=false;badge.className='badge miss';badge.textContent=n.miss?'ざんねん!':n.lose;}
+  else badge.hidden=true;
+  const pages=toPages(val(n.text,r));
+  if(page>pages.length-1) page=pages.length-1;
+  const last=page===pages.length-1;
+  let text=pages[page];
+  if(last&&n.dmg) text+='\n{体力|たいりょく}が {一|ひと}つ へった。';
+  if(last&&typeof n.heal==='string') text+='\n'+n.heal;
+  if(last&&flash) text+='\n'+flash;
+  $('story').innerHTML=linesHtml(text);
+  const hint=$('hint');
+  if(n.hint&&last){hint.hidden=false;hint.innerHTML=linesHtml(val(n.hint,r));}else hint.hidden=true;
+
+  const groups=[];
+  let hearts='';
+  for(let i=0;i<maxHp(r);i++) hearts+='<i class="'+(i<r.hp?'':'off')+'"></i>';
+  groups.push(rubyHtml('{体力|たいりょく}')+' <span class="hearts" aria-label="'+r.hp+'">'+hearts+'</span>');
+  groups.push(rubyHtml('{攻撃力|こうげきりょく}')+' <span class="chip num">'+atk(r)+'</span>');
+  groups.push(rubyHtml('{防御力|ぼうぎょりょく}')+' <span class="chip num">'+def(r)+'</span>');
+  const ps=pals(r), ds=doneAreas(r).length;
+  if(r.mats.length) groups.push('ざいりょう '+r.mats.map(m=>'<span class="chip mat">'+m+'</span>').join(''));
+  if(ps.length) groups.push('なかま '+ps.map(a=>'<span class="chip">'+PAL_CHIP[a]+'</span>').join(''));
+  if(ds) groups.push('かけら <span class="chip gem">'+ds+'</span>');
+  $('items').innerHTML=groups.map(x=>'<span class="group">'+x+'</span>').join('');
+
+  const tools=$('tools');tools.innerHTML='';
+  const addTool=(html,enabled,fn)=>{
+    const bt=document.createElement('button');bt.type='button';bt.className='tool';bt.innerHTML=html;
+    bt.disabled=!enabled;bt.addEventListener('click',fn);tools.appendChild(bt);
+  };
+  if(r.herb>0) addTool('<ruby>薬草<rt>やくそう</rt></ruby>を たべる(のこり '+r.herb+')',r.hp<maxHp(r)&&!down,useHerb);
+  if(r.eye>0) addTool('<ruby>眼鏡<rt>めがね</rt></ruby>で さきを <ruby>見<rt>み</rt></ruby>る(のこり '+r.eye+')',canUseEye(),useEye);
+
+  const box=$('choices');box.innerHTML='';
+  const add=(html,cls,fn)=>{
+    const bt=document.createElement('button');bt.type='button';bt.className='choice '+cls;bt.innerHTML=html;
+    bt.addEventListener('click',fn);box.appendChild(bt);return bt;
+  };
+  if(!last) add('つぎへ ▶ <small>'+(page+1)+'/'+pages.length+'</small>','next',()=>{page++;render();window.scrollTo(0,0);});
+  else if(n.end) add('あたらしい たびに <ruby>出<rt>で</rt></ruby>る','back',newJourney);
+  else if(down) add('<ruby>目<rt>め</rt></ruby>の まえが まっくらに なった……','back',()=>go('ko'));
+  else if(n.back) add(n.miss?'もういちど えらぶ':'もういちど かんがえる','back',()=>go(n.back));
+  else choicesOf(n,r).forEach(c=>{
+    const label=(c.quiz?esc(c.t):rubyHtml(c.t))+
+      (c.mark?'<span class="tag mark">'+c.mark+'</span>':'')+
+      (revealed&&!c.disabled?'<span class="tag">→ '+rubyHtml(outcome(c))+'</span>':'');
+    const bt=add(label,(c.quiz?'quiz':'')+(c.disabled?' done':''),()=>choose(c));
+    if(c.disabled) bt.disabled=true;
+  });
+  renderEndings();
+}
+
+let bookOpen=false;
+function renderBook(){
+  const got=ENTRIES.filter(e=>isUnlocked(e.id)).length;
+  $('bookbtn').innerHTML='<ruby>図鑑<rt>ずかん</rt></ruby> '+got+'/'+ENTRIES.length;
+  $('bookbtn').setAttribute('aria-expanded',String(bookOpen));
+  $('main').hidden=bookOpen;$('book').hidden=!bookOpen;
+  if(!bookOpen) return;
+  $('book').innerHTML='<h2><ruby>図鑑<rt>ずかん</rt></ruby> '+got+'/'+ENTRIES.length+'</h2>'+
+    BOOK.map(s=>'<h3>'+rubyHtml(s.title)+'</h3>'+s.items.map(e=>isUnlocked(e.id)
+      ? '<div class="entry"><span class="nm">'+rubyHtml(e.name)+'</span><span class="ds">'+rubyHtml(e.desc)+'</span></div>'
+      : '<div class="entry locked"><span class="nm">???</span><span class="ds">ヒント:'+rubyHtml(e.hint)+'</span></div>').join('')).join('')+
+    '<button type="button" class="choice back" id="bookclose">とじる</button>';
+}
+$('bookbtn').addEventListener('click',()=>{bookOpen=!bookOpen;renderBook();window.scrollTo(0,0);});
+$('book').addEventListener('click',e=>{
+  if(e.target.closest&&e.target.closest('#bookclose')){bookOpen=false;renderBook();return;}
+  peek(e);
+});
+
+/* tap a dotted word to peek at its reading */
+function peek(e){
+  const rb=e.target.closest('ruby.hid');
+  if(!rb) return;
+  if(e.type==='keydown'&&e.key!=='Enter'&&e.key!==' ') return;
+  rb.classList.toggle('peek');
+}
+['story','hint'].forEach(id=>{$(id).addEventListener('click',peek);$(id).addEventListener('keydown',peek);});
+
+document.querySelectorAll('.seg button').forEach(bn=>bn.addEventListener('click',()=>{
+  save.mode=bn.dataset.mode;persist();renderMode();render();
+}));
+$('reset').addEventListener('click',()=>{
+  save={known:{},endings:[],book:{},mode:save.mode,run:freshRun()};node='hub';revealed=false;flash='';bookOpen=false;page=0;seenHere={};persist();render();
+});
+
+pruneUnfinished();renderMode();render();
+</script>
+<script src="../pause-ui.js"></script>
+</body>
+</html>
