@@ -118,6 +118,9 @@ main{display:grid;grid-template-columns:96px minmax(0,1fr);min-height:0}
 body.attop .monitor,body.attop .say,body.attop .rail{visibility:hidden}
 .face{border-radius:50%;flex:none;display:block}
 #face{flex:none;display:block;width:40px;height:40px}
+#face.swap{animation:faceswap .7s cubic-bezier(.2,1.6,.4,1)}
+@keyframes faceswap{0%{transform:scale(0) rotate(-90deg)}60%{transform:scale(1.7)}100%{transform:none}}
+@media (prefers-reduced-motion:reduce){#face.swap{animation:none}}
 .mhead.row .face{margin-left:auto}
 .eyebrow.withface{display:flex;align-items:center;gap:10px}
 body.norail .rail{visibility:hidden}
@@ -715,10 +718,11 @@ function hud(){
   else if(S.mode==='result'||S.mode==='ending')m='お疲れさまでした。手術は成功です。';
   else if(S.mode==='fail')m='……手術を中断します。';
   else if(S.mode==='tutend')m='実習修了です。お疲れさまでした。';
-  else if(S.mode==='fieldover')m='撤収命令です。お疲れさまでした。';
+  else if(S.mode==='fieldover')m=S.field&&S.field.elapsed>=SHIFT*2?'撤収命令です。…本当にお疲れさまでした。帰って寝てください。':'撤収命令です。お疲れさまでした。';
   else if(S.tut){m=tutMsg();warn=!!S.hint;}
   else if(S.hint){m=S.hint;warn=true;}
   else if(S.vit<30){m='バイタル低下! 「安定剤」ボタンを長押しで吸い、患部を長押しで注射を。';warn=true;}
+  else if(S.field&&S.field.chat&&S.field.elapsed<S.field.chat.until)m=S.field.chat.text; /* 看護師のひとこと */
   else if(S.field)m=fieldMsg();
   else if(S.step==='inside'&&S.wounds.some(w=>!w.closed))m=MSG.bleed;
   else if(S.step==='inside'&&caseId===2)m=S.bugs.some(b=>b.state==='dead')?MSG.husk:MSG.laser;
@@ -728,7 +732,8 @@ function hud(){
   const alertOn=S.mode==='play'&&!S.tut&&((S.vit<30&&(!S.field||!!S.cur))||(!!S.field&&!!S.cur&&!S.field.held&&S.field.queue.some(q=>q.urgent)));
   if(alertOn!==lastAlert){lastAlert=alertOn;elSayBox.classList.toggle('alert',alertOn);alertT=0;}
   if(alertOn&&S.t>=alertT){alertT=S.t+4;tone(980,.12,'square',.05);tone(740,.16,'square',.05,.16);}
-  const mood=(alertOn||S.mode==='fail')?'alert':(S.mode==='result'||S.mode==='tutend'||(S.tut&&S.tut.ph==='ok')||S.t<S.praiseT)?'praise':'normal';
+  const chat=S.mode==='play'&&S.field&&S.field.chat&&S.field.elapsed<S.field.chat.until?S.field.chat:null;
+  const mood=(alertOn||S.mode==='fail')?'alert':chat?chat.mood:(S.mode==='result'||S.mode==='tutend'||(S.tut&&S.tut.ph==='ok')||S.t<S.praiseT)?'praise':'normal';
   const fk=curWho()+mood;if(fk!==lastFace){lastFace=fk;$('face').innerHTML=faceSvg(curWho(),mood,40);}
   const g=Math.round(S.syr*100);if(g!==lastG){lastG=g;elGauge.style.height=g+'%';}
   const sk=S.field?'×'+S.field.stock:'';if(sk!==lastSk){lastSk=sk;elStock.textContent=sk;elStock.hidden=!sk;}
@@ -906,7 +911,7 @@ const CH={
   nurse:{bg:'#eadfc4',ey:-7,my:5,brow:'#5a2f1c',mouth:'#7a3b32',blush:false,sweat:-26,
     back:SH+'#6f7d4c"/><path d="M15-19Q34-15 27 8Q23-3 15-6Z" fill="#8a4a2c"/><rect x="-6" y="10" width="12" height="10" fill="#cf9b78"/><ellipse cy="-6" rx="18" ry="21" fill="#dba985"/><path d="M-18-8Q-20-28 0-28Q20-28 18-8Q14-17 2-18Q-10-17-18-8Z" fill="#8a4a2c"/><path d="M-19-18Q-18-33 0-33Q18-33 19-18Z" fill="#59663c"/><rect x="-22" y="-19" width="44" height="3.5" fill="#454f2e"/><rect x="-5" y="-30" width="10" height="8" rx="1" fill="#f4f1e4"/><path d="M0-28.5V-23.5M-2.5-26H2.5" stroke="#2f8a4e" stroke-width="1.8"/><rect x="6" y="-1" width="8" height="3.5" rx="1" fill="#f6e7d0" transform="rotate(-18 10 1)"/>',front:''}
 };
-function curWho(){return caseId===0?'doc':caseId===3?'nurse':'asst';}
+function curWho(){return caseId===0?'doc':caseId===3?NURSES[(S&&S.field?S.field.nurse:0)%NURSES.length].key:'asst';}
 function faceSvg(k,mood,size){
   const c=CH[k],y=c.ey,m=c.my;let e;
   if(mood==='alert')e='<circle cx="-8.5" cy="'+y+'" r="2.3" fill="#2a2a2a"/><circle cx="8.5" cy="'+y+'" r="2.3" fill="#2a2a2a"/><path d="M-13.5 '+(y-8)+'L-5 '+(y-5)+'M13.5 '+(y-8)+'L5 '+(y-5)+'" stroke="'+c.brow+'" stroke-width="1.9" fill="none" stroke-linecap="round"/><ellipse cy="'+(m+1)+'" rx="3.5" ry="2.9" fill="'+c.mouth+'"/><path d="M'+c.sweat+' -17q3 5 0 7q-3-2 0-7Z" fill="#6cc5e8"/>';
@@ -919,6 +924,44 @@ function cardFace(mood){
   document.body.classList.add('norail');
   card.insertAdjacentHTML('beforeend','<button class="toplink" id="totop" type="button">トップに戻る</button>'+HOME);
   $('totop').addEventListener('click',()=>{menu='top';reset();showBrief();});
+}
+
+/* ---------- 看護師の交代 ----------
+   看護師は SHIFT 秒ごとに休憩に入り、次の人に代わる(先生だけ帰れない)。見た目は nurse の色ちがい。
+   ゲームの有利不利には影響しない演出。 */
+const SHIFT=240;
+function recolor(base,map){const o=Object.assign({},base);Object.keys(map).forEach(k=>{if(k.charAt(0)==='#'){o.back=o.back.split(k).join(map[k]);}else o[k]=map[k];});return o;}
+CH.nurse2=recolor(CH.nurse,{'#8a4a2c':'#1f1a1a','#dba985':'#b97f58','#cf9b78':'#a56f4b',bg:'#d9e6f2',brow:'#1f1a1a'});
+CH.nurse3=recolor(CH.nurse,{'#8a4a2c':'#e2b84f','#dba985':'#f4d6bf','#cf9b78':'#e6c2a8',bg:'#f6e4ee',brow:'#a8862e',blush:true});
+CH.nurse4=recolor(CH.nurse,{'#8a4a2c':'#b9bcc0','#dba985':'#e0b595','#cf9b78':'#cfa283',bg:'#e4e4d8',brow:'#7d8185'});
+/* hi=来たとき / w1,w2=勤務中のひとこと / bye=休憩に入るとき。[1周目, 2周目以降] */
+const NURSES=[
+ {key:'nurse', hi:['', '戻りました。…先生、ずっとここに?'],
+  w1:['いい調子です、先生。','先生…大丈夫ですか?'], w2:['もうすぐ交代の時間です。お水、飲んでくださいね。','働きすぎですよ。本当に。'],
+  bye:['すみません、休憩入ります。','また休憩です。先生も…いえ、何でもないです。']},
+ {key:'nurse2',hi:['交代します! 私が引き継ぎます!','ただいま戻りました! 先生、まだいる!'],
+  w1:['先生、まだまだいけますよね!','先生、目が据わってます!'], w2:['先生は休まないんですか?','先生は人間ですか!?'],
+  bye:['休憩いただきます! 先生もファイトです!','休憩いただきます! 先生は…ファイトです!']},
+ {key:'nurse3',hi:['あれ、先生まだいたんですか?','ふあ…おはようございます。先生、まだ?'],
+  w1:['のんびりいきましょう〜。','先生、ねむくないんですか〜。'], w2:['先生、働きすぎですよ〜。','わたしのほうが先に倒れそうです〜。'],
+  bye:['おつかれさまです〜。休憩いってきます。','また休憩です〜。先生、おやすみなさい…じゃなかった。']},
+ {key:'nurse4',hi:['代わりましょう。先生、無理は禁物ですよ。','まだおられましたか。大したものです。'],
+  w1:['若いころの私を見ているようです。','もう誰か代わってあげてください…。'], w2:['先生。休むのも仕事のうちですよ。','先生、伝説になりますよ。'],
+  bye:['時間ですので失礼します。…先生は?','では失礼します。先生、どうかご無事で。']}
+];
+function nurseSay(text,mood,sec){const F=S.field;if(text)F.chat={text:text,mood:mood,until:F.elapsed+(sec||4)};}
+/* 手術の指示や警告が出ていない、落ち着いた瞬間だけ話す */
+function nurseCalm(){const F=S.field;return !S.hint&&S.vit>=30&&!(S.cur&&!F.held&&F.queue.some(q=>q.urgent))&&!(F.chat&&F.elapsed<F.chat.until);}
+function nurseUpdate(){
+  const F=S.field,N=NURSES[F.nurse%NURSES.length],lap=F.nurse>=NURSES.length?1:0,t=F.elapsed-F.nurse*SHIFT;
+  if(F.swap){ /* 休憩のあいさつが終わったら、次の看護師に切り替える */
+    if(F.elapsed>=F.swap){F.swap=0;F.nurse++;F.said=0;const M=NURSES[F.nurse%NURSES.length];nurseSay(M.hi[F.nurse>=NURSES.length?1:0],'praise',4.5);const fe=$('face');fe.classList.remove('swap');void fe.offsetWidth;fe.classList.add('swap');tone(660,.1,'triangle',.07);tone(880,.16,'triangle',.07,.12);}
+    return;
+  }
+  if(!nurseCalm())return;
+  if(t>=SHIFT){nurseSay(N.bye[lap],'normal',2.8);F.swap=F.elapsed+2.8;}
+  else if(F.said<1&&t>=SHIFT*.375){F.said=1;nurseSay(N.w1[lap],lap?'alert':'praise',4);}
+  else if(F.said<2&&t>=SHIFT*.75){F.said=2;nurseSay(N.w2[lap],'alert',4);}
 }
 
 /* ---------- trophies ---------- */
@@ -976,7 +1019,7 @@ function loadPatient(p){PKEYS.forEach(k=>{S[k]=p.d[k];});S.cur=p;A=null;S.fade=.
 function stashPatient(){const p=S.cur;PKEYS.forEach(k=>{p.d[k]=S[k];});return p;}
 function clearTable(){S.cur=null;A=null;S.step='idle';S.view='idle';S.vit=75;S.frags=[];S.wounds=[];S.bugs=[];S.scorch=[];}
 function startField(){
-  S.field={queue:[],held:null,saved:0,lost:0,stock:3,arrive:8,elapsed:0,nextId:1,spawned:0,usedStab:false,swapStage:0,duo:false,newT:[]};
+  S.field={queue:[],held:null,saved:0,lost:0,stock:3,arrive:8,elapsed:0,nextId:1,spawned:0,usedStab:false,swapStage:0,duo:false,newT:[],nurse:0,said:0,swap:0,chat:null};
   S.time=0;clearTable();S.field.queue.push(genPatient());setTool('forceps');
 }
 function cardRect(i){return{x:16+i*188,y:10,w:180,h:54};}
@@ -1018,7 +1061,7 @@ function fieldLoss(msg){
   if(F.lost>=3)fieldOver();
 }
 function fieldUpdate(dt){
-  const F=S.field;F.elapsed+=dt;S.time=F.elapsed;
+  const F=S.field;F.elapsed+=dt;S.time=F.elapsed;nurseUpdate();
   F.arrive-=dt;if(!S.cur&&!F.queue.length&&!F.held)F.arrive=Math.min(F.arrive,1.2);
   if(F.arrive<=0){
     if(F.queue.length<3){F.queue.push(genPatient());tone(440,.12,'triangle',.07);tone(440,.12,'triangle',.07,.18);}
