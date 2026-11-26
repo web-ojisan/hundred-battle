@@ -121,7 +121,7 @@ button:focus-visible,input:focus-visible{outline:3px solid var(--gold);outline-o
       </div></li>
       <li><div class="num">2</div><div>
         <h2>しっぽを つける(なくても いい)</h2>
-        <p>かたちの そばから せんを ひくと、その むきに まほうが とぶ。</p>
+        <p>かたちの そばから せんを ひくと、その むきに まほうが とぶ。ながく ひくほど はやい。</p>
         <div class="demo"><svg viewBox="0 0 120 54" fill="none" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12 38 42H6Z" stroke="#ff7a4d"/><path d="M42 27h56M88 17l12 10-12 10" stroke="#ff7a4d"/></svg></div>
       </div></li>
       <li><div class="num">3</div><div>
@@ -131,6 +131,7 @@ button:focus-visible,input:focus-visible{outline:3px solid var(--gold);outline-o
       </div></li>
     </ol>
     <p class="note">いろつきの おばけには おなじ いろの まほうが きかない。したがきや まほうじんは タップで けせる。むこうがわの ひとは、おばけを えらんで みちの いりぐちを タップ。</p>
+    <p class="note" id="secret" hidden>みつけた ひみつ: とんでいる まほうと まほうが ぶつかると、だいばくはつ する!</p>
     <button class="go" id="btnPlay" type="button">あそぶ</button>
     <a class="backlink" href="../index.html">← ゲームせんたくにもどる</a>
   </div>
@@ -276,7 +277,7 @@ const cfg={lanes:3,amida:1,auto:1,speed:1,life:20,debug:0};
 const TS=78;
 let W=0,H=0,DPR=1,bg=null,now=0,uid=1;
 const Lay={xs:[],top:0,gateY:0,plateY:0,bot:0};
-let rungs=[],ghosts=[],drafts=[],circles=[],shots=[],floats=[],fades=[],puffs=[],plates=[];
+let rungs=[],ghosts=[],drafts=[],circles=[],shots=[],booms=[],floats=[],fades=[],puffs=[],plates=[];
 let selType='normal',gateFlash={},autoT=1.2,amidaT=9,refillT=0;
 const live=new Map();
 
@@ -290,7 +291,7 @@ function resize(){
   cv.width=Math.round(W*DPR);cv.height=Math.round(H*DPR);
   ctx.setTransform(DPR,0,0,DPR,0,0);
   layout();paintBg();
-  drafts=[];circles=[];shots=[];
+  drafts=[];circles=[];shots=[];booms=[];
   for(const g of ghosts)g.x=Lay.xs[Math.min(g.lane,cfg.lanes-1)];
 }
 function layout(){
@@ -314,7 +315,7 @@ function paintBg(){
 }
 function newGame(){
   layout();
-  rungs=[];ghosts=[];drafts=[];circles=[];shots=[];floats=[];fades=[];puffs=[];
+  rungs=[];ghosts=[];drafts=[];circles=[];shots=[];booms=[];floats=[];fades=[];puffs=[];
   plates=Lay.xs.map((_,i)=>i%2===0?1:0);
   const want=cfg.lanes*2-1;
   for(let i=0;i<want;i++)addRung('on');
@@ -514,6 +515,8 @@ function activate(a,pts,marks){
     life,max:life,ring:pts,marks:used,hit:new Set(),cool:0.25,
     pow:clamp(64/r,0.55,1.8),bridge:null,born:now,warm,warmMax:warm};
   c.range=clamp(c.tailLen*3.5,130,620);c.hw=clamp(r*0.7,22,60);
+  /* しっぽが ながいほど たまが はやい。はやすぎると おばけを すりぬける */
+  c.spd=clamp(c.tailLen*2.2,130,760);c.pierce=c.spd>=480;
   drafts=drafts.filter(m=>!marks.includes(m));
   if(els.includes('earth')&&c.dir){
     let a0=0,bd=1e9;Lay.xs.forEach((x,i)=>{const d=Math.abs(x-c.x);if(d<bd){bd=d;a0=i}});
@@ -537,6 +540,29 @@ function blowTreasure(c){
     }
   }
 }
+
+/* ----- ひみつの だいばくはつ ----- */
+const BOOM_R=150;
+function bigBoom(x,y){
+  booms.push({x,y,t:0});
+  floatText(x,y-48,'だいばくはつ!',C.gold,28,1.6);
+  for(let i=0;i<28;i++){const a=rnd(0,6.28),v=rnd(90,280);puffs.push({x,y,vx:Math.cos(a)*v,vy:Math.sin(a)*v,t:0,color:i%2?EL.fire.c:'#ffe2a8'})}
+  for(const g of ghosts){
+    if(Math.hypot(g.x-x,g.y-y)>BOOM_R)continue;
+    if(g.type==='fire'){say(g,'boom'+Math.round(x)+Math.round(y),'へっちゃら!',EL.fire.c);continue}
+    g.hp-=2.5;g.hurt=0.35;
+  }
+  foundSecret();
+}
+/* 1かいでも 見つけたら、みほん に そっと 書き足す */
+function foundSecret(){
+  try{
+    if(localStorage.getItem('amida-secret')==='1')return;
+    localStorage.setItem('amida-secret','1');
+  }catch(e){}
+  showSecret();
+}
+function showSecret(){const e=document.getElementById('secret');if(e)e.hidden=false}
 
 /* ----- update ----- */
 function update(dt){
@@ -570,19 +596,28 @@ function update(dt){
     c.life-=dt;
     if(c.els.includes('fire')&&c.dir){
       c.cool-=dt;
-      if(c.cool<=0){c.cool=0.9;shots.push({x:c.x,y:c.y,vx:c.dir.x*270,vy:c.dir.y*270,left:c.range,pow:c.pow,seen:new Set()})}
+      if(c.cool<=0){c.cool=0.9;shots.push({x:c.x,y:c.y,vx:c.dir.x*c.spd,vy:c.dir.y*c.spd,spd:c.spd,left:Math.hypot(W,H)*1.1,pow:c.pow,seen:new Set(),src:c.id,pierce:c.pierce})}
     }
   }
   circles=circles.filter(c=>c.life>0);
   for(const s of shots){
-    const d=270*dt;s.x+=s.vx*dt;s.y+=s.vy*dt;s.left-=d;
+    const d=s.spd*dt;s.x+=s.vx*dt;s.y+=s.vy*dt;s.left-=d;
+    if(s.x<-40||s.x>W+40||s.y<-40||s.y>H+40)s.dead=true;
     for(const g of ghosts){
       if(s.dead||s.seen.has(g.id)||Math.hypot(g.x-s.x,g.y-s.y)>22)continue;
       if(g.type==='fire'){s.seen.add(g.id);say(g,'shot','へっちゃら!',EL.fire.c)}
+      else if(s.pierce){s.seen.add(g.id);say(g,'pierce'+s.src,'すりぬけた!','#ffe2a8')}
       else{g.hp-=s.pow;g.hurt=0.2;s.dead=true;puff(s.x,s.y,EL.fire.c)}
     }
   }
+  /* ひみつ: とんでいる まほうどうしが ぶつかると だいばくはつ */
+  for(let i=0;i<shots.length;i++)for(let j=i+1;j<shots.length;j++){
+    const a=shots[i],b=shots[j];
+    if(a.dead||b.dead||a.src===b.src)continue;
+    if(Math.hypot(a.x-b.x,a.y-b.y)<=28){a.dead=true;b.dead=true;bigBoom((a.x+b.x)/2,(a.y+b.y)/2)}
+  }
   shots=shots.filter(s=>!s.dead&&s.left>0);
+  for(const o of booms)o.t+=dt;booms=booms.filter(o=>o.t<0.6);
   ghosts=ghosts.filter(g=>stepGhost(g,dt));
   for(const f of floats)f.t+=dt;floats=floats.filter(f=>f.t<f.life);
   for(const f of fades)f.t+=dt;fades=fades.filter(f=>f.t<0.7);
@@ -772,9 +807,24 @@ function render(){
     ctx.restore();
   }
   for(const s of shots){
-    ctx.fillStyle=EL.fire.c;ctx.shadowColor=EL.fire.c;ctx.shadowBlur=14;
-    ctx.beginPath();ctx.arc(s.x,s.y,7,0,7);ctx.fill();ctx.shadowBlur=0;
-    ctx.fillStyle='#ffe2a8';ctx.beginPath();ctx.arc(s.x,s.y,3,0,7);ctx.fill();
+    /* はやい たまは しろく ながく のびる */
+    const k=clamp((s.spd-130)/630,0,1),tail=6+k*26;
+    const ux=s.vx/s.spd,uy=s.vy/s.spd;
+    ctx.save();ctx.strokeStyle=s.pierce?'rgba(255,240,210,.85)':'rgba(255,122,77,.7)';
+    ctx.lineWidth=s.pierce?5:6;ctx.lineCap='round';ctx.shadowColor=s.pierce?'#fff0d2':EL.fire.c;ctx.shadowBlur=14;
+    ctx.beginPath();ctx.moveTo(s.x-ux*tail,s.y-uy*tail);ctx.lineTo(s.x,s.y);ctx.stroke();
+    ctx.fillStyle=s.pierce?'#fff6e2':EL.fire.c;
+    ctx.beginPath();ctx.arc(s.x,s.y,s.pierce?6:7,0,7);ctx.fill();ctx.shadowBlur=0;
+    ctx.fillStyle='#ffffff';ctx.beginPath();ctx.arc(s.x,s.y,3,0,7);ctx.fill();ctx.restore();
+  }
+  for(const o of booms){
+    const q=o.t/0.6;
+    ctx.save();ctx.globalAlpha=1-q;
+    const g2=ctx.createRadialGradient(o.x,o.y,0,o.x,o.y,BOOM_R*(0.35+q*0.9));
+    g2.addColorStop(0,'rgba(255,255,255,.95)');g2.addColorStop(0.45,'rgba(255,207,90,.7)');g2.addColorStop(1,'rgba(255,122,77,0)');
+    ctx.fillStyle=g2;ctx.beginPath();ctx.arc(o.x,o.y,BOOM_R*(0.35+q*0.9),0,7);ctx.fill();
+    ctx.strokeStyle='rgba(255,243,209,.9)';ctx.lineWidth=6*(1-q)+1;
+    ctx.beginPath();ctx.arc(o.x,o.y,BOOM_R*(0.3+q),0,7);ctx.stroke();ctx.restore();
   }
   for(const g of ghosts){
     const bob=Math.sin(now*5+g.phase)*2;
@@ -825,12 +875,13 @@ $('btnHelp').addEventListener('click',()=>{$('help').hidden=false});
 $('btnPlay').addEventListener('click',()=>{$('help').hidden=true});
 $('btnSettings').addEventListener('click',()=>{$('settings').hidden=false});
 $('btnCloseSet').addEventListener('click',()=>{$('settings').hidden=true});
-$('btnErase').addEventListener('click',()=>{drafts=[];circles=[];shots=[]});
+$('btnErase').addEventListener('click',()=>{drafts=[];circles=[];shots=[];booms=[]});
 $('btnReset').addEventListener('click',()=>{newGame();$('settings').hidden=true});
 for(const id of['help','settings'])$(id).addEventListener('click',e=>{if(e.target===$(id))$(id).hidden=true});
 window.addEventListener('resize',resize);
 document.addEventListener('gesturestart',e=>e.preventDefault());
 
+try{if(localStorage.getItem('amida-secret')==='1')showSecret()}catch(e){}
 resize();newGame();syncSeg();
 // a few ghosts already on the road so the first frame shows how they walk
 spawn('normal',0);ghosts[0].y=Lay.top+90;
