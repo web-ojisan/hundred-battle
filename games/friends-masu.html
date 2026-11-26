@@ -107,7 +107,8 @@
   @keyframes shake{0%,100%{transform:translateX(0);}25%{transform:translateX(-3px);}75%{transform:translateX(3px);}}
 
   /* ===== サイドパネル ===== */
-  .zone-side{width:120px;display:flex;flex-direction:column;gap:5px;flex-shrink:0;}
+  /* テンキーを押しやすくするため、マトリクスより横幅を優先して広めに取る */
+  .zone-side{width:clamp(140px,28%,240px);display:flex;flex-direction:column;gap:5px;flex-shrink:0;}
   .zone-readout{
     height:36px;border-radius:var(--radius);
     display:flex;align-items:center;justify-content:center;
