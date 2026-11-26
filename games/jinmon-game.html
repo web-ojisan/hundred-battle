@@ -223,6 +223,15 @@ header{display:flex;align-items:center;gap:12px;padding:6px 16px;border-bottom:1
 .card p{font-size:15px}
 .card ul{padding-left:1.2em;font-size:14px;display:flex;flex-direction:column;gap:4px}
 .card .go{min-height:52px;border-radius:8px;background:var(--shu);color:#fff;font-weight:700;font-size:17px}
+.prof{display:flex;flex-direction:column;gap:8px;padding:10px 12px;border-radius:8px;background:#f1e9d6;border:1px solid #d6cab0}
+.prof label{display:flex;align-items:center;gap:10px;font-size:14px;font-weight:700;color:#4a4336}
+.prof input{flex:1;min-width:0;min-height:44px;padding:0 12px;border-radius:8px;border:2px solid var(--sumi);background:#fffaf0;color:var(--sumi);font:inherit;font-size:18px;font-weight:700}
+.prof small{font-size:12px;color:#6b6252}
+.prof .seg{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.prof .seg button{min-height:48px;border-radius:8px;border:2px solid #b9ae95;background:#fffaf0;color:#4a4336;font-weight:700;display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1.25}
+.prof .seg button b{font-family:var(--display);font-size:17px}
+.prof .seg button span{font-size:11px;font-weight:700}
+.prof .seg button[aria-pressed="true"]{border-color:var(--sumi);background:var(--sumi);color:#fff}
 .homelink{align-self:center;font-size:14px;font-weight:700;color:#6b6252;padding:4px 8px}
 #pauseTrigger{flex:none;min-height:34px;padding:0 12px;border:1px solid var(--line);border-radius:8px;font-size:13px;font-weight:700;color:var(--muted)}
 .verdict{display:flex;align-items:center;justify-content:space-between;gap:12px}
@@ -536,6 +545,18 @@ function saveUser(){try{localStorage.setItem('jinmon-user-cases',JSON.stringify(
 loadUser();
 let C,K,L,WHO,EV,INTRO,T;
 
+/* ---------- プレイヤーの名前と肩書き(端末に保存) ---------- */
+const NAMEMAX=4;
+let PROF={name:'',role:'lawyer'};
+function cutName(v){return Array.from(String(v||'').replace(/\s+/g,'')).slice(0,NAMEMAX).join('');}
+try{const p=JSON.parse(localStorage.getItem('jinmon-profile')||'null');if(p){PROF.name=cutName(p.name);if(p.role==='detective')PROF.role='detective';}}catch(e){}
+function saveProf(){try{localStorage.setItem('jinmon-profile',JSON.stringify(PROF));}catch(e){}}
+const DET=()=>PROF.role==='detective';
+/* 文中の肩書きを、選んだ肩書きに読みかえる(弁護人のときは元のまま) */
+function rt(s){return DET()?String(s).replace(/弁護人/g,'名探偵').replace(/べんごにん/g,'めいたんてい'):s;}
+function youName(){return PROF.name?(K?(DET()?'めいたんてい':'べんごにん'):(DET()?'名探偵':'弁護人'))+' '+PROF.name:rt(WHO.you.n);}
+function deskTags(){document.querySelector('#pros .tag').textContent=C.tags[0];document.querySelector('#def .tag').textContent=DET()?(K?'たんてい':'探偵'):C.tags[1];}
+
 /* ---------- 状態 ---------- */
 const MAXLIFE=5;
 let S={mode:'title',ti:0,si:0,life:MAXLIFE,miss:0,tmiss:0,press:0,unlocked:false,sts:[]};
@@ -551,7 +572,7 @@ function load(id){
   C=CASES[id];K=C.kids;L=C.L;WHO=C.who;EV=C.ev;INTRO=C.intro;T=C.T;sel=EV[0].id;
   const app=$('app');app.classList.toggle('kids',K);app.style.setProperty('--arm',WHO.you.c);
   document.querySelectorAll('.bust').forEach(b=>{const o=b.querySelector('svg');if(o)o.remove();b.insertAdjacentHTML('afterbegin',bust(b.dataset.k));});
-  document.querySelector('#pros .tag').textContent=C.tags[0];document.querySelector('#def .tag').textContent=C.tags[1];
+  deskTags();
   $('eyebrow').textContent=C.eyebrow;$('phase').textContent=C.title;
   document.querySelector('.shead').textContent=L.rec;
   document.querySelector('#judge .desk span').textContent=L.trust;
@@ -560,7 +581,7 @@ function load(id){
 function idle(){
   S={mode:'title',ti:0,si:0,life:MAXLIFE,miss:0,tmiss:0,press:0,unlocked:false,sts:[]};
   pips();sweat(0);speaker('wit');$('box').classList.remove('testi','glow');$('dots').innerHTML='';
-  $('tag').textContent=WHO.wit.n;$('text').classList.remove('think');$('text').textContent=C.idleLine;ctl();
+  $('tag').textContent=WHO.wit.n;$('text').classList.remove('think');$('text').textContent=rt(C.idleLine);ctl();
 }
 
 /* ---------- 表示 ---------- */
@@ -582,7 +603,7 @@ function doAct(a){
   else if(a.indexOf('sweat:')===0)sweat(+a.slice(6));
 }
 function type(text){
-  clearInterval(typing);typing=null;full=text;const el=$('text');
+  text=rt(text);clearInterval(typing);typing=null;full=text;const el=$('text');
   if(reduce){el.textContent=text;return;}
   let i=0;el.textContent='';const stepN=K?1:2,ms=K?38:30;
   typing=setInterval(()=>{i+=stepN;el.textContent=text.slice(0,i);if(i>=text.length){clearInterval(typing);typing=null;}},ms);
@@ -593,7 +614,7 @@ function note(msg){const n=$('note');n.textContent=msg;n.hidden=false;setTimeout
 function showLine(who,text,acts){
   $('box').classList.remove('testi','glow');$('dots').innerHTML='';
   speaker(who);
-  $('tag').textContent=who==='narr'?'':WHO[who].n;
+  $('tag').textContent=who==='narr'?'':who==='you'?youName():WHO[who].n;
   $('text').classList.toggle('think',who==='you'&&text.charAt(0)==='(');
   type(text);
   (acts||[]).forEach(doAct);
@@ -741,10 +762,18 @@ function showSelect(msg){
   S.mode='title';
   const row=id=>{const c=CASES[id],b=bestText(id);return '<button class="stage" type="button" data-id="'+esc(id)+'"><small>'+esc(c.eyebrow)+(c.tagline?' ・ '+esc(c.tagline):'')+'</small><b>'+esc(c.title)+'</b>'+(b?'<span>'+b+'</span>':'')+'</button>';};
   let h='<p class="eyebrow">じんもん ゲーム</p><h1>ステージを えらぶ</h1>';
+  h+='<div class="prof"><label for="pname">なまえ<input id="pname" type="text" maxlength="'+NAMEMAX+'" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="done" placeholder="'+NAMEMAX+'もじ まで" value="'+esc(PROF.name)+'"></label>'+
+   '<small>'+NAMEMAX+'もじ まで。ながい なまえは かんじで いれてね。</small>'+
+   '<div class="seg" role="group" aria-label="かたがき">'+[['lawyer','弁護人','べんごにん'],['detective','名探偵','めいたんてい']].map(r=>'<button type="button" data-role="'+r[0]+'" aria-pressed="'+(PROF.role===r[0])+'"><b>'+r[1]+'</b><span>'+r[2]+'</span></button>').join('')+'</div></div>';
   ORDERED.forEach(id=>{h+=row(id);});
   if(USER.length){h+='<p class="eyebrow">読み込んだ事件</p>';USER.forEach(j=>{h+='<div class="urow">'+row(j.id)+'<button class="del" type="button" data-del="'+esc(j.id)+'" aria-label="'+esc(j.title)+' を消す">×</button></div>';});}
   if(SHOW_IMPORT)h+=(msg||'')+'<button class="back" id="pickjson" type="button">事件のJSONを読み込む</button><input type="file" id="jsonfile" accept=".json,application/json" hidden>';
   $('card').innerHTML=h+HOME;$('overlay').hidden=false;
+  const pn=$('pname');let comp=false;
+  const keep=()=>{if(comp)return;const v=cutName(pn.value);if(v!==pn.value)pn.value=v;PROF.name=v;saveProf();};
+  pn.addEventListener('compositionstart',()=>{comp=true;});pn.addEventListener('compositionend',()=>{comp=false;keep();});
+  pn.oninput=keep;pn.onchange=()=>{comp=false;keep();};pn.onkeydown=e=>{if(e.key==='Enter'&&!e.isComposing)pn.blur();};
+  $('card').querySelectorAll('[data-role]').forEach(b=>{b.onclick=()=>{PROF.role=b.dataset.role;saveProf();$('card').querySelectorAll('[data-role]').forEach(x=>x.setAttribute('aria-pressed',String(x===b)));deskTags();idle();};});
   $('card').querySelectorAll('.stage[data-id]').forEach(b=>{b.onclick=()=>{load(b.dataset.id);idle();showBrief();};});
   $('card').querySelectorAll('[data-del]').forEach(b=>{b.onclick=()=>{const id=b.dataset.del;USER=USER.filter(j=>j.id!==id);delete CASES[id];saveUser();if(C&&C.id===id){load(ORDERED[0]);idle();}showSelect();};});
   if(SHOW_IMPORT){$('pickjson').onclick=()=>$('jsonfile').click();$('jsonfile').onchange=e=>{const f=e.target.files&&e.target.files[0];if(f)readJson(f);};}
@@ -776,7 +805,7 @@ function showBrief(){
   const b=bestText(C.id),nm=esc(WHO.def.n);
   const rules=K?[[L.press,'きに なる ことばを もっと きく。'],[L.rec,'しょうこを みる。おはなしと ちがう しょうこを えらんで「'+L.go+'」'],[null,'まちがえても だいじょうぶ。'+WHO.def.n+'が ヒントを くれるよ。']]
                :[[L.press,'発言をくわしく聞く。何度でもできる。'],[L.rec,'証拠を読む。証拠と食い違う発言の上でえらんで、'+L.go+'。外すと信頼が減る。'],[null,'信頼が尽きると有罪。']];
-  $('card').innerHTML='<p class="eyebrow">'+esc(C.eyebrow)+(C.tagline?' ・ '+esc(C.tagline):'')+'</p><h1>'+esc(C.title)+'</h1><p>'+esc(C.brief)+'</p>'+
+  $('card').innerHTML='<p class="eyebrow">'+esc(C.eyebrow)+(C.tagline?' ・ '+esc(C.tagline):'')+'</p><h1>'+esc(C.title)+'</h1><p>'+esc(rt(C.brief))+'</p>'+
    '<ul>'+rules.map(r=>'<li>'+(r[0]?'<b>'+esc(r[0])+'</b> ':'')+esc(r[1])+'</li>').join('')+'</ul>'+
    (b?'<p class="eyebrow">'+(K?'いままでの きろく ':'自己ベスト ')+b+'</p>':'')+
    '<button class="go" id="start" type="button">'+esc(L.start)+'</button>'+
@@ -800,19 +829,19 @@ function verdict(){
   }else{
     const rank=S.miss===0?'S':S.miss===1?'A':S.miss<=3?'B':'C';score=rank;
     if(!b||ORDER.indexOf(rank)>ORDER.indexOf(b.rank)){rec=true;save(C.id,{rank:rank});}
-    rows='<tr><td>外した証拠</td><td>'+S.miss+' 回</td></tr><tr><td>問いただした回数</td><td>'+S.press+' 回</td></tr><tr><td>弁護評価'+(rec?'(自己ベスト更新)':'')+'</td><td>'+rank+'</td></tr>';
+    rows='<tr><td>外した証拠</td><td>'+S.miss+' 回</td></tr><tr><td>問いただした回数</td><td>'+S.press+' 回</td></tr><tr><td>'+(DET()?'探偵':'弁護')+'評価'+(rec?'(自己ベスト更新)':'')+'</td><td>'+rank+'</td></tr>';
   }
   $('card').innerHTML='<p class="eyebrow">'+esc(C.eyebrow)+' '+esc(C.title)+(K?'':' ・ 判決')+'</p>'+
    '<div class="verdict"><h1>'+esc(C.end.h1)+'</h1><span class="rank'+(K?' stars':'')+'">'+score+'</span></div>'+
-   '<p>'+esc(C.end.text)+'</p><table>'+rows+'</table>'+
-   '<button class="go" id="start" type="button">'+(K?'もう いちど あそぶ':'もう一度弁護する')+'</button>'+
+   '<p>'+esc(rt(C.end.text))+'</p><table>'+rows+'</table>'+
+   '<button class="go" id="start" type="button">'+(K?'もう いちど あそぶ':(DET()?'もう一度推理する':'もう一度弁護する'))+'</button>'+
    '<button class="back" id="back" type="button">'+(K?'ステージを えらぶ':'ステージ選択へ')+'</button>'+HOME;
   $('overlay').hidden=false;$('start').onclick=begin;$('back').onclick=()=>{idle();showSelect();};
 }
 function gameOver(){
   S.mode='end';
   $('card').innerHTML='<p class="eyebrow">'+esc(C.eyebrow)+' '+esc(C.title)+'</p><h1>有罪</h1>'+
-   '<p>裁判長の信頼を失い、弁護は打ち切られた。</p>'+
+   '<p>裁判長の信頼を失い、'+(DET()?'尋問':'弁護')+'は打ち切られた。</p>'+
    '<p>手がかり: 発言を問いただすと、証人は細かいことを口にします。その細部を法廷記録と見くらべてください。</p>'+
    '<button class="go" id="start" type="button">この証言からやり直す</button>'+
    '<button class="back" id="back" type="button">ステージ選択へ</button>'+HOME;
