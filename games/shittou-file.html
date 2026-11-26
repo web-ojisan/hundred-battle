@@ -127,6 +127,8 @@ body.norail .rail{visibility:hidden}
 .toplink{align-self:center;background:none;border:0;color:#3d6064;font-weight:700;font-size:14px;text-decoration:underline;padding:6px 12px}
 .trobtn{display:inline-flex;align-items:center;gap:6px;background:none;border:2px solid #0e3b40;color:#0e3b40;border-radius:99px;padding:5px 12px;font-weight:700;font-size:13px;font-variant-numeric:tabular-nums}
 .trobtn svg{width:18px;height:18px;flex:none;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.trogroup{flex:none;font-size:13px;font-weight:700;color:#0e3b40;border-bottom:2px solid #0e3b40;padding-bottom:2px;margin-top:4px}
+.trogroup small{font-weight:700;color:#3d6064;font-variant-numeric:tabular-nums}
 .trophies{display:grid;grid-template-columns:1fr 1fr;gap:6px;flex:none}
 .trophy{display:flex;gap:8px;align-items:center;padding:8px;border-radius:6px;background:#dfe7dc;color:#5d7477}
 .trophy svg{width:22px;height:22px;flex:none;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
@@ -305,11 +307,12 @@ function rate(label,p){
   const cool=(!S.tut&&!S.field&&diff==='vet')?150:100,cap=chainCap();
   S.pc++;S.maxScore+=cool*Math.min(cap,1+.1*(S.pc-1));
   let text=label;
-  if(label==='COOL'){S.chain++;S.score+=Math.round(cool*Math.min(cap,1+.1*(S.chain-1)));if(cap>1&&S.chain>=2)text='COOL ×'+S.chain;}
+  if(label==='BAD'&&S.field&&S.cur)S.cur.st.bad++;
+  if(label==='COOL'){S.chain++;if(S.field)S.field.maxChain=Math.max(S.field.maxChain,S.chain);S.score+=Math.round(cool*Math.min(cap,1+.1*(S.chain-1)));if(cap>1&&S.chain>=2)text='COOL ×'+S.chain;}
   else{S.chain=0;S.score+=label==='GOOD'?60:10;}
   pop(label,p,text);sfx[label]();
 }
-function damage(n,p,label){S.chain=0;if(!S.tut)S.vit-=n;S.counts.BAD++;pop(label||'BAD',p);S.shake=.3;sfx.BAD();}
+function damage(n,p,label){S.chain=0;if(!S.tut)S.vit-=n;S.counts.BAD++;if(S.field&&S.cur)S.cur.st.bad++;pop(label||'BAD',p);S.shake=.3;sfx.BAD();}
 
 /* ---------- step logic ---------- */
 function applyGel(p){
@@ -341,7 +344,7 @@ function updBugs(dt){
     let bd=1e9;S.bugs.forEach(b=>{if(b.state!=='alive')return;const d=dist(b,S.ptr);if(d<b.r+16&&d<bd){bd=d;hit=b;}});
     S.lz+=dt;if(S.lz>.09){S.lz=0;tone(hit?1400:300,.05,'sawtooth',.025);}
     if(hit){hit.hp-=dt;hit.hitT=.35;}
-    else{if(!S.tut)S.vit-=3*dt;S.misfire+=dt;const l=S.scorch[S.scorch.length-1];if(!l||dist(l,S.ptr)>10){S.scorch.push({x:S.ptr.x,y:S.ptr.y});if(S.scorch.length>80)S.scorch.shift();}}
+    else{if(!S.tut)S.vit-=3*dt;S.misfire+=dt;if(S.field&&S.cur)S.cur.st.scorch=true;const l=S.scorch[S.scorch.length-1];if(!l||dist(l,S.ptr)>10){S.scorch.push({x:S.ptr.x,y:S.ptr.y});if(S.scorch.length>80)S.scorch.shift();}}
   }
   const born=[],open=S.wounds.filter(w=>!w.closed).length;
   S.bugs.forEach(b=>{
@@ -363,7 +366,7 @@ function updBugs(dt){
     b.x=clamp(b.x+Math.cos(b.ang)*sp*dt,110,690);b.y=clamp(b.y+Math.sin(b.ang)*sp*dt,140,500);
     b.biteT-=dt;
     if(b.biteT<=0){b.biteT=(9+Math.random()*6)*D().bite;
-      if(open+born.length<4&&S.wounds.filter(w=>!w.closed).length<4){const q=Math.random()*3.14;addWound(b.x,b.y,Math.cos(q),Math.sin(q));S.vit-=2;pop('裂傷',b);S.shake=.15;sfx.BAD();}}
+      if(open+born.length<4&&S.wounds.filter(w=>!w.closed).length<4){const q=Math.random()*3.14;addWound(b.x,b.y,Math.cos(q),Math.sin(q));S.vit-=2;if(S.field&&S.cur)S.cur.st.bit++;pop('裂傷',b);S.shake=.15;sfx.BAD();}}
   });
   born.forEach(n=>S.bugs.push(n));
 }
@@ -457,13 +460,14 @@ function onUp(p){
   else if(a.type==='grab'){
     const f=a.f;
     if(f.state==='in')f.pull=0;
-    else if(inTray(f)){f.state='done';sfx.GOOD();checkInside();}
+    else if(inTray(f)){f.state='done';sfx.GOOD();if(S.field){TS.frags++;saveTrophies();}checkInside();}
   }
   else if(a.type==='carry'){if(inTray(a.o)){a.o.state='done';sfx.GOOD();checkInside();}}
   else if(a.type==='suture'){
     let ok=false,tried=false;
     a.tr.forEach(tr=>{
       const c=tr.cross;if(c.length)tried=true;
+      if(c.length&&tr.w===S.inc&&S.field&&S.cur)S.cur.st.incTry++;
       const spanOK=!tr.w.span||(Math.min.apply(null,c)<=N*.28&&Math.max.apply(null,c)>=N*.72);
       if(c.length>=tr.w.need&&spanOK){
         tr.w.closed=true;tr.w.stitches=c.slice();ok=true;
@@ -516,7 +520,7 @@ function update(dt){
   if(S.step==='inside'&&bugMode()&&S.fade<.4)updBugs(dt);
   if(fill.on&&S.syr<1){
     if(S.field&&!fill.paid){
-      if(S.field.stock>0){S.field.stock--;S.field.usedStab=true;fill.paid=true;}
+      if(S.field.stock>0){S.field.stock--;S.field.usedStab=true;S.field.stabUsed++;if(S.cur)S.cur.st.stab++;fill.paid=true;}
       else if(!fill.warned){fill.warned=true;hint('安定剤の在庫がありません。補給を待ってください。');}
     }
     if(!S.field||fill.paid){S.syr=Math.min(1,S.syr+dt/.7);if(S.syr>=1)sfx.GOOD();}
@@ -965,33 +969,81 @@ function nurseUpdate(){
 }
 
 /* ---------- trophies ---------- */
+/* g=系統。d=条件(獲得するまで一覧では「???」)。t(F)=達成判定。F は S.field(出動1回ぶんの記録) */
 const TROPHIES=[
-  {id:'first',n:'初陣',d:'1人救命する',t:F=>F.saved>=1},
-  {id:'medic',n:'衛生兵',d:'1回の出動で5人救命',t:F=>F.saved>=5},
-  {id:'surgeon',n:'軍医',d:'1回の出動で10人救命',t:F=>F.saved>=10},
-  {id:'master',n:'野戦の名医',d:'1回の出動で20人救命',t:F=>F.saved>=20},
-  {id:'nolost',n:'誰も失わない',d:'喪失0のまま8人救命',t:F=>F.saved>=8&&F.lost===0},
-  {id:'duo',n:'二正面作戦',d:'急患と預けた患者を両方救う',t:F=>F.duo},
-  {id:'thrift',n:'節約家',d:'安定剤を使わず5人救命',t:F=>F.saved>=5&&!F.usedStab},
-  {id:'precise',n:'精密機械',d:'BAD・MISSなしで5人救命',t:F=>F.saved>=5&&S.counts.BAD===0},
-  {id:'purge',n:'駆除班',d:'通算30体の寄生体を焼く',t:()=>TS.kills>=30},
-  {id:'legend',n:'百戦錬磨',d:'通算50人救命',t:()=>TS.total>=50}
+  {g:'救命',id:'first',n:'初陣',d:'1人救命する',t:F=>F.saved>=1},
+  {g:'救命',id:'medic',n:'衛生兵',d:'1回の出動で5人救命',t:F=>F.saved>=5},
+  {g:'救命',id:'surgeon',n:'軍医',d:'1回の出動で10人救命',t:F=>F.saved>=10},
+  {g:'救命',id:'master',n:'野戦の名医',d:'1回の出動で20人救命',t:F=>F.saved>=20},
+  {g:'救命',id:'icon',n:'生ける伝説',d:'1回の出動で30人救命',t:F=>F.saved>=30},
+  {g:'通算',id:'legend',n:'百戦錬磨',d:'通算50人救命',t:()=>TS.total>=50},
+  {g:'通算',id:'thousand',n:'千手観音',d:'通算200人救命',t:()=>TS.total>=200},
+  {g:'通算',id:'purge',n:'駆除班',d:'通算30体の寄生体を焼く',t:()=>TS.kills>=30},
+  {g:'通算',id:'nemesis',n:'害虫の天敵',d:'通算150体の寄生体を焼く',t:()=>TS.kills>=150},
+  {g:'通算',id:'shards',n:'破片コレクター',d:'通算100個の破片をトレイへ',t:()=>TS.frags>=100},
+  {g:'激務',id:'ot5',n:'残業',d:'1回の出動を5分続ける',t:F=>F.elapsed>=300},
+  {g:'激務',id:'ot10',n:'当直',d:'1回の出動を10分続ける',t:F=>F.elapsed>=600},
+  {g:'激務',id:'ot15',n:'連続勤務',d:'1回の出動を15分続ける',t:F=>F.elapsed>=900},
+  {g:'激務',id:'ot20',n:'不眠不休',d:'1回の出動を20分続ける',t:F=>F.elapsed>=1200},
+  {g:'激務',id:'seeoff',n:'見送る側',d:'看護師の交代を見届ける',t:F=>F.nurse>=1},
+  {g:'激務',id:'allnurse',n:'みんな帰った',d:'4人の看護師全員と働く',t:F=>F.nurse>=3},
+  {g:'激務',id:'welcome',n:'おかえりなさい',d:'最初の看護師が戻ってくるまで続ける',t:F=>F.nurse>=4},
+  {g:'腕前',id:'precise',n:'精密機械',d:'BAD・MISSなしで5人救命',t:F=>F.saved>=5&&S.counts.BAD===0},
+  {g:'腕前',id:'cool10',n:'COOLの鬼',d:'COOL を10連続',t:F=>F.maxChain>=10},
+  {g:'腕前',id:'cool25',n:'神の手',d:'COOL を25連続',t:F=>F.maxChain>=25},
+  {g:'腕前',id:'clean',n:'無傷の執刀',d:'破片4個以上の患者を BAD なしで救命',t:F=>F.tClean},
+  {g:'腕前',id:'noscorch',n:'誤射ゼロ',d:'組織を焼かずに寄生体の患者を3人救命',t:F=>F.cleanBug>=3},
+  {g:'腕前',id:'onestroke',n:'一筆書き',d:'切開部の縫合を1回目のなぞりで決めて5人救命',t:F=>F.oneStroke>=5},
+  {g:'腕前',id:'perfect',n:'完璧主義',d:'喪失0・BAD 0・安定剤なしで5人救命',t:F=>F.saved>=5&&F.lost===0&&S.counts.BAD===0&&!F.usedStab},
+  {g:'スピード',id:'flash',n:'電光石火',d:'患者を手術台に乗せて15秒以内に救命',t:F=>F.tFast},
+  {g:'スピード',id:'cook3',n:'3分クッキング',d:'出動から3分以内に5人救命',t:F=>F.saved>=5&&F.elapsed<=180},
+  {g:'スピード',id:'flow',n:'流れ作業',d:'手術台を5秒以上空けずに5人連続救命',t:F=>F.flow>=5},
+  {g:'ピンチ',id:'nolost',n:'誰も失わない',d:'喪失0のまま8人救命',t:F=>F.saved>=8&&F.lost===0},
+  {g:'ピンチ',id:'edge',n:'崖っぷち',d:'2人失ってから、さらに5人救命',t:F=>F.after2>=5},
+  {g:'ピンチ',id:'revive',n:'蘇生',d:'バイタル5以下まで落ちた患者を救命',t:F=>F.tRevive},
+  {g:'ピンチ',id:'rope',n:'綱渡り',d:'バイタル20以下になった患者を、安定剤を打たずに救命',t:F=>F.tRope},
+  {g:'ピンチ',id:'close',n:'間一髪',d:'待機中にバイタル15以下になった患者を選んで救命',t:F=>F.tClose},
+  {g:'ピンチ',id:'full',n:'満床',d:'待機カード3枚の状態から、誰も失わず3人とも救命',t:F=>F.tFull},
+  {g:'急患',id:'duo',n:'二正面作戦',d:'急患と預けた患者を両方救う',t:F=>F.duo},
+  {g:'急患',id:'duo3',n:'二刀流',d:'1回の出動で急患の交代を3回成功',t:F=>F.duos>=3},
+  {g:'急患',id:'return',n:'ぎりぎりの帰還',d:'預けた患者に、維持の残り5秒以内で戻る',t:F=>F.tReturn},
+  {g:'急患',id:'urgent5',n:'急患キラー',d:'1回の出動で急患を5人救命',t:F=>F.urgSaved>=5},
+  {g:'急患',id:'noswap',n:'預けない主義',d:'一度も交代せずに8人救命',t:F=>F.saved>=8&&F.swaps===0},
+  {g:'安定剤',id:'thrift',n:'節約家',d:'安定剤を使わず5人救命',t:F=>F.saved>=5&&!F.usedStab},
+  {g:'安定剤',id:'hoard',n:'備蓄王',d:'安定剤を5本まで貯める',t:F=>F.stock>=5},
+  {g:'安定剤',id:'spender',n:'大盤振る舞い',d:'1回の出動で安定剤を8本使う',t:F=>F.stabUsed>=8},
+  {g:'安定剤',id:'lastone',n:'最後の1本',d:'安定剤0本の状態で3人救命',t:F=>F.zeroSaves>=3},
+  {g:'寄生体・患者',id:'mother',n:'母体狩り',d:'分裂する母体のいる患者を救命',t:F=>F.tMother},
+  {g:'寄生体・患者',id:'nobite',n:'瞬殺',d:'一度も噛まれずに寄生体の患者を救命',t:F=>F.tNoBite},
+  {g:'寄生体・患者',id:'course',n:'フルコース',d:'1回の出動で4種類の患者をすべて救命',t:F=>Object.keys(F.types).length>=4},
+  {g:'変わり種',id:'silent',n:'無言の執刀',d:'音を OFF のまま5人救命',t:F=>F.saved>=5&&F.mute},
+  {g:'変わり種',id:'nopause',n:'ポーズ知らず',d:'一度もポーズせずに10人救命',t:F=>F.saved>=10&&!F.paused},
+  {g:'変わり種',id:'zorome',n:'ゾロ目',d:'スコアの下3桁がぞろ目で撤収',t:F=>F.over&&S.score>=111&&S.score%1000%111===0&&S.score%1000>0},
+  {g:'変わり種',id:'closed',n:'開店休業',d:'誰も救えずに撤収',t:F=>F.over&&F.saved===0},
+  {g:'変わり種',id:'waiting',n:'待たせすぎ',d:'待機中の患者だけを3人失って撤収',t:F=>F.over&&F.lostQ>=3}
 ];
-let TS={ids:[],kills:0,total:0};
-function loadTrophies(){try{const p=JSON.parse(localStorage.getItem('shittou-trophies')||'null');if(p&&Array.isArray(p.ids))TS={ids:p.ids,kills:p.kills|0,total:p.total|0};}catch(e){}}
+let TS={ids:[],kills:0,total:0,frags:0};
+function loadTrophies(){try{const p=JSON.parse(localStorage.getItem('shittou-trophies')||'null');if(p&&Array.isArray(p.ids))TS={ids:p.ids,kills:p.kills|0,total:p.total|0,frags:p.frags|0};}catch(e){}}
 function saveTrophies(){try{localStorage.setItem('shittou-trophies',JSON.stringify(TS));}catch(e){}}
 function trophyCheck(){
   const F=S.field;if(!F)return;
+  let got=false;
   TROPHIES.forEach(T=>{
     if(TS.ids.indexOf(T.id)>=0||!T.t(F))return;
-    TS.ids.push(T.id);F.newT.push(T.n);hint('トロフィー獲得「'+T.n+'」');pop('トロフィー',{x:400,y:190});
+    got=true;TS.ids.push(T.id);F.newT.push(T.n);hint('トロフィー獲得「'+T.n+'」');pop('トロフィー',{x:400,y:190});
   });
-  saveTrophies();
+  if(got)saveTrophies();
 }
 const CUP='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4h10v5a5 5 0 0 1-10 0z"/><path d="M7 6H4a3 3 0 0 0 3 4M17 6h3a3 3 0 0 1-3 4M12 14v4M8 20h8"/></svg>';
+/* 名前は全部見せる。条件は獲得するまで「???」 */
 function trophyHtml(){
-  return '<p class="eyebrow">トロフィー '+TS.ids.length+' / '+TROPHIES.length+'</p><div class="trophies">'+
-    TROPHIES.map(T=>'<div class="trophy'+(TS.ids.indexOf(T.id)>=0?' got':'')+'">'+CUP+'<div><b>'+T.n+'</b><span>'+T.d+'</span></div></div>').join('')+'</div>';
+  const has=T=>TS.ids.indexOf(T.id)>=0,groups=[];
+  TROPHIES.forEach(T=>{if(groups.indexOf(T.g)<0)groups.push(T.g);});
+  return '<p class="eyebrow">トロフィー '+TS.ids.filter(id=>TROPHIES.some(T=>T.id===id)).length+' / '+TROPHIES.length+'</p>'+groups.map(g=>{
+    const L=TROPHIES.filter(T=>T.g===g);
+    return '<p class="trogroup">'+g+' <small>'+L.filter(has).length+' / '+L.length+'</small></p><div class="trophies">'+
+      L.map(T=>'<div class="trophy'+(has(T)?' got':'')+'">'+CUP+'<div><b>'+T.n+'</b><span>'+(has(T)?T.d:'???')+'</span></div></div>').join('')+'</div>';
+  }).join('');
 }
 
 /* ---------- field hospital ---------- */
@@ -1013,13 +1065,17 @@ function genPatient(){
   for(let i=0;i<nw&&k<sp.length;i++,k++){const q=Math.random()*3.14;addWound(sp[k].x,sp[k].y,Math.cos(q),Math.sin(q),d.wounds);}
   d.wounds.forEach(w=>{w.r=18;});
   F.spawned++;
-  return{id:F.nextId++,type:type,urgent:urgent,d:d,holdT:0,n:{glass:'破片 '+d.frags.length,lac:'裂傷 '+d.wounds.length,bug:'寄生体 '+d.bugs.length,mix:'破片+寄生体'}[type]};
+  return{id:F.nextId++,type:type,urgent:urgent,d:d,holdT:0,
+    st:{bad:0,bit:0,stab:0,scorch:false,minVit:d.vit,table:0,incTry:0,fr:d.frags.length,bg:d.bugs.length,big:d.bugs.some(b=>b.big),pickVit:null},n:{glass:'破片 '+d.frags.length,lac:'裂傷 '+d.wounds.length,bug:'寄生体 '+d.bugs.length,mix:'破片+寄生体'}[type]};
 }
-function loadPatient(p){PKEYS.forEach(k=>{S[k]=p.d[k];});S.cur=p;A=null;S.fade=.8;}
+function loadPatient(p){PKEYS.forEach(k=>{S[k]=p.d[k];});S.cur=p;A=null;S.fade=.8;if(p.st.pickVit==null)p.st.pickVit=p.d.vit;}
 function stashPatient(){const p=S.cur;PKEYS.forEach(k=>{p.d[k]=S[k];});return p;}
 function clearTable(){S.cur=null;A=null;S.step='idle';S.view='idle';S.vit=75;S.frags=[];S.wounds=[];S.bugs=[];S.scorch=[];}
 function startField(){
-  S.field={queue:[],held:null,saved:0,lost:0,stock:3,arrive:8,elapsed:0,nextId:1,spawned:0,usedStab:false,swapStage:0,duo:false,newT:[],nurse:0,said:0,swap:0,chat:null};
+  S.field={queue:[],held:null,saved:0,lost:0,stock:3,arrive:8,elapsed:0,nextId:1,spawned:0,usedStab:false,swapStage:0,duo:false,newT:[],nurse:0,said:0,swap:0,chat:null,
+    /* ここから下はトロフィー判定用の記録 */
+    maxChain:0,cleanBug:0,oneStroke:0,flow:0,idle:0,after2:0,duos:0,urgSaved:0,swaps:0,stabUsed:0,zeroSaves:0,types:{},lostQ:0,full:null,tick:0,
+    mute:!soundOn,paused:false,over:false,tClean:false,tFast:false,tRevive:false,tRope:false,tClose:false,tFull:false,tReturn:false,tMother:false,tNoBite:false};
   S.time=0;clearTable();S.field.queue.push(genPatient());setTool('forceps');
 }
 function cardRect(i){return{x:16+i*188,y:10,w:180,h:54};}
@@ -1034,7 +1090,8 @@ function fieldTap(p){
       else if(F.held)hint('すでに1人預けています。これ以上は交代できません。');
       else{
         const cur=stashPatient();
-        if(F.stock>0){F.stock--;F.usedStab=true;cur.holdT=25;hint('安定剤を預かりました。約25秒は私が維持します。');}
+        F.swaps++;
+        if(F.stock>0){F.stock--;F.usedStab=true;F.stabUsed++;cur.holdT=25;hint('安定剤を預かりました。約25秒は私が維持します。');}
         else{cur.holdT=0;hint('安定剤がありません。預けた患者は弱っていきます。');}
         cur.wasHeld=true;q.viaSwap=true;F.swapStage=0;F.held=cur;F.queue.splice(i,1);loadPatient(q);sfx.GOOD();
       }
@@ -1045,23 +1102,46 @@ function fieldTap(p){
 }
 function nextAfter(){
   const F=S.field;
-  if(F.held){const h=F.held;F.held=null;loadPatient(h);hint('預けていた患者に戻ります。');}
+  if(F.held){const h=F.held;F.held=null;if(h.holdT>0&&h.holdT<=5)F.tReturn=true;loadPatient(h);hint('預けていた患者に戻ります。');}
   else clearTable();
 }
 function fieldSaved(){
   const F=S.field;F.saved++;S.score+=200;pop('救命',{x:400,y:250});sfx.done();
-  const pt=S.cur;if(pt){if(pt.viaSwap)F.swapStage=1;else if(pt.wasHeld&&F.swapStage===1)F.duo=true;}
+  const pt=S.cur;if(pt){if(pt.viaSwap)F.swapStage=1;else if(pt.wasHeld&&F.swapStage===1){F.duo=true;F.duos++;}}
+  if(pt){ /* トロフィー判定用: この患者ぶんの記録を出動の記録にまとめる */
+    const st=pt.st;
+    F.types[pt.type]=1;if(pt.urgent)F.urgSaved++;
+    if(st.fr>=4&&st.bad===0)F.tClean=true;
+    if(st.bg>0&&!st.scorch)F.cleanBug++;
+    if(st.bg>0&&st.bit===0)F.tNoBite=true;
+    if(st.big)F.tMother=true;
+    if(st.incTry===1)F.oneStroke++;
+    if(st.table<=15)F.tFast=true;
+    if(st.minVit<=5)F.tRevive=true;
+    if(st.minVit<=20&&st.stab===0)F.tRope=true;
+    if(st.pickVit<=15)F.tClose=true;
+    if(F.lost>=2)F.after2++;
+    if(F.stock===0)F.zeroSaves++;
+    F.flow++;
+    if(F.full){F.full.ids=F.full.ids.filter(id=>id!==pt.id);if(F.lost>F.full.lost)F.full=null;else if(!F.full.ids.length){F.tFull=true;F.full=null;}}
+  }
   TS.total++;
   if(F.saved%3===0){F.stock=Math.min(5,F.stock+2);hint('補給が届きました。安定剤 +2。');}
   trophyCheck();
   nextAfter();
 }
 function fieldLoss(msg){
-  const F=S.field;F.lost++;hint(msg);sfx.BAD();S.shake=.25;pop('喪失',{x:400,y:250});
+  const F=S.field;F.lost++;F.full=null;hint(msg);sfx.BAD();S.shake=.25;pop('喪失',{x:400,y:250});
   if(F.lost>=3)fieldOver();
 }
 function fieldUpdate(dt){
   const F=S.field;F.elapsed+=dt;S.time=F.elapsed;nurseUpdate();
+  /* トロフィー判定用の記録 */
+  if(soundOn)F.mute=false;
+  if(S.cur){const st=S.cur.st;st.table+=dt;st.minVit=Math.min(st.minVit,S.vit);F.idle=0;}
+  else{F.idle+=dt;if(F.idle>5)F.flow=0;}
+  if(F.queue.length>=3&&!F.full)F.full={ids:F.queue.map(q=>q.id),lost:F.lost};
+  F.tick+=dt;if(F.tick>=1){F.tick=0;trophyCheck();}
   F.arrive-=dt;if(!S.cur&&!F.queue.length&&!F.held)F.arrive=Math.min(F.arrive,1.2);
   if(F.arrive<=0){
     if(F.queue.length<3){F.queue.push(genPatient());tone(440,.12,'triangle',.07);tone(440,.12,'triangle',.07,.18);}
@@ -1069,7 +1149,7 @@ function fieldUpdate(dt){
   }
   for(let i=F.queue.length-1;i>=0;i--){
     const q=F.queue[i];q.d.vit-=(q.urgent?1.5:.45)*dt;
-    if(q.d.vit<=0){F.queue.splice(i,1);fieldLoss('待機中の患者を失いました。');if(S.mode!=='play')return;}
+    if(q.d.vit<=0){F.queue.splice(i,1);F.lostQ++;fieldLoss('待機中の患者を失いました。');if(S.mode!=='play')return;}
   }
   if(F.held){
     const h=F.held;
@@ -1088,7 +1168,7 @@ function fieldMsg(){
   return MSG.inside;
 }
 function fieldOver(){
-  const F=S.field;S.mode='fieldover';A=null;
+  const F=S.field;S.mode='fieldover';A=null;F.over=true;trophyCheck();
   const b=fieldBest();let rec=false;
   if(F.saved>0&&(!b||F.saved>b.saved)){rec=true;try{localStorage.setItem('shittou-field-best',JSON.stringify({saved:F.saved}));}catch(e){}}
   const t=Math.floor(F.elapsed);
@@ -1139,7 +1219,8 @@ function frame(now){
   const dt=Math.min(.05,(now-prev)/1000);prev=now;
   // 共通ポーズUIを開いている間は時間もバイタルも止める
   const po=document.getElementById('pauseOverlay');
-  if(!(po&&po.classList.contains('show')))update(dt);
+  if(po&&po.classList.contains('show')){if(S.field)S.field.paused=true;}
+  else update(dt);
   draw();hud();requestAnimationFrame(frame);
 }
 loadPref();loadTrophies();reset();showBrief();requestAnimationFrame(frame);
