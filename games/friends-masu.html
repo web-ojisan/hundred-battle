@@ -73,7 +73,8 @@
   .zone[data-p="2"] .zone-tag{background:var(--c2);}
   .zone[data-p="3"] .zone-tag{background:var(--c3);}
 
-  .zone-grid{flex:1;min-height:0;display:grid;gap:2px;}
+  /* マスはタップで選べない（解答場所は自動で進む） */
+  .zone-grid{flex:1;min-height:0;display:grid;gap:2px;pointer-events:none;}
   .cell{
     display:flex;align-items:center;justify-content:center;
     border-radius:5px;font-weight:800;overflow:hidden;
@@ -542,9 +543,7 @@
       for (let c=0;c<p.cols;c++){
         const el=document.createElement('div'); el.className='cell';
         const ans = p.op==='+' ? p.rowH[r]+p.colH[c] : p.rowH[r]*p.colH[c];
-        const idx=p.cells.length;
         const cell={el,r,c,ans:String(ans),done:false};
-        el.addEventListener('pointerdown',()=>selectCell(p,idx));
         p.cells.push(cell); g.appendChild(el);
       }
     }
