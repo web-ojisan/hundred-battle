@@ -206,9 +206,9 @@ body{overflow:hidden}
   font-family:var(--display);font-size:clamp(30px,8vw,64px);line-height:1.2;border-top:5px solid #fff;border-bottom:5px solid #fff;animation:sweep var(--t,1.4s) both cubic-bezier(.2,.9,.3,1)}
 .rays{position:absolute;left:50%;top:42%;width:170vmax;height:170vmax;margin:-85vmax 0 0 -85vmax;
   background:repeating-conic-gradient(rgba(255,255,255,0) 0 6deg,rgba(255,240,170,.75) 6deg 12deg,rgba(255,157,225,.55) 12deg 16deg,rgba(125,243,255,.55) 16deg 20deg,rgba(255,255,255,0) 20deg 30deg);
-  -webkit-mask:radial-gradient(circle,#000 0,rgba(0,0,0,.7) 22%,transparent 55%);mask:radial-gradient(circle,#000 0,rgba(0,0,0,.7) 22%,transparent 55%);animation:rays 2.4s linear both}
+  -webkit-mask:radial-gradient(circle,#000 0,rgba(0,0,0,.7) 22%,transparent 55%);mask:radial-gradient(circle,#000 0,rgba(0,0,0,.7) 22%,transparent 55%);animation:rays var(--t,2.4s) linear both}
 @keyframes rays{0%{opacity:0;transform:rotate(0) scale(.25)}14%{opacity:1;transform:rotate(20deg) scale(1)}82%{opacity:1}100%{opacity:0;transform:rotate(170deg) scale(1.1)}}
-.biggem{position:absolute;left:50%;top:42%;width:min(46vmin,340px);margin-left:calc(min(46vmin,340px)/-2);margin-top:calc(min(46vmin,340px)/-2);animation:biggem 2.4s both}
+.biggem{position:absolute;left:50%;top:42%;width:min(46vmin,340px);margin-left:calc(min(46vmin,340px)/-2);margin-top:calc(min(46vmin,340px)/-2);animation:biggem var(--t,2.4s) both}
 .biggem .gem{width:100%;animation:gemshine .5s ease-in-out infinite alternate}
 @keyframes gemshine{from{filter:drop-shadow(0 0 10px #fff) brightness(1)}to{filter:drop-shadow(0 0 34px #fff) drop-shadow(0 0 60px #ff9de1) brightness(1.25)}}
 /* 神秘のダイヤ: 逆まわりの光、ひろがる光の輪 */
@@ -217,13 +217,28 @@ body{overflow:hidden}
 .halo{position:absolute;left:50%;top:42%;width:40vmin;height:40vmin;margin:-20vmin 0 0 -20vmin;border-radius:50%;border:6px solid #fff;box-shadow:0 0 30px #fff,inset 0 0 30px #ffe58a;animation:halo 1.1s .15s ease-out both}
 .halo.h2{animation-delay:.75s;border-color:#ff9de1}
 @keyframes halo{from{transform:scale(.2);opacity:1}to{transform:scale(4.2);opacity:0}}
+/* 神秘のダイヤ(ハデ版)の 追加パーツ */
+.fx.mystic{background:radial-gradient(circle at 50% 42%,rgba(60,20,90,.55),rgba(11,49,56,.75))}
+.halo.h3{animation-delay:1.5s;border-color:#7df3ff}
+.edge{position:absolute;inset:0;box-shadow:inset 0 0 0 10px #fff,inset 0 0 60px 24px #ff9de1,inset 0 0 120px 40px #7df3ff;animation:edge 3.3s both}
+@keyframes edge{0%,100%{opacity:0}10%,30%,50%,70%,85%{opacity:1}20%,40%,60%{opacity:.55}}
+.band.rainbow{background:linear-gradient(90deg,#ff9de1,#ffe58a,#7df3ff,#b673ff,#ff9de1,#ffe58a,#7df3ff);background-size:300% 100%;animation:sweep var(--t,3.1s) both cubic-bezier(.2,.9,.3,1),slide 1.2s linear infinite;
+  font-size:clamp(36px,9.5vw,80px);text-shadow:0 0 .25em #fff}
+@keyframes slide{to{background-position:-150% 0}}
+.band.rainbow span{display:inline-block;animation:letter .6s both cubic-bezier(.2,1.8,.4,1),wig .5s 1s ease-in-out infinite alternate}
+@keyframes letter{from{transform:translateY(-120%) rotate(-30deg) scale(.3);opacity:0}}
+@keyframes wig{from{transform:translateY(0)}to{transform:translateY(-10%)}}
+.fw{position:absolute;width:10px;height:10px;margin:-5px;border-radius:50%;background:var(--c);box-shadow:0 0 10px var(--c),0 0 20px var(--c);opacity:0;animation:fw 1s var(--dl) cubic-bezier(.1,.7,.3,1) both}
+@keyframes fw{0%{opacity:1;transform:scale(.3)}60%{opacity:1}100%{opacity:0;transform:translate(var(--fx),calc(var(--fy) + 30px)) scale(.6)}}
+.grain2{position:absolute;top:-6%;left:var(--l);width:var(--w);height:var(--w);background:linear-gradient(135deg,#fff,#ff9de1 50%,#7df3ff);clip-path:polygon(22% 8%,78% 8%,100% 36%,50% 96%,0 36%);
+  filter:drop-shadow(0 0 6px #fff);animation:conf var(--d) var(--dl) linear both}
 /* 盤面で 見つかったあとも キラキラし続ける */
 .cell.found .gem.super{animation:supglow 1.4s ease-in-out infinite alternate}
 @keyframes supglow{from{filter:drop-shadow(0 0 .04em #fff)}to{filter:drop-shadow(0 0 .22em #fff) drop-shadow(0 0 .4em #ff9de1) brightness(1.15)}}
 .cell.justdug .gem.super{animation:gemburst .75s .1s both cubic-bezier(.2,1.5,.4,1),supglow 1.4s .9s ease-in-out infinite alternate}
 .sp{position:absolute;left:var(--l);top:var(--tp);font-size:.34em;line-height:1;color:#fff;text-shadow:0 0 .4em #fff,0 0 .8em #7df3ff;pointer-events:none;animation:tw 1.5s var(--dl) infinite}
 .chip.sup .gem:not(.gone){animation:supglow 1.4s ease-in-out infinite alternate}
-@keyframes biggem{0%{transform:scale(0) rotate(-180deg);opacity:0}16%{transform:scale(1.2) rotate(8deg);opacity:1}26%{transform:scale(1)}80%{transform:scale(1.05) rotate(-4deg);opacity:1}100%{transform:scale(1.6);opacity:0}}
+@keyframes biggem{0%{transform:scale(0) rotate(-180deg);opacity:0}12%{transform:scale(1.25) rotate(8deg);opacity:1}20%{transform:scale(1)}40%{transform:scale(1.12) rotate(-6deg)}55%{transform:scale(1) rotate(360deg)}70%{transform:scale(1.15) rotate(354deg)}85%{transform:scale(1.05) rotate(364deg);opacity:1}100%{transform:scale(1.8) rotate(360deg);opacity:0}}
 .tw{position:absolute;left:var(--l);top:var(--tp);font-size:var(--w);line-height:1;color:#fff;text-shadow:0 0 .4em #fff,0 0 .8em #ffe58a;animation:tw .7s var(--dl) both}
 @keyframes tw{0%,100%{transform:scale(0) rotate(0);opacity:0}50%{transform:scale(1) rotate(90deg);opacity:1}}
 @media (prefers-reduced-motion:reduce){.cell.found .gem.super,.sp,.chip.sup .gem:not(.gone),.cell.xnew::after,.cell.justdug,.cell.justdug .num,.cell.justdug .gem,.gem.dropin,.cell.ring,.chip b.bump{animation:none}}
@@ -401,7 +416,7 @@ function flyPoints(text,color,i,p,big){
     {transform:at(c,1.1),opacity:1,offset:.42},
     {transform:at(c,1),opacity:1,offset:.5},
     {transform:at(c,1),opacity:1,offset:.72},
-    {transform:at(b,.16),opacity:.9,offset:1}],{duration:big?1700:1200,easing:'ease-in-out',fill:'forwards'});
+    {transform:at(b,.16),opacity:.9,offset:1}],{duration:big>1?big:big?1700:1200,easing:'ease-in-out',fill:'forwards'});
   an.onfinish=()=>{e.remove();bumpScore(p);beep([1319]);};
 }
 function confetti(n){
@@ -416,6 +431,25 @@ function twinkles(n,big){
     'px;--dl:'+(Math.random()*(big?1.7:1.1)).toFixed(2)+'s;color:'+cols[j%cols.length]},j%3?'✦':'✧'));
   return a;
 }
+/* 花火: あちこちで 少しずつ 時間をずらして はじける */
+function fireworks(n){
+  const cols=['#ffe58a','#ff9de1','#7df3ff','#ffffff','#b673ff','#56c271'],a=[];
+  for(let k=0;k<n;k++){
+    const x=Math.round(10+Math.random()*80),y=Math.round(12+Math.random()*62),dl=(.25+k*.42+Math.random()*.15).toFixed(2),c=cols[k%cols.length],R0=90+Math.random()*90;
+    for(let j=0;j<16;j++){
+      const ang=j/16*6.283+Math.random()*.2,d=R0*(.75+Math.random()*.4);
+      a.push(el('i',{class:'fw',style:'left:'+x+'%;top:'+y+'%;--c:'+(j%4?c:'#fff')+';--dl:'+dl+'s;--fx:'+Math.round(Math.cos(ang)*d)+'px;--fy:'+Math.round(Math.sin(ang)*d)+'px'}));
+    }
+  }
+  return a;
+}
+/* 小さな ダイヤの 雨 */
+function gemRain(n){
+  const a=[],H=rot.offsetHeight;
+  for(let j=0;j<n;j++)a.push(el('i',{class:'grain2',style:'--l:'+Math.round(Math.random()*100)+'%;--w:'+Math.round(18+Math.random()*26)+'px;--d:'+(1.3+Math.random()*1.1).toFixed(2)+'s;--dl:'+(.2+Math.random()*1.5).toFixed(2)+
+    's;--dx:'+Math.round(-60+Math.random()*120)+'px;--fall:'+Math.round(H*1.15)+'px;--r:'+Math.round(-360+Math.random()*720)+'deg'}));
+  return a;
+}
 function shakeApp(){app.classList.remove('shake');void app.offsetWidth;app.classList.add('shake');setTimeout(()=>app.classList.remove('shake'),500);}
 /* ほった結果ごとの演出。render のあと(マスができてから)に呼ぶ */
 function celebrate(f){
@@ -426,12 +460,16 @@ function celebrate(f){
     fxLayer('dim',1700,[el('div',{class:'gflash'}),el('div',{class:'band'},'おおあたり!')].concat(confetti(44)),'--t:1.6s');
     shakeApp();
   }else if(f.kind==='super'){
-    fxLayer('dim',2450,[el('div',{class:'gflash'}),el('div',{class:'rays'}),el('div',{class:'rays r2'}),el('div',{class:'halo'}),el('div',{class:'halo h2'}),
-      el('div',{class:'biggem'},gem('S')),el('div',{class:'band',style:'--t:2.2s'},'神秘のダイヤ!')].concat(twinkles(46,true),confetti(30)),'--t:2.4s');
-    shakeApp();setTimeout(shakeApp,520);
-    beep([1568,2093,1568,2093,2637]);
+    /* 神秘のダイヤ: 光の筋・光の輪・花火・ダイヤの雨・虹色のふち。約3.3秒 */
+    fxLayer('dim mystic',3350,[el('div',{class:'gflash'}),el('div',{class:'rays'}),el('div',{class:'rays r2'}),
+      el('div',{class:'halo'}),el('div',{class:'halo h2'}),el('div',{class:'halo h3'}),el('div',{class:'edge'}),
+      el('div',{class:'biggem'},gem('S')),
+      el('div',{class:'band rainbow',style:'--t:3.1s'},[...'神秘のダイヤ!'].map((ch,j)=>el('span',{style:'animation-delay:'+(.25+j*.07).toFixed(2)+'s'},ch)))]
+      .concat(fireworks(6),gemRain(22),twinkles(60,true),confetti(46)),'--t:3.3s');
+    shakeApp();setTimeout(shakeApp,520);setTimeout(shakeApp,1250);
+    beep([1047,1319,1568,2093,1568,2093,2637]);setTimeout(()=>beep([2093,2637,3136,2637,3136]),950);setTimeout(()=>beep([1568,2093,2637,3136]),1900);
   }
-  flyPoints(f.text,f.color,f.i,f.p,f.kind!=='hit');
+  flyPoints(f.text,f.color,f.i,f.p,f.kind==='super'?2700:f.kind!=='hit');
 }
 
 /* 席と回転: 0=てまえ 1=ひだり 2=むこう 3=みぎ */
@@ -538,7 +576,7 @@ function dig(i){
   const gone=owners.filter(q=>leftOf(q)===0);
   let wait=0;
   if(gone.length&&S.phase==='play'){
-    wait={hit:1100,bonus:1650,super:2350,own:950}[fx.kind]||0;
+    wait={hit:1100,bonus:1650,super:3300,own:950}[fx.kind]||0;
     if(reduce)showGone(gone);else setTimeout(()=>showGone(gone),wait);
     wait+=1500;
   }
