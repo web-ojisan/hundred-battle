@@ -122,6 +122,8 @@ body.attop .monitor,body.attop .say,body.attop .rail{visibility:hidden}
 .eyebrow.withface{display:flex;align-items:center;gap:10px}
 body.norail .rail{visibility:hidden}
 .toplink{align-self:center;background:none;border:0;color:#3d6064;font-weight:700;font-size:14px;text-decoration:underline;padding:6px 12px}
+.trobtn{display:inline-flex;align-items:center;gap:6px;background:none;border:2px solid #0e3b40;color:#0e3b40;border-radius:99px;padding:5px 12px;font-weight:700;font-size:13px;font-variant-numeric:tabular-nums}
+.trobtn svg{width:18px;height:18px;flex:none;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 .trophies{display:grid;grid-template-columns:1fr 1fr;gap:6px;flex:none}
 .trophy{display:flex;gap:8px;align-items:center;padding:8px;border-radius:6px;background:#dfe7dc;color:#5d7477}
 .trophy svg{width:22px;height:22px;flex:none;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
@@ -754,7 +756,7 @@ const BRIEF={
     vet:'ベテラン:遊走体が1体多く、速く、よく噛みます。バイタルも下がりやすく、切開の判定も厳しくなります。'}
 };
 const caseLabel=()=>'CASE 0'+caseId+' '+CASES[caseId].name+' ・ '+DIFF[diff].label;
-let menu='top',erCase=1;
+let menu='top',erCase=1,troView=false; // troView: 野戦病院のトロフィー一覧を開いているか
 function loadPref(){try{const p=JSON.parse(localStorage.getItem('shittou-menu')||'null');if(p){if(p.c===1||p.c===2){caseId=p.c;erCase=p.c;}if(p.d==='rookie'||p.d==='vet')diff=p.d;}}catch(e){}}
 function savePref(){try{localStorage.setItem('shittou-menu',JSON.stringify({c:erCase,d:diff}));}catch(e){}}
 function bestFor(id,d){try{return JSON.parse(localStorage.getItem('shittou0'+id+'-best'+(d==='vet'?'-vet':''))||'null');}catch(e){return null;}}
@@ -787,15 +789,20 @@ function showBrief(){
       const fb=fieldBest();
       body='<p>負傷者が次々に運び込まれます。患者は開創済みです。処置を終えて切開部を縫えば救命です。3人失うと撤収になります。</p>'+
         '<ol><li>上の待機カードをタップして、次の患者を選ぶ</li><li>待たせるほど患者のバイタルは下がる</li><li>安定剤は本数制限あり。3人救うごとに2本補給</li>'+
-        '<li>赤い「急患」は手術中でも交代できる。安定剤を1本渡すと、看護師が今の患者を約25秒維持する</li></ol>'+trophyHtml();
-      setRow='<span>3人失うまで続きます</span><span>'+(fb?'ベスト 救命 '+fb.saved+'人':'ベスト —')+'</span>';go='出動する';
+        '<li>赤い「急患」は手術中でも交代できる。安定剤を1本渡すと、看護師が今の患者を約25秒維持する</li></ol>';
+      setRow='<span>3人失うまで続きます</span><span>'+(fb?'ベスト 救命 '+fb.saved+'人':'ベスト —')+'</span>'+
+        '<button type="button" class="trobtn" id="trophies" aria-label="トロフィーを見る">'+CUP+TS.ids.length+' / '+TROPHIES.length+'</button>';go='出動する';
     }
-    h='<div class="mhead row"><button type="button" class="back" id="back">← 戻る</button><h1>'+{tut:'臨床実習',er:'救急病院',field:'野戦病院'}[menu]+'</h1>'+faceSvg(curWho(),'normal',56)+'</div>'+
+    if(menu!=='field')troView=false;
+    if(troView)h='<div class="mhead row"><button type="button" class="back" id="back">← 戻る</button><h1>トロフィー</h1>'+faceSvg(curWho(),'normal',56)+'</div>'+
+      '<div class="mbody">'+trophyHtml()+'</div>';
+    else h='<div class="mhead row"><button type="button" class="back" id="back">← 戻る</button><h1>'+{tut:'臨床実習',er:'救急病院',field:'野戦病院'}[menu]+'</h1>'+faceSvg(curWho(),'normal',56)+'</div>'+
       '<div class="mbody">'+body+'</div><div class="mset">'+setRow+'</div><button class="go" id="start" type="button">'+go+'</button>';
   }
   card.className='card menu';card.innerHTML=h;overlay.hidden=false;document.body.classList.toggle('attop',menu==='top');document.body.classList.add('norail');
-  card.querySelectorAll('[data-menu]').forEach(el=>el.addEventListener('click',()=>{menu=el.dataset.menu;caseId=menu==='tut'?0:menu==='field'?3:erCase;reset();showBrief();}));
-  const bk=$('back');if(bk)bk.addEventListener('click',()=>{menu='top';showBrief();});
+  card.querySelectorAll('[data-menu]').forEach(el=>el.addEventListener('click',()=>{troView=false;menu=el.dataset.menu;caseId=menu==='tut'?0:menu==='field'?3:erCase;reset();showBrief();}));
+  const bk=$('back');if(bk)bk.addEventListener('click',()=>{if(troView)troView=false;else menu='top';showBrief();});
+  const tb=$('trophies');if(tb)tb.addEventListener('click',()=>{troView=true;showBrief();});
   const st=$('start');if(st)st.addEventListener('click',()=>{tutFrom=0;start();});
   card.querySelectorAll('[data-case]').forEach(el=>el.addEventListener('click',()=>{caseId=+el.dataset.case;erCase=caseId;savePref();reset();showBrief();}));
   card.querySelectorAll('[data-diff]').forEach(el=>el.addEventListener('click',()=>{diff=el.dataset.diff;savePref();reset();showBrief();}));
@@ -1048,8 +1055,10 @@ function fieldOver(){
    '<tr><td>処置スコア</td><td>'+S.score+'</td></tr>'+
    '<tr><td>今回のトロフィー</td><td>'+(F.newT.length?F.newT.join('、'):'—')+'</td></tr>'+
    '<tr><td>自己ベスト'+(rec?'(更新)':'')+'</td><td>'+(b?Math.max(b.saved,F.saved):F.saved)+'人</td></tr></table>'+
-   '<button class="go" id="start" type="button">もう一度出動する</button><button class="go alt" id="menu" type="button">戻る</button>';
+   '<button class="go" id="start" type="button">もう一度出動する</button><button class="go alt" id="menu" type="button">戻る</button>'+
+   '<button type="button" class="trobtn" id="trophies2" style="align-self:center">'+CUP+'トロフィーを見る '+TS.ids.length+' / '+TROPHIES.length+'</button>';
   overlay.hidden=false;$('start').addEventListener('click',start);menuBtn(null);cardFace(rec?'praise':'normal');
+  $('trophies2').addEventListener('click',()=>{menu='field';caseId=3;troView=true;reset();showBrief();});
 }
 function vitBar(c,x,y,w,v){c.fillStyle='#06191b';c.fillRect(x,y,w,10);c.fillStyle=v<30?'#ff5d52':'#7fe6c4';c.fillRect(x,y,w*Math.max(0,v)/99,10);}
 function drawField(c){
