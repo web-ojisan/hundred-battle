@@ -1,0 +1,693 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>あさの こない むら</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DotGothic16&family=Zen+Maru+Gothic:wght@500;700&display=swap" rel="stylesheet">
+<style>
+/* VOICE: spooky but friendly night village for 6-8 year olds; short lines, big buttons
+   IDEA: an old paper gamebook with tear-out props (hole sheets, colour lenses) laid over a block-world scene
+   PICTURE: the scene window; ghosts, hidden letters and props are separate layers over a swappable background
+   COLOUR and TYPE: night indigo field, paper story panel, lantern gold accent; DotGothic16 signs, Zen Maru Gothic story
+   LAYOUT: one column: header, scene, settings drawer, story panel with items and choices */
+:root{color-scheme:dark;--night:#141833;--night2:#0b0e22;--paper:#fff6dc;--ink:#2a2118;--gold:#ffd447;--edge:#06070f;
+--grass:#4f9a34;--grass-d:#35701f;--stone:#8d949c;--blue:#2f6fb0;--lava:#c8432c;
+--fd:"DotGothic16","Hiragino Maru Gothic ProN","BIZ UDGothic",sans-serif;
+--fb:"Zen Maru Gothic","Hiragino Maru Gothic ProN","BIZ UDGothic",sans-serif;--ts:20px;--tiny:.3}
+*{box-sizing:border-box;min-width:0}
+[hidden]{display:none!important}
+html,body{margin:0}
+body{background:var(--night2);background-image:linear-gradient(rgba(255,255,255,.03) 2px,transparent 2px),linear-gradient(90deg,rgba(0,0,0,.25) 2px,transparent 2px);background-size:32px 32px;color:var(--ink);font-family:var(--fb);font-weight:500;padding:12px;overflow-x:clip}
+main{max-width:760px;margin:0 auto;display:flex;flex-direction:column;gap:10px}
+button{font-family:inherit;color:inherit;cursor:pointer}
+:focus-visible{outline:4px solid var(--gold);outline-offset:2px}
+header{display:flex;align-items:center;gap:10px;flex-wrap:wrap;color:var(--paper)}
+h1{font-family:var(--fd);font-weight:400;font-size:24px;line-height:1.2;margin:0;flex:1 1 auto}
+.ends{display:flex;gap:5px}
+.ends i{width:16px;height:16px;border:2px solid var(--edge);background:#3a3550;display:block}
+.ends i.on{background:var(--gold)}
+.hbtn{font-family:var(--fd);font-size:17px;min-height:44px;background:var(--gold);color:var(--ink);border:3px solid var(--edge);padding:0 12px}
+.hbtns{display:flex;gap:8px}
+body.lefty .hbtns{flex-direction:row-reverse}
+#musbtn{position:relative;min-width:48px;font-size:22px}
+#pauseTrigger{min-width:48px;font-size:20px}
+.homelink{align-self:center;font-family:var(--fd);font-size:.85em;color:#6b5a3a;padding:6px 10px}
+#musbtn.off::after{content:"";position:absolute;left:8px;right:8px;top:50%;height:3px;background:var(--lava);transform:rotate(-35deg)}
+.hbtn.glow{animation:glow 1.4s ease-in-out infinite}
+@keyframes glow{50%{box-shadow:0 0 0 4px #fff,0 0 22px 8px var(--gold)}}
+/* scene */
+#stage{position:relative;aspect-ratio:16/10;border:4px solid var(--edge);overflow:hidden;background:#0d1030;container-type:inline-size;user-select:none;-webkit-user-select:none}
+#flip{position:absolute;inset:0;transition:transform .5s}
+#stage.flip #flip{transform:scaleX(-1)}
+#stage.gray #flip{filter:grayscale(1) contrast(2.4)}
+.bg,.bg>*{position:absolute;inset:0;width:100%;height:100%}
+.bg img{object-fit:cover}
+.lay{position:absolute;inset:0}
+.dark{position:absolute;inset:0;background:#02030c;pointer-events:none;transition:opacity .7s}
+.tg{position:absolute;overflow:hidden}
+.tg .base,.tg .rev{position:absolute;inset:0}
+.txt{font-size:2.6cqw;line-height:1.9;padding:3% 5%;color:#2a2118}
+.mag{font-size:1.05cqw;line-height:1.7;color:#2a2118;padding:6% 7%}
+.mag p{margin:0}
+.tiny{display:flex;align-items:center;justify-content:center;background:#efe4c4;border:.3cqw solid #6b4423}
+.tiny span{font-size:2cqw;white-space:nowrap;transform:scale(var(--tiny));transition:transform .4s;font-weight:700;color:#3a2a18}
+.grid{display:grid;grid-template-columns:repeat(6,1fr);grid-template-rows:repeat(5,1fr);background:#f6edd2;border:.4cqw solid #6b4423}
+.grid b{display:flex;align-items:center;justify-content:center;font-size:4cqw;font-weight:700;color:#3a2a18;border:1px solid rgba(107,68,35,.15)}
+.mir{display:inline-block;transform:scaleX(-1)}
+.mirror{display:inline-block;transform:scaleX(-1)}
+.ghost{position:absolute;transition:opacity .8s;animation:bob 3s ease-in-out infinite}
+.ghost svg,.ghost img{width:100%;height:auto;display:block;filter:drop-shadow(0 0 1.2cqw rgba(200,220,255,.55))}
+.ghost.crowd{pointer-events:none;animation-duration:4.5s}
+@keyframes bob{50%{translate:0 -1.2cqw}}
+.hot{position:absolute;border:.4cqw dashed rgba(255,212,71,.85);background:rgba(255,212,71,.08);padding:0;display:flex;align-items:flex-start;justify-content:center}
+.hot span{white-space:nowrap;font-family:var(--fd);font-size:2.3cqw;background:var(--gold);color:var(--ink);padding:0 .8cqw;border:.25cqw solid var(--edge);translate:0 -55%}
+.hot.book{border:none;background:none;align-items:stretch}
+.hot.book span{translate:none;width:100%;display:flex;align-items:center;justify-content:center;font-size:4cqw;background:transparent;border:none;color:#fff6dc;text-shadow:0 .2cqw 0 #000}
+.hot.book rt{font-size:.45em;color:#ffe9a8}
+.hot[disabled]{cursor:default;border-color:transparent;background:none}
+.sign{position:absolute;font-family:var(--fd);font-size:6cqw;background:#9b6a35;color:#fff6dc;border:.6cqw solid #4a2f14;padding:0 2cqw;line-height:1.4}
+.memo{position:absolute;inset:12% 10% 22%;background:#c9a46a;border:1cqw solid #5b3a18;display:flex;align-items:center;justify-content:center;text-align:center;font-family:var(--fd);font-size:4cqw;line-height:1.7;color:#2a1a0a}
+.flash{position:absolute;left:10%;right:10%;top:36%;text-align:center;font-family:var(--fd);font-size:4.4cqw;color:#fffbe0;text-shadow:0 0 2cqw #9fd8ff,0 0 1cqw #fff;opacity:0;pointer-events:none}
+.flash.on{opacity:1}
+.flowers{position:absolute;display:grid;grid-template-columns:repeat(12,1fr);grid-template-rows:repeat(6,1fr);border:.4cqw solid #2b4a1c}
+#tool{position:absolute;touch-action:none;cursor:grab;z-index:9}
+#tool.mag{border-radius:50%;border:1cqw solid #6b4423;background:rgba(255,255,240,.94);overflow:hidden;box-shadow:0 1cqw 2cqw rgba(0,0,0,.5)}
+#tool.mag .lin{position:absolute;left:0;top:0;transform-origin:0 0}
+#tool.red{background:rgba(230,40,40,.28);border:.8cqw solid #7a1010}
+#tool.blue{background:rgba(40,90,240,.28);border:.8cqw solid #10307a}
+#tool.sheet{display:grid;grid-template-columns:repeat(6,1fr);grid-template-rows:repeat(5,1fr);border:.4cqw solid #1a120b;box-shadow:0 1cqw 2cqw rgba(0,0,0,.5)}
+#tool.sheet i{background:#4a3424;border:1px solid #2a1a0e}
+#tool.sheet i.h{background:transparent;border:.35cqw solid #ffd447;border-radius:.6cqw}
+#tool.sheet.snap i.h{box-shadow:0 0 0 .4cqw #fff,inset 0 0 1.5cqw #ffd447}
+#tool.sheet .tag{position:absolute;right:-.4cqw;top:-4.5cqw;font-family:var(--fd);font-size:2.4cqw;background:var(--gold);padding:0 1cqw;border:.3cqw solid #1a120b}
+/* settings drawer */
+.modal{position:fixed;inset:0;z-index:30;display:flex;align-items:center;justify-content:center;padding:16px}
+.mbg{position:absolute;inset:0;background:rgba(4,5,14,.9)}
+#set{position:relative;width:min(600px,100%);max-height:calc(100vh - 32px);overflow:auto;background:#262a4a;border:4px solid var(--edge);color:var(--paper);padding:14px 16px 18px;display:flex;flex-direction:column;gap:10px;box-shadow:0 10px 40px rgba(0,0,0,.6)}
+.shead{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.x{font-size:26px;line-height:1;min-width:52px;min-height:52px;background:var(--gold);color:var(--ink);border:3px solid var(--edge)}
+#set h2{font-family:var(--fd);font-weight:400;font-size:20px;margin:0}
+.row{display:flex;align-items:center;gap:8px 10px;flex-wrap:wrap}
+.row>label,.row>span.k{width:8.5em;font-size:17px;font-weight:700}
+.seg{display:flex;gap:4px;flex-wrap:wrap}
+.seg button{min-width:44px;min-height:44px;font-size:16px;font-weight:700;background:#4a4f78;color:var(--paper);border:3px solid var(--edge);padding:0 10px}
+.seg button[aria-pressed=true]{background:var(--gold);color:var(--ink)}
+.row input{font-size:18px;font-family:var(--fb);padding:6px 8px;border:3px solid var(--edge);width:9em;min-height:44px}
+.small{font-size:15px;min-height:44px;background:#4a4f78;color:var(--paper);border:3px solid var(--edge);padding:0 12px}
+.small.warn{background:var(--lava)}
+/* panel */
+.panel{background:var(--paper);border:4px solid var(--edge);padding:14px 16px 16px;display:flex;flex-direction:column;gap:12px;font-size:var(--ts)}
+.chap{font-family:var(--fd);font-size:.75em;align-self:flex-start;background:#262a4a;color:var(--paper);padding:0 8px}
+.story{line-height:2.2;min-height:calc(var(--ts)*2.2*3 + 12px);cursor:pointer}
+.pg{display:flex;flex-direction:column;gap:4px}
+.pg p{margin:0}
+.pager{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.pager button{font-family:var(--fd);font-size:.9em;min-height:48px;min-width:6.5em;background:#e7dcb8;border:3px solid var(--edge);padding:0 12px}
+.pager button.nx{background:var(--gold)}
+.pager button[disabled]{opacity:.35;cursor:default}
+.pager span{font-family:var(--fd);font-size:.85em;color:#6b5a3a}
+.panel{position:relative}
+.bubs{position:absolute;left:12px;right:12px;top:38px;z-index:5;display:flex;flex-direction:column;gap:6px}
+.bubs>*{box-shadow:0 6px 16px rgba(0,0,0,.35);cursor:pointer;position:relative}
+.bubs>*::after{content:"×";position:absolute;right:8px;top:2px;font-weight:700;opacity:.5}
+.bubs .whisper{background:#efeaff;border:3px solid #9a8fd0;padding:4px 30px 4px 12px}
+.ring{position:absolute;width:6%;aspect-ratio:1;border:.6cqw solid rgba(255,236,170,.9);border-radius:50%;translate:-50% -50%;pointer-events:none;z-index:7;animation:ring 3.2s ease-out forwards}
+@keyframes ring{from{scale:.3;opacity:1}to{scale:9;opacity:0}}
+.story p{margin:0}
+.say{background:#e8e0ff;border:3px solid #514a7a;padding:4px 30px 4px 12px;line-height:2.1;margin:0}
+.say b{font-family:var(--fd);font-weight:400;margin-right:6px}
+.whisper{color:#5b4f88;font-style:italic;border-left:5px solid #9a8fd0;padding-left:10px;margin:0;line-height:2.1}
+.found{background:#fff0b0;border:3px dashed #b08a1a;padding:4px 30px 4px 12px;line-height:2.1;margin:0}
+ruby{ruby-position:over}
+rt{font-size:.5em;font-weight:700;color:#7a4a1e;user-select:none}
+body.nofuri rt{display:none}
+body.gray main{filter:grayscale(1)}
+body.lefty .choice{text-align:right}
+body.lefty .items{flex-direction:row-reverse}
+.row input[type=range]{width:min(320px,60vw);min-height:44px;padding:0;border:0;accent-color:var(--gold)}
+.dim{position:absolute;pointer-events:none;transition:opacity .4s}
+.dots{position:absolute;pointer-events:none}
+.dots i{position:absolute;width:.7cqw;height:.7cqw;background:#e8f0ff;box-shadow:0 0 .4cqw #fff}
+.hotaru{position:absolute;left:3%;top:5%;width:6%;background:none;border:0;padding:0;z-index:8;animation:fly 5s ease-in-out infinite}
+.hotaru svg{width:100%;height:auto;display:block;filter:drop-shadow(0 0 1.5cqw #d8ff6a)}
+.hotaru.call{animation:fly 5s ease-in-out infinite,blink .6s steps(2) infinite}
+@keyframes fly{50%{translate:1.5cqw 1.2cqw}}
+@keyframes blink{50%{opacity:.35}}
+.story.typing{cursor:pointer}
+.items{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.items:empty{display:none}
+.chip{font-family:var(--fd);font-size:.85em;min-height:44px;background:#e7dcb8;border:3px solid var(--edge);padding:0 10px;touch-action:none}
+.chip[aria-pressed=true]{background:var(--gold);box-shadow:0 0 0 3px #fff inset}
+.chip.key{cursor:default}
+.items .lbl{font-size:.75em;font-weight:700;color:#6b5a3a}
+.choices{display:flex;flex-direction:column;gap:10px}
+.choice{font-size:1.02em;font-weight:700;line-height:2;text-align:left;background:var(--grass);color:#fff;border:4px solid var(--edge);box-shadow:inset 0 -6px 0 var(--grass-d),inset 0 4px 0 rgba(255,255,255,.25);padding:4px 16px 10px}
+.choice rt{color:#eaffd9}
+.choice.back{background:var(--stone);box-shadow:inset 0 -6px 0 #5d646c,inset 0 4px 0 rgba(255,255,255,.25)}
+.choice.go{background:var(--blue);box-shadow:inset 0 -6px 0 #1f4f80,inset 0 4px 0 rgba(255,255,255,.25)}
+.choice.warn{background:#7a3a8a;box-shadow:inset 0 -6px 0 #4f2060,inset 0 4px 0 rgba(255,255,255,.25)}
+.choice[disabled]{opacity:.5;cursor:default}
+.choice:active{transform:translateY(2px)}
+form.ask{display:flex;gap:8px;flex-wrap:wrap}
+form.ask input{font-size:22px;font-family:var(--fb);padding:6px 10px;border:4px solid var(--edge);flex:1 1 10em;min-height:52px}
+form.ask button{font-size:20px;font-weight:700;background:var(--grass);color:#fff;border:4px solid var(--edge);padding:0 18px;min-height:52px}
+.endt{font-family:var(--fd);font-size:1.3em;background:var(--gold);border:3px solid var(--edge);padding:2px 12px;align-self:flex-start}
+.endt.bad{background:#262a4a;color:var(--paper)}
+.book h3{font-family:var(--fd);font-weight:400;font-size:1em;margin:6px 0 0;background:#e7dcb8;padding:0 8px}
+.book ul{margin:0;padding-left:1.2em;line-height:2.1}
+.toast{position:fixed;left:50%;bottom:18px;translate:-50% 0;background:var(--gold);color:var(--ink);font-family:var(--fd);font-size:18px;border:3px solid var(--edge);padding:6px 14px;opacity:0;transition:opacity .3s;pointer-events:none;z-index:20}
+.toast.on{opacity:1}
+.note{color:#b9b4d6;font-size:13px;line-height:1.7;margin:0}
+@media (max-width:480px){h1{font-size:19px}}
+@media (prefers-reduced-motion:reduce){.ring{display:none}.ghost,.hbtn.glow,.hotaru{animation:none}.choice:active{transform:none}}
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>あさの こない むら</h1>
+    <div class="ends" id="ends" aria-label="みつけた おわりかた"></div>
+    <div class="hbtns"><button type="button" class="hbtn" id="musbtn" aria-label="おんがく" aria-pressed="true">♪</button>
+    <button type="button" class="hbtn" id="bookbtn">てちょう</button>
+    <button type="button" class="hbtn" id="setbtn">せってい</button>
+    <button type="button" class="hbtn" id="pauseTrigger" aria-label="いちじ停止">⏸</button></div>
+  </header>
+  <div id="stage" role="img" aria-label="ばめんの え"><div id="flip"></div></div>
+  <section class="panel" id="panel" aria-live="polite"></section>
+</main>
+<div class="modal" id="setwrap" hidden><div class="mbg" id="setbg"></div><section id="set" role="dialog" aria-modal="true" aria-label="せってい"></section></div>
+<div class="toast" id="toast"></div>
+
+<script>
+{
+const $=s=>document.querySelector(s);
+/* ===== 絵の差し替え: ここにファイル名や data: URI を書くと、仮の絵の代わりに表示されます ===== */
+const ASSETS={bg:{gate:'',panya_e:'',panya:'',hatake:'',tree:'',lib_out:'',hiroba_e:'',hiroba:'',board:'',paper:'',ido:'',koya:'',lib:'',diary:'',shelf:'',book:'',map:'',mori:'',mori_r:'',sign:'',tower:'',wall:'',top:'',morning:'',night:''},
+  ghost:{kakashi:'',chibi:'',nop:'',ao:'',meda:'',twin:'',crowd:'',hotaru:''},bgm:'',bgmEve:'',sfx:{bell:'',thud:'',door:''}};
+
+const KEY='asa-no-konai-mura-v4';
+const DEF={bright:50,vol:2,furi:1,size:1,gray:0,flip:0,speed:1,music:1};
+const fresh=()=>({node:'intro',ch:0,name:'',orig:'',un:{},items:[],clues:[],memos:[],f:{},everDark:false,book:0,reply:'',path:'',end:'',say:null,sheet:null});
+let S=fresh(),SET={...DEF},META={ends:[],fails:0,snaps:{},ack:true};
+try{const d=JSON.parse(localStorage.getItem(KEY)||'null');if(d){S=Object.assign(fresh(),d.S);SET=Object.assign({...DEF},d.SET);META=Object.assign(META,d.META)}}catch(e){}
+const save=()=>{try{localStorage.setItem(KEY,JSON.stringify({S,SET,META}))}catch(e){}};
+
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function miss(n){const a=[...n];if(!a.length)return 'ぬ';
+  const D='かがきぎくぐけげこごさざしじすずせぜそぞただちぢつづてでとどはばひびふぶへべほぼ';const R='あいうえおなにぬねのまみむめもやゆよらりるれろわをん';
+  let i=D.indexOf(a[0]);if(i>=0)a[0]=D[i%2?i-1:i+1];else{i=R.indexOf(a[0]);a[0]=i>=0?R[(i+1)%R.length]:(a[0]==='ぬ'?'ね':'ぬ')}return a.join('')}
+function T(s){return String(s).replace(/\{\{name\}\}/g,esc(S.orig||'きみ')).replace(/\{\{bad\}\}/g,esc(miss(S.orig||'きみ')))
+  .replace(/\{([^|{}]+)\|([^{}]*)\}/g,'<ruby>$1<rt>$2</rt></ruby>').replace(/\[(.)\]/g,'<span class="mir">$1</span>')}
+const P=s=>String(s).split('\n').map(l=>'<p>'+T(l)+'</p>').join('');
+const kata=s=>s.replace(/[ァ-ヶ]/g,c=>String.fromCharCode(c.charCodeAt(0)-96)).replace(/\s/g,'');
+const has=i=>S.items.includes(i);
+function give(i){if(!has(i))S.items.push(i)}
+let toastT;function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('on');clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('on'),1600)}
+const CLUE={k1:'のっぺらおばけは、だまって かねの とうを ゆびさしていた。',
+ k2:'しおりの ページに ほしの シートを あてたら「りんたろう」と よめた。',
+ k3:'けいじばんの ルールの うち 2つだけ、もじが ひとつ ぎゃくむきだった。',
+ k4:'たてふだの メモ「ちびの すがたで みんなを だます。 なまえどろぼう」',
+ k5:'{七|なな}ばんめの {本|ほん}「かねつきは かおを なくした。おおきくて こわいけど、やさしい。」'};
+function clue(k){if(!S.clues.includes(k)){S.clues.push(k);toast('てちょうに メモした')}}
+function memo(id,t){if(!S.memos.some(m=>m[0]===id)){S.memos.push([id,t]);toast('てちょうに メモした')}}
+
+/* ===== sound: a soft tick, scaled by the volume setting ===== */
+let AC,bgm=null;const volG=()=>[0,.25,.5,.75,1][SET.vol]*.55;
+function ac(){AC=AC||new (window.AudioContext||window.webkitAudioContext)();if(AC.state==='suspended')AC.resume();return AC}
+const bgmMode=()=>S.ch<1?'eve':'night';
+function bgmStart(){if(bgm||!SET.music)return;try{const A=ac();const mode=bgmMode();
+ const src=mode==='eve'?ASSETS.bgmEve:ASSETS.bgm;if(src){const el=new Audio(src);el.loop=true;el.volume=volG();el.play().catch(()=>{});bgm={el,mode};return}
+ if(mode==='eve'){const master=A.createGain();master.gain.value=volG()*.8;master.connect(A.destination);const sc=[392,440,523.3,587.3,659.3,523.3,440];let k=0;
+  const timer=setInterval(()=>{const t=A.currentTime,o=A.createOscillator(),g=A.createGain();o.type='sine';o.frequency.value=sc[k++%sc.length]*(k%4===0?.5:1);
+   g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(.05,t+.05);g.gain.exponentialRampToValueAtTime(.0001,t+1.6);o.connect(g).connect(master);o.start(t);o.stop(t+1.7)},700);
+  bgm={master,osc:[],timer,mode};return}
+ const master=A.createGain();master.gain.value=0;master.gain.linearRampToValueAtTime(volG(),A.currentTime+3);master.connect(A.destination);
+ const lp=A.createBiquadFilter();lp.type='lowpass';lp.frequency.value=320;lp.connect(master);
+ const osc=[[55,'sawtooth',.035],[55.7,'sawtooth',.035],[82.4,'sine',.05]].map(([f,t,v])=>{const o=A.createOscillator(),g=A.createGain();o.type=t;o.frequency.value=f;g.gain.value=v;o.connect(g).connect(lp);o.start();return o});
+ const lfo=A.createOscillator(),lg=A.createGain();lfo.frequency.value=.06;lg.gain.value=140;lfo.connect(lg).connect(lp.frequency);lfo.start();osc.push(lfo);
+ const timer=setInterval(()=>{const t=A.currentTime,o=A.createOscillator(),g=A.createGain();o.type='triangle';o.frequency.value=[220,233.1,174.6,207.7,164.8,155.6][Math.floor(Math.random()*6)];
+  g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(.045,t+.6);g.gain.exponentialRampToValueAtTime(.0001,t+4);o.connect(g).connect(master);o.start(t);o.stop(t+4.1)},4300);
+ bgm={master,osc,timer,mode}}catch(e){}}
+function bgmStop(){if(!bgm)return;const b=bgm;bgm=null;if(b.el){b.el.pause();return}try{clearInterval(b.timer);b.master.gain.linearRampToValueAtTime(0,AC.currentTime+.4);setTimeout(()=>b.osc.forEach(o=>{try{o.stop()}catch(e){}}),500)}catch(e){}}
+function bgmVol(){if(!bgm)return;if(bgm.el)bgm.el.volume=volG();else bgm.master.gain.setTargetAtTime(volG(),AC.currentTime,.2)}
+function playFile(src){try{const a=new Audio(src);a.volume=Math.min(1,volG()*1.6);a.play().catch(()=>{})}catch(e){}}
+function bellSFX(){if(!SET.vol)return;if(ASSETS.sfx.bell)return playFile(ASSETS.sfx.bell);try{const A=ac(),out=A.createGain();out.gain.value=Math.min(1,volG()*1.6);out.connect(A.destination);
+ [0,2.4].forEach(d=>{const t=A.currentTime+d;[[.5,.5],[1,.32],[1.19,.16],[1.56,.12],[2,.09],[2.51,.06],[2.66,.04]].forEach(([r,a])=>{const o=A.createOscillator(),g=A.createGain();o.type='sine';o.frequency.value=174.6*r;
+  g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(a*.45,t+.015);g.gain.exponentialRampToValueAtTime(.0001,t+1.2+4/Math.max(1,r));o.connect(g).connect(out);o.start(t);o.stop(t+6)})})}catch(e){}}
+function doorSFX(){if(!SET.vol)return;if(ASSETS.sfx.door)return playFile(ASSETS.sfx.door);try{const A=ac();[0,.18].forEach((d,i)=>{const t=A.currentTime+d,o=A.createOscillator(),g=A.createGain();o.type='square';o.frequency.setValueAtTime(i?260:420,t);o.frequency.exponentialRampToValueAtTime(90,t+.08);
+ g.gain.setValueAtTime(Math.min(.25,volG()*.35),t);g.gain.exponentialRampToValueAtTime(.0001,t+.12);o.connect(g).connect(A.destination);o.start(t);o.stop(t+.14)})}catch(e){}}
+function thudSFX(){if(!SET.vol)return;if(ASSETS.sfx.thud)return playFile(ASSETS.sfx.thud);try{const A=ac(),t=A.currentTime,o=A.createOscillator(),g=A.createGain();o.type='triangle';o.frequency.setValueAtTime(110,t);o.frequency.exponentialRampToValueAtTime(45,t+.35);
+ g.gain.setValueAtTime(Math.min(.5,volG()*.6),t);g.gain.exponentialRampToValueAtTime(.0001,t+.5);o.connect(g).connect(A.destination);o.start(t);o.stop(t+.55)}catch(e){}}
+function ringFX(x,y){const at=S.node;const one=()=>{const f=$('#flip');if(!f||S.node!==at)return;const r=document.createElement('div');r.className='ring';r.style.left=x+'%';r.style.top=y+'%';f.appendChild(r);setTimeout(()=>r.remove(),3400)};one();setTimeout(one,2400)}
+function tick(){if(!SET.vol)return;try{ac();const o=AC.createOscillator(),g=AC.createGain();o.frequency.value=520;g.gain.value=.012*SET.vol;g.gain.exponentialRampToValueAtTime(.0001,AC.currentTime+.12);o.connect(g).connect(AC.destination);o.start();o.stop(AC.currentTime+.13)}catch(e){}}
+
+/* ===== placeholder pictures ===== */
+const blk=(x,y,w,h,c,e)=>`<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${c}" stroke="${e||'#0a0a14'}" stroke-width="1.5"/>`;
+const row=(y,c,e)=>{let s='';for(let x=0;x<320;x+=20)s+=blk(x,y,20,20,c,e);return s};
+const sky=(a,b)=>`<defs><linearGradient id="sk" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${a}"/><stop offset="1" stop-color="${b}"/></linearGradient></defs><rect width="320" height="200" fill="url(#sk)"/>`;
+const stars='<g fill="#fff" opacity=".7">'+[[20,14],[60,30],[110,10],[150,26],[200,8],[240,34],[290,16],[178,44],[84,52]].map(([x,y])=>`<rect x="${x}" y="${y}" width="2" height="2"/>`).join('')+'</g>';
+const house=(x,w,c)=>blk(x,110,w,50,c)+`<polygon points="${x-6},110 ${x+w/2},82 ${x+w+6},110" fill="#5a2f22" stroke="#0a0a14" stroke-width="1.5"/>`+blk(x+w/2-6,138,12,22,'#3b2414');
+const tower=(x)=>blk(x,40,26,120,'#6d6f7d')+blk(x-4,30,34,14,'#4c4e5a')+`<path d="M${x+7} 46 q6 -10 12 0 v8 h-12z" fill="#c9a23a" stroke="#0a0a14"/>`;
+const room=(c)=>`<rect width="320" height="200" fill="${c}"/>`+Array.from({length:8},(_,i)=>`<line x1="${i*40}" y1="0" x2="${i*40}" y2="150" stroke="rgba(0,0,0,.25)" stroke-width="2"/>`).join('')+row(150,'#6b4a2a')+row(170,'#5a3c20')+row(190,'#5a3c20');
+const BG={
+ gate:()=>sky('#f4a25a','#6a4a8a')+`<circle cx="70" cy="120" r="24" fill="#ffd27a"/>`+blk(0,100,60,60,'#6b5a4a')+blk(260,100,60,60,'#6b5a4a')+house(140,46,'#a07a52')+tower(232)+blk(96,96,10,64,'#4a2f14')+blk(214,96,10,64,'#4a2f14')+blk(90,84,140,22,'#9b6a35','#4a2f14')+row(160,'#5a9a3a')+row(180,'#7a5a3a'),
+ hiroba_e:()=>sky('#f4a25a','#6a4a8a')+tower(262)+house(130,46,'#a07a52')+house(200,40,'#906a42')+blk(20,78,82,62,'#9b6a35','#4a2f14')+blk(26,84,70,50,'#efe4c4')+blk(30,140,8,20,'#4a2f14')+blk(84,140,8,20,'#4a2f14')
+  +blk(110,118,18,18,'#e0b88a')+blk(106,108,26,10,'#5a3c20')+blk(108,136,22,24,'#7a3a3a')+blk(116,124,3,3,'#111','#111')+blk(122,124,3,3,'#111','#111')
+  +blk(184,124,14,14,'#e8c09a')+blk(182,138,18,22,'#4a8a5a')+blk(244,124,14,14,'#d8a87a')+blk(242,138,18,22,'#6a5aa0')+row(160,'#5a9a3a')+row(180,'#7a5a3a'),
+ hiroba:()=>sky('#0b1030','#26305e')+stars+tower(262)+house(130,46,'#8a6a4a')+house(200,40,'#7a5a3a')+blk(20,78,82,62,'#9b6a35','#4a2f14')+blk(26,84,70,50,'#efe4c4')+blk(30,140,8,20,'#4a2f14')+blk(84,140,8,20,'#4a2f14')+row(160,'#3f7a2a')+row(180,'#5a3c20'),
+ board:()=>`<rect width="320" height="200" fill="#1c1a2c"/>`+blk(20,10,280,170,'#9b6a35','#4a2f14')+blk(32,20,256,148,'#efe4c4'),
+ paper:()=>`<rect width="320" height="200" fill="#1c1a2c"/>`+blk(52,4,216,192,'#e9dcb8','#6b4423'),
+ ido:()=>sky('#0b1030','#26305e')+stars+house(220,52,'#7a5a3a')+blk(120,110,80,50,'#8d949c')+blk(112,100,96,14,'#6d727a')+blk(126,60,6,44,'#5a3c20')+blk(188,60,6,44,'#5a3c20')+blk(120,54,80,10,'#5a3c20')+blk(56,98,22,22,'#e0b88a')+blk(52,120,30,40,'#4a6aa0')+blk(60,104,4,4,'#111','#111')+blk(70,104,4,4,'#111','#111')+row(160,'#3f7a2a')+row(180,'#5a3c20'),
+ koya:()=>room('#5d4330')+blk(26,118,94,14,'#c9c3b0')+blk(26,112,22,10,'#f0ece0')+blk(26,132,8,18,'#6b4423')+blk(112,132,8,18,'#6b4423')+blk(196,96,96,10,'#8a5a2b')+blk(204,106,8,44,'#6b4423')+blk(276,106,8,44,'#6b4423')+blk(110,30,60,40,'#1b2244')+`<line x1="140" y1="30" x2="140" y2="70" stroke="#5d4330" stroke-width="3"/>`,
+ panya_e:()=>sky('#f4a25a','#6a4a8a')+blk(30,60,260,100,'#c9a27a','#5a3a1e')+`<polygon points="20,60 160,24 300,60" fill="#8a4a2a" stroke="#0a0a14" stroke-width="1.5"/>`+blk(60,84,96,52,'#ffe6a8')+blk(66,110,20,10,'#c98a3a')+blk(92,108,26,12,'#d89a4a')+blk(124,110,20,10,'#c98a3a')+blk(196,92,50,68,'#6b4423')+Array.from({length:6},(_,i)=>blk(40+i*40,60,40,10,i%2?'#f4f0e0':'#c8402a')).join('')+row(160,'#5a9a3a')+row(180,'#7a5a3a'),
+ panya:()=>sky('#0b1030','#26305e')+stars+blk(30,60,260,100,'#7a6a5a','#2a2030')+`<polygon points="20,60 160,24 300,60" fill="#4a2a1a" stroke="#0a0a14" stroke-width="1.5"/>`+blk(60,84,96,52,'#2a2a3a')+blk(66,110,20,10,'#5a4a3a')+blk(92,108,26,12,'#5a4a3a')+blk(124,110,20,10,'#5a4a3a')+blk(196,92,50,68,'#3b2414')+Array.from({length:6},(_,i)=>blk(40+i*40,60,40,10,i%2?'#8a8a90':'#6a2a20')).join('')+row(160,'#3f7a2a')+row(180,'#5a3c20'),
+ hatake:()=>sky('#0b1030','#26305e')+stars+Array.from({length:5},(_,i)=>blk(0,112+i*10,320,8,'#4a3020','#2a1a10')+Array.from({length:10},(_,j)=>blk(10+j*32,106+i*10,10,8,'#3f8a2a')).join('')).join('')+blk(158,56,6,104,'#6b4423')+blk(138,74,46,6,'#6b4423')+blk(150,44,22,16,'#d8b070')+blk(146,38,30,8,'#5a3a1e')+blk(152,80,18,24,'#7a5a9a')+row(160,'#3f7a2a')+row(180,'#5a3c20'),
+ tree:()=>sky('#0b1030','#26305e')+stars+blk(132,60,56,100,'#5a3a1e','#2a1a0a')+blk(60,6,200,64,'#1f4a22')+blk(90,0,140,20,'#2a5a2a')+blk(112,150,96,10,'#4a2f14')+row(160,'#3f7a2a')+row(180,'#5a3c20'),
+ lib_out:()=>sky('#0b1030','#26305e')+stars+blk(30,40,260,120,'#6a5a6e','#2a2030')+`<polygon points="20,40 160,8 300,40" fill="#4a3a4e" stroke="#0a0a14" stroke-width="1.5"/>`+blk(134,96,52,64,'#5a3a1e')+blk(158,96,4,64,'#2a1a0a')+blk(150,124,6,6,'#c9a23a')+blk(164,124,6,6,'#c9a23a')+blk(52,68,50,32,'#141a33')+blk(218,68,50,32,'#141a33')+row(160,'#3f7a2a')+row(180,'#5a3c20'),
+ lib:()=>room('#3a2c3e')+Array.from({length:4},(_,i)=>blk(206,20+i*32,100,30,'#6b4423')+Array.from({length:9},(_,j)=>blk(210+j*10.5,24+i*32,9,24,['#a03a3a','#3a6aa0','#3a8a4a','#c9a23a','#7a4a9a'][(i+j)%5])).join('')).join('')+blk(20,112,110,10,'#8a5a2b')+blk(24,122,8,28,'#6b4423')+blk(118,122,8,28,'#6b4423')+blk(40,100,50,12,'#efe4c4')+blk(136,124,50,26,'#7a5030'),
+ diary:()=>`<rect width="320" height="200" fill="#2a1c14"/>`+blk(16,8,288,184,'#efe4c4','#6b4423')+`<line x1="160" y1="8" x2="160" y2="192" stroke="#b9a77a" stroke-width="3"/>`,
+ shelf:()=>`<rect width="320" height="200" fill="#2a1c14"/>`+blk(12,20,296,150,'#6b4423','#3b2414')+blk(12,166,296,12,'#4a2f14'),
+ book:()=>`<rect width="320" height="200" fill="#2a1c14"/>`+blk(30,14,260,172,'#efe4c4','#6b4423'),
+ map:()=>`<rect width="320" height="200" fill="#d9c79a"/>`+`<path d="M40 150 L120 110 L200 130 L270 60" stroke="#8a5a2b" stroke-width="6" fill="none" stroke-dasharray="10 6"/>`+blk(30,140,22,22,'#9b6a35')+blk(110,100,22,22,'#8d949c')+blk(190,120,22,22,'#7a5a3a')+blk(150,40,26,22,'#5a4a6a')+blk(60,40,40,40,'#2f6a2f')+tower(262),
+ mori:()=>sky('#070a1c','#141c3a')+Array.from({length:7},(_,i)=>{const x=[0,30,58,244,270,296,120][i];return blk(x+8,70,10,90,'#4a2f14')+blk(x-6,30,38,46,'#1f4a22')}).join('')+`<polygon points="130,160 190,160 230,90 205,90 160,140 115,90 90,90" fill="#7a5a3a"/>`+row(160,'#2b5a1c')+row(180,'#3b2a18'),
+ mori_r:()=>sky('#020308','#0a0f20')+Array.from({length:9},(_,i)=>blk(i*38+4,40,12,120,'#1a1208')+blk(i*38-10,10,40,40,'#0d240f')).join('')+row(160,'#14260e')+row(180,'#1a120a'),
+ sign:()=>sky('#04060f','#101830')+blk(150,120,20,60,'#4a2f14')+row(170,'#14260e')+row(190,'#1a120a'),
+ tower:()=>`<rect width="320" height="200" fill="#3a3c48"/>`+Array.from({length:40},(_,i)=>blk((i%8)*40+((i>>3)%2?20:0)-20,(i>>3)*30,40,30,'#4c4e5a','#30323c')).join('')+blk(130,90,60,70,'#120a06')+row(170,'#30323c')+row(190,'#30323c'),
+ wall:()=>`<rect width="320" height="200" fill="#4c4e5a"/>`+Array.from({length:48},(_,i)=>blk((i%8)*40+((i>>3)%2?20:0)-20,(i>>3)*34,40,34,'#5a5c68','#3a3c48')).join(''),
+ top:()=>sky('#06081a','#1c2350')+stars+blk(0,150,320,50,'#4c4e5a')+blk(40,20,10,130,'#3a3c48')+blk(270,20,10,130,'#3a3c48')+blk(36,14,248,10,'#3a3c48')+`<path d="M138 26 q22 -6 44 0 l8 46 h-60z" fill="#c9a23a" stroke="#0a0a14" stroke-width="2"/>`,
+ morning:()=>sky('#ffd98a','#9fd3f5')+`<circle cx="260" cy="60" r="26" fill="#fff6b0"/>`+tower(40)+house(130,46,'#b08a5a')+house(200,40,'#a07a4a')+row(160,'#5ab03a')+row(180,'#7a5a3a'),
+ night:()=>sky('#020308','#141833')+stars+tower(150)+row(160,'#1c3a14')+row(180,'#2a1c10')
+};
+function bgHTML(k){const a=ASSETS.bg[k];return a?`<img src="${esc(a)}" alt="">`:`<svg viewBox="0 0 320 200" preserveAspectRatio="xMidYMid slice">${(BG[k]||BG.night)()}</svg>`}
+function ghostSVG(id){const a=ASSETS.ghost[id==='twinR'||id==='twinL'?'twin':id];if(a)return `<img src="${esc(a)}" alt="">`;
+ const body=(c,e)=>`<path d="M4 6h32v34h-4v4h-6v-4h-4v4h-6v-4h-4v4h-6v-4H4z" fill="${c}" stroke="${e}" stroke-width="2"/>`;
+ const S2={chibi:body('#f6efff','#7a6aa0')+'<rect x="10" y="16" width="7" height="8" fill="#111"/><rect x="23" y="16" width="7" height="8" fill="#111"/><rect x="11" y="17" width="2" height="2" fill="#fff"/><rect x="24" y="17" width="2" height="2" fill="#fff"/><rect x="8" y="26" width="4" height="2" fill="#f4a0b8"/><rect x="28" y="26" width="4" height="2" fill="#f4a0b8"/>',
+  nop:body('#d9dde8','#5a6070')+'<rect x="36" y="16" width="10" height="5" fill="#d9dde8" stroke="#5a6070"/>',
+  ao:body('#8fd8ff','#2f6fb0')+'<rect x="12" y="18" width="4" height="5" fill="#123"/><rect x="24" y="18" width="4" height="5" fill="#123"/>',
+  meda:body('#3a2f4a','#120a1a')+'<rect x="10" y="12" width="20" height="16" fill="#fff"/><rect x="16" y="16" width="8" height="8" fill="#c8102e"/>',
+  twinR:body('#c7c7cf','#555')+'<rect x="11" y="16" width="6" height="8" fill="#111"/><rect x="23" y="16" width="6" height="8" fill="#111"/><rect x="14" y="30" width="12" height="2" fill="#111"/>',
+  crowd:body('#ffffff','#9aa')+'<rect x="11" y="16" width="6" height="8" fill="#223"/><rect x="23" y="16" width="6" height="8" fill="#223"/>'};
+ S2.hotaru='<rect x="14" y="14" width="10" height="8" fill="#3a3020"/><rect x="16" y="22" width="8" height="8" fill="#e8ff6a"/><rect x="4" y="8" width="10" height="6" fill="#cfe8ff" opacity=".8"/><rect x="24" y="8" width="10" height="6" fill="#cfe8ff" opacity=".8"/>';
+ S2.kakashi='<path d="M18 4h12v10H18z M4 16h40v6H4z M20 22h8v24h-8z" fill="#1a1a2a" stroke="#8a8fb0" stroke-width="1.5" opacity=".85"/><rect x="21" y="8" width="2" height="2" fill="#ccd"/><rect x="26" y="8" width="2" height="2" fill="#ccd"/>';
+ S2.twinL=S2.twinR;return `<svg viewBox="-2 0 50 48">${S2[id]||S2.crowd}</svg>`}
+const GH={kakashi:{n:'かかしの かげ',w:12},hotaru:{n:'ほたる',w:6},chibi:{n:'ちびおばけ',w:10},nop:{n:'のっぺらおばけ',w:17},ao:{n:'あおびかり',w:9},meda:{n:'めだまおばけ',w:12},twinR:{n:'みぎの ふたごおばけ',w:10},twinL:{n:'ひだりの ふたごおばけ',w:10}};
+
+/* ===== letter boards for the hole sheets (6 x 5) ===== */
+const STAR=[1,9,14,20,28],MOON=[0,3,5,8,10,13,16,18,21,24,26,29];
+const fill=(f,holes,msg)=>{const a=[...f].slice(0,30);holes.forEach((h,i)=>a[h]=msg[i]);return a};
+const GRIDS={dgrid:fill('あめのよるにかねがなりやんでみんなはねむったままおきなかった',STAR,[...'りんたろう']),
+ bgrid:fill('このむらではよるにそとへでてはいけないとむかしからいわれている',MOON,[...'ふたりのうちひとりはうそ'])};
+const GRECT={x:20,y:6,w:60,h:88};
+
+/* ===== flower field: arrow cells sit in a darker luminance band, hidden by hue noise ===== */
+const ARROW=['........#...','........##..','..#########.','..#########.','........##..','........#...'];
+let seed=7;const rnd=()=>(seed=(seed*16807)%2147483647)/2147483647;
+function hsl2rgb(h,s,l){const k=n=>(n+h/30)%12,a=s*Math.min(l,1-l),f=n=>l-a*Math.max(-1,Math.min(k(n)-3,9-k(n),1));return[f(0),f(8),f(4)]}
+function flowerColor(lo,hi){for(let t=0;t<400;t++){const h=rnd()*360,l=.35+rnd()*.45,c=hsl2rgb(h,.75,l),y=.2126*c[0]+.7152*c[1]+.0722*c[2];if(y>=lo&&y<=hi)return `rgb(${c.map(v=>Math.round(v*255)).join(',')})`}return '#888'}
+const FLOWERS=ARROW.join('').split('').map(ch=>ch==='#'?flowerColor(.40,.46):flowerColor(.58,.64));
+
+/* ===== the story ===== */
+const RULES='① {名前|なまえ}を よばれても、へんじを しない。\n② {火|ひ}を けしては いけない。\n③ かおの ない ものに {近|ちか}づいては いけない。\n④ {本|ほん}は ひとつしか ひらけない。\n⑤ かねの とうには、{名前|なまえ}を もって いく。';
+const RULES0='① {名前|なまえ}を よばれても、へんじを しない。\n② {本|ほん}は ひとつしか ひらけない。\n③ かねの とうには、{名前|なまえ}を もって いく。';
+const RULES_M='① {名前|なまえ}を よばれても、へんじを しない。\n② {火|ひ}を [け]しては いけない。\n③ かおの ない [も]のに {近|ちか}づいては いけない。\n④ {本|ほん}は ひとつしか ひらけない。\n⑤ かねの とうには、{名前|なまえ}を もって いく。';
+const DIARY='あるよる、なまえどろぼうが きて、むらの みんなの {名前|なまえ}を とっていった。かねつきは かおを なくし、あさが こなくなった。ほんとうの ことは {七|なな}ばんめの {本|ほん}に かいた。';
+const NUM=['一','二','三','四','五','六','七','八','九'];
+const NUMR=['いち','に','さん','よん','ご','ろく','はち','なな','きゅう']; // 七と八の ふりがなは わざと いれかえてある
+const BOOKS=['「やさいの そだてかた」……かねの ことは かいていない。','「ほしの なまえ」……かねの ことは かいていない。','「むらの ちず」……かねの とうは、もりの むこうに ある。','「おいしい パンの やきかた」……かねの ことは かいていない。','「むかしばなし」……ふるい おはなしが ならんでいる。','「いしの つみかた」……かねの ことは かいていない。',
+ '「かねつきは かおを なくした。おおきくて こわいけど、やさしい。」','「かねつきは ちいさくて かわいい おばけ。」','「どうぶつ ずかん」……かねの ことは かいていない。'];
+const CH_START={1:'hiroba',2:'lib',3:'mori'};
+const CH_NAME={0:'はじまり ゆうがたの むら',1:'だい1しょう むら',2:'だい2しょう としょかん',3:'だい3しょう ふかい よる'};
+function snap(ch){META.snaps[ch]=JSON.stringify(Object.assign({},S,{node:CH_START[ch],say:null,sheet:null}))}
+const vis=th=>SET.bright<=th?1:SET.bright<th+8?(th+8-SET.bright)/8*.45:0;
+const darkOp=()=>Math.max(0,.88*(1-SET.bright/100))*(node().lit?.45:1);
+const dimOp=()=>Math.min(1,Math.max(0,(SET.bright-55)/35));
+const sayLine=(id,t)=>({id,t});
+
+const NODES={
+ intro:{art:'gate',form:'name',text:()=>'たびの とちゅう。ゆうがたに なって、ちいさな むらに ついた。\nまず、きみの {名前|なまえ}を おしえて。ひらがなで かいてね。'},
+ gate:{art:'gate',lit:true,
+  text:()=>'むらの いりぐちに ついた。おおきな かんばんが ある。\nむこうに、かねの とうが みえる。'+(S.f.sign0?'\nかんばん「ようこそ、かねの むらへ」':''),
+  layers:()=>'<div style="position:absolute;left:28%;top:42%;width:44%;height:11%;display:flex;align-items:center;justify-content:center;font-family:var(--fd);font-size:3.2cqw;color:#fff6dc">かねの むら</div>',
+  hot:()=>[{x:28,y:41,w:44,h:13,l:'かんばん',fn(){S.f.sign0=1}}],
+  choices:()=>[{t:'むらに はいる',go:'p_hiroba',c:'go'}]},
+ p_hiroba:{art:'hiroba_e',lit:true,
+  text:()=>'ゆうがたの ひろば。むらの ひとたちが、たのしそうに はなしている。\n「おーい、ゲンさん! やさい とれたよ!」\n「ありがとう、ミナちゃん!」¶みんな、{名前|なまえ}で よびあっている。'+(S.f.techo?'':'\nぼうしの ひとが、こっちを みている。'),
+  hot:()=>[{x:6,y:38,w:26,h:42,l:'けいじばん',go:'p_board'},{x:32,y:52,w:10,h:30,l:'ぼうしの ひと',go:'p_chief'}],
+  choices:()=>S.f.techo?[{t:'ほかの ばしょへ いく',go:'map',c:'go'}]:[]},
+ p_board:{art:'board',lit:true,
+  enter(){memo('rules0','ゆうがたの けいじばんの ルール\n'+RULES0)},
+  text:()=>'けいじばんに、むらの ルールが はってある。¶'+RULES0,
+  targets:()=>[{id:'rules0',k:'mag',x:10,y:10,w:80,h:74,html:'<div class="mag">'+P(RULES0)+'</div>'}],
+  choices:()=>[{t:'ひろばに もどる',go:'p_hiroba',c:'back'}]},
+ p_chief:{art:'hiroba_e',lit:true,
+  enter(){if(!S.f.techo){S.f.techo=1;memo('chief','そんちょうの はなし「かねつきの り……さんが、まいあさ まいばん かねを ならして くれる」(なまえは かぜで よく きこえなかった)')}},
+  text:()=>'ぼうしの ひとは、この むらの そんちょうだった。\nそんちょう「ようこそ、{{name}}さん。きょうは もう おそいから、こやに とまって いきなさい。」\nそんちょう「それと、これを あげよう。たんていてちょうだ。みた ことや きいた ことを、かいて おけるよ。」¶⟨bell:85,23⟩そのとき、とうから かねの おとが ひびいた。ごーん……ごーん……\nそんちょう「かねつきの り……さんが、まいあさ まいばん ならして くれるんだ。」\nかぜが ふいて、{名前|なまえ}は よく きこえなかった。¶(うえの「てちょう」を おすと、いつでも よみかえせるよ)',
+  choices:()=>[{t:'ひろばに もどる',go:'p_hiroba',c:'back'}]},
+ p_koya:{art:'koya',lit:true,
+  text:()=>'ちいさな こや。つくえと、ベッドが ある。'+(has('lantern')?'\nランタンを もった。もう くらく なる。ベッドで やすもう。':'\nつくえの うえに、なにか おいてある。'),
+  hot:()=>[!has('lantern')&&{x:60,y:42,w:32,h:24,l:'つくえ',fn(){give('lantern');toast('ランタンを てに いれた')}},has('lantern')&&{x:8,y:56,w:30,h:20,l:'ベッド',go:'wake'}].filter(Boolean),
+  choices:()=>[{t:'ほかの ばしょへ いく',go:'map',c:'go'}]},
+ wake:{art:'koya',
+  enter(){if(S.ch<1){S.ch=1;S.f.hotaruOn=1;snap(1)}},
+  text:()=>'……めを さますと、まどの そとは まっくらだった。\nずいぶん ねむった きが するのに、あさが こない。\nかねの おとも きこえない。¶まどの そとで、ちいさな ひかりが ふわふわ ういている。ほたるだ。',
+  choices:()=>[{t:'そとに でる',go:'hiroba',c:'go'}]},
+ hiroba:{art:'hiroba',crowd:true,
+  text:()=>!S.f.hiro?'そとに でると、むらは しずまりかえっていた。\nゆうがたは あんなに にぎやかだったのに、だれも いない。\nけいじばんの かみが、なんだか ふえている きがする。':'よるの ひろば。けいじばんと、とおくの とうが みえる。',
+  leave(){S.f.hiro=1},
+  quiet:'コツ……コツ……。どこかで あしおとが する。',
+  ghosts:()=>[{id:'chibi',x:44,b:84,th:30,say:S.ch>=2?'かおの ない おばけは こわいよ。ちかづいちゃ だめだよ。[き]けんだからね。':'こんばんは! こやに いいものが あるよ。[さ]がしてみてね。'},
+   {id:'nop',x:72,b:88,th:20,say:'……(だまって、とおくの とうを ゆびさしている)',on:()=>clue('k1')}],
+  hot:()=>[{x:6,y:38,w:26,h:42,l:'けいじばん',go:'board'}],
+  whisper:'とうの うえで、だれかが まってる……',
+  choices:()=>[{t:'ほかの ばしょへ いく',go:'map',c:'go'}]},
+ board:{art:'board',
+  lit:true,enter(){memo('rules','けいじばんの ルール\n'+RULES)},
+  text:()=>'けいじばんに、ルールが はってある。¶'+RULES+(S.clues.includes('k3')?'\nむしめがねで みたら、2つの ルールだけ、もじが ひとつ ぎゃくむきだった。':''),
+  targets:()=>[{id:'rules',k:'mag',x:10,y:10,w:80,h:74,html:'<div class="mag">'+P(RULES_M)+'</div>',on:()=>clue('k3')}],
+  choices:()=>[{t:'うらを みる',go:'boardback'},{t:'ひろばに もどる',go:'hiroba',c:'back'}]},
+ boardback:{art:'paper',lit:true,
+  text:()=>'けいじばんの うらに、もじが びっしり ならんだ かみが はってある。',
+  targets:()=>[{id:'bgrid',k:'grid',...GRECT}],
+  choices:()=>[{t:'おもてに もどる',go:'board',c:'back'}]},
+ ido:{art:'ido',
+  text:()=>'いどの そばに、むらびとが たっている。\nむらびと「よるは、みえない ものが おおいね。」\nなんど はなしかけても、おなじ ことしか いわない。'+(SET.bright>=85?'\nいどの いしに、もじが ほってある。「かねの ねは りん、と なる」':''),
+  dims:()=>[{x:38,y:60,w:26,h:12,html:'<div style="font-size:1.7cqw;color:#e8ecff;text-align:center;line-height:1.4">かねの ねは<br>りん、と なる</div>',dots:[[20,30],[64,70],[80,24]]}],
+  ghosts:()=>[{id:'ao',x:78,b:62,th:40,say:'しずかに すると、きこえる ものも あるよ。'}],
+  whisper:'こやの ゆかの きずを、むしめがねで みて……',
+  choices:()=>[{t:'ほかの ばしょへ いく',go:'map',c:'go'}]},
+ koya:{art:'koya',
+  text:()=>'ちいさな こや。つくえと、ふるい ゆかいたが ある。'+(has('key')?'\nゆかいたの したに、としょかんの かぎが あった。':S.f.floor?'\nゆかの きずに「した」と かいてあった。':''),
+  hot:()=>[!has('mag')&&{x:60,y:42,w:32,h:24,l:'つくえ',fn(){give('mag');S.f.gotmag=1;toast('むしめがねを てに いれた')}},
+   S.f.floor&&!has('key')&&{x:12,y:72,w:34,h:18,l:'ゆかいた',fn(){give('key');toast('としょかんの かぎを てに いれた')}}].filter(Boolean),
+  targets:()=>[{id:'scratch',k:'mag',x:12,y:72,w:34,h:18,html:'<div class="mag" style="font-size:.8cqw;color:#2a1a0a;padding:20% 0;text-align:center">した ↓ した ↓ した</div>',on(){S.f.floor=1}}],
+  whisper:'ゆかいたの した……',
+  dims:()=>[{x:1,y:58,w:13,h:16,html:'<svg viewBox="0 0 26 32" style="width:100%;height:100%"><path d="M2 32 V14 q11 -14 22 0 V32z" fill="#0a0604"/><rect x="8" y="18" width="3" height="3" fill="#ff6"/><rect x="15" y="18" width="3" height="3" fill="#ff6"/></svg>',dots:[[34,58],[62,58]]}],
+  choices:()=>[{t:'ほかの ばしょへ いく',go:'map',c:'go'}]},
+ map:{art:'map',lit:true,text:()=>'どこへ いく?',
+  choices:()=>S.ch<1?[{t:'ひろば',go:'p_hiroba'},{t:'パンや',go:'p_panya'},{t:'こや',go:'p_koya'}]:[{t:'ひろば',go:'hiroba'},{t:'いど',go:'ido'},{t:'こや',go:'koya'},{t:'パンや',go:'panya'},{t:'はたけ',go:'hatake'},{t:'おおきな き',go:'tree'},
+   {t:'としょかん',go:'lib_out'},
+   S.book&&{t:'もり',go:'mori'},S.f.tower&&{t:'かねの とう',go:'tower'}].filter(Boolean)},
+ p_panya:{art:'panya_e',lit:true,
+  text:()=>'パンやさん。やきたての いい においが する。\nパンやの おばさん「いらっしゃい! ゲンさんの やさいで、スープも つくるのよ。」'+(S.f.bread?'\nたなには、まるい パンや ながい パンが ならんでいる。':''),
+  hot:()=>[{x:20,y:44,w:28,h:24,l:'たな',fn(){S.f.bread=1}}],
+  choices:()=>[{t:'ほかの ばしょへ いく',go:'map',c:'go'}]},
+ panya:{art:'panya',crowd:true,
+  text:()=>'パンやさんは しまっている。\nゆうがたは あんなに にぎやかだったのに。'+(S.f.panwin?'\nまどの おくに、パンが ならんだ まま。だれも いない。':''),
+  hot:()=>[{x:20,y:44,w:28,h:24,l:'まど',fn(){S.f.panwin=1}}],
+  quiet:'かまどが ぱち……ぱち……と なっている。だれも いないのに。',
+  choices:()=>[{t:'ほかの ばしょへ いく',go:'map',c:'go'}]},
+ hatake:{art:'hatake',crowd:true,
+  text:()=>'むらの はたけ。かかしが ぽつんと たっている。'+(S.f.kaka?'\nわらの かかし。ぼうしが すこし ゆがんでいる。':''),
+  hot:()=>[{x:44,y:28,w:12,h:52,l:'かかし',fn(){S.f.kaka=1}}],
+  ghosts:()=>[{id:'kakashi',x:70,b:82,th:30,say:'……よく みたら、ただの かかしの かげだった。'}],
+  quiet:'かさ……かさ……。かぜで はっぱが ゆれる おと。',
+  choices:()=>[{t:'ほかの ばしょへ いく',go:'map',c:'go'}]},
+ tree:{art:'tree',crowd:true,
+  text:()=>'むらの はずれの、おおきな き。\nみきに、もじが たくさん ほってある。'+(SET.bright>=85?'¶あかるく すると、みきの もじが よめた。むらの みんなの {名前|なまえ}だ。ゲン、ミナ、トメ……\nひとつだけ、けずられた {名前|なまえ}が ある。のこっているのは「り」だけ。':S.f.miki?'\nくらくて、なんて かいてあるか よく みえない。':''),
+  hot:()=>[{x:40,y:36,w:20,h:46,l:'みき',fn(){S.f.miki=1}}],
+  dims:()=>[{x:42,y:40,w:16,h:38,html:'<div style="font-family:var(--fd);font-size:1.7cqw;line-height:1.5;color:#f3e2c0;text-align:center;padding-top:8%">ゲン<br>ミナ<br>トメ<br>ハル<br><span style="opacity:.8">り▒▒▒▒</span></div>',dots:[[30,20],[60,48],[40,80]]}],
+  choices:()=>[{t:'ほかの ばしょへ いく',go:'map',c:'go'}]},
+ lib_out:{art:'lib_out',
+  text:()=>'ふるい としょかんの まえに ついた。\nおおきな とびらと、まどが ある。'+(S.f.peek?'\nまどから のぞくと、なかは まっくら。ほんだなが うっすら みえる。':'')+(S.f.locked&&!has('key')?'\nガチャガチャ……。とびらには かぎが かかっていて、あかない。':''),
+  hot:()=>[{x:42,y:48,w:16,h:32,l:'とびら',fn(){if(has('key')){doorSFX();go('lib')}else{S.f.locked=1;thudSFX()}}},{x:16,y:34,w:16,h:16,l:'まど',fn(){S.f.peek=1}}],
+  whisper:'かぎは、こやに……',
+  choices:()=>[{t:'ほかの ばしょへ いく',go:'map',c:'go'}]},
+ lib:{art:'lib',
+  enter(){if(S.ch<2){S.ch=2;snap(2)}},
+  text:()=>'ふるい としょかん。つくえの うえに にっきが ある。\nかべには ほんだなと、ちいさな はりがみ。'+(SET.size===2?'\nはりがみが よめた。「しおりの ページに ほしを あてよ」':''),
+  ghosts:()=>[{id:'chibi',x:30,b:52,th:30,say:'{本|ほん}は ふりがなを よんで [さ]がしてね。'},{id:'ao',x:52,b:50,th:40,say:'ひきだしを あけてごらん。'}],
+  targets:()=>[{id:'note',k:'tiny',x:38,y:10,w:22,h:16,html:'しおりの ページに ほしを あてよ'}],
+  hot:()=>[{x:8,y:44,w:30,h:20,l:'にっき',go:'diary1'},{x:42,y:60,w:18,h:16,l:'ひきだし',fn(){if(!has('red')){give('red');give('blue');toast('あかと あおの めがねを てに いれた')}else toast('ひきだしは からっぽだ')}},{x:63,y:8,w:34,h:66,l:'ほんだな',go:'shelf'}],
+  whisper:'ふりがなは、ときどき うそを つく……',
+  choices:()=>[{t:'ほかの ばしょへ いく',go:'map',c:'go'}]},
+ diary1:{art:'diary',lit:true,
+  text:()=>!S.f.diary?'にっきは、あかい らくがきだらけで よめない。':'あかい めがねを とおすと、よめた!¶「'+DIARY+'」',
+  targets:()=>[{id:'dnoise',k:'red',x:8,y:8,w:84,h:84,
+   base:'<div class="txt">'+T(DIARY)+'</div>'+NOISE,rev:'<div class="txt" style="background:#ffd6d0;height:100%">'+T(DIARY)+'</div>',on(){if(!S.f.diary){S.f.diary=1;memo('diary','にっき「'+DIARY+'」')}}}],
+  choices:()=>[{t:'しおりの ページを ひらく',go:'diary2'},{t:'つくえに もどる',go:'lib',c:'back'}]},
+ diary2:{art:'diary',lit:true,
+  enter(){if(!has('star')){give('star');give('moon');S.f.sheetsNew=1}},
+  leave(){S.f.sheetsNew=0},
+  text:()=>(S.f.sheetsNew?'しおりと いっしょに、あなの あいた シートが 2まい はさまっていた。\n':'')+'この ページには、もじが びっしり ならんでいる。',
+  targets:()=>[{id:'dgrid',k:'grid',...GRECT}],
+  choices:()=>[{t:'まえの ページに もどる',go:'diary1',c:'back'},{t:'つくえに もどる',go:'lib',c:'back'}]},
+ shelf:{art:'shelf',lit:true,
+  text:()=>'ほんだなに、ばんごうの ついた {本|ほん}が 9さつ ならんでいる。\n'+(S.book?'もう ほかの {本|ほん}は ひらけない。':'{本|ほん}は ひとつしか ひらけない。'),
+  books:true,
+  choices:()=>[S.book&&{t:'ひらいた {本|ほん}を もういちど よむ',go:'book'},{t:'つくえに もどる',go:'lib',c:'back'}].filter(Boolean)},
+ bookask:{art:'shelf',lit:true,books:true,
+  text:()=>{const i=S.f.pick;return '「{'+NUM[i-1]+'|'+NUMR[i-1]+'}」の {本|ほん}を ひらく?\nいちど ひらいたら、もう ほかの {本|ほん}は ひらけない。'},
+  choices:()=>[{t:'ひらく',c:'warn',fn(){S.book=S.f.pick;go('book')}},{t:'やめる',go:'shelf',c:'back'}]},
+ book:{art:'book',lit:true,
+  enter(){if(S.book===7)clue('k5');else if(S.book===8)memo('fake','ひらいた {本|ほん}「かねつきは ちいさくて かわいい おばけ。」');if(!S.f.moriOpen){S.f.moriOpen=1;S.f.moriNew=1}},
+  leave(){S.f.moriNew=0},
+  text:()=>'{本|ほん}を ひらいた。\n'+BOOKS[S.book-1]+(S.f.moriNew?'\nそのとき、まどの そとで、もりの ほうが ぼんやり ひかった。':''),
+  choices:()=>[{t:'つくえに もどる',go:'lib',c:'back'},{t:'ほかの ばしょへ いく',go:'map',c:'go'}]},
+ mori:{art:'mori',crowd:true,
+  enter(){if(S.ch<3){S.ch=3;snap(3)}},
+  text:()=>'もりの なかで、みちが ふたつに わかれている。\nまんなかに、いろとりどりの はなばたけ。\nたてふだが 2つ たっている。',
+  layers:()=>'<div class="flowers" style="left:34%;top:56%;width:32%;height:30%">'+FLOWERS.map(c=>`<i style="background:${c}"></i>`).join('')+'</div><div class="sign" style="left:4%;top:30%">左</div><div class="sign" style="right:4%;top:30%">右</div>',
+  ghosts:()=>[{id:'twinL',x:22,b:62,th:30,say:'ひだりの みちが ただ[し]いよ。'},{id:'twinR',x:78,b:62,th:30,say:'{右|みぎ}の みちが ただしいよ。'},{id:'meda',x:50,b:50,th:10,say:'[ち]かみちは ひだりだよ。'}],
+  whisper:'はなばたけは、いろを けすと……',
+  choices:()=>[{t:'右の みちへ',plain:1,fn(){S.path='r';go('mori_r')}},{t:'左の みちへ',plain:1,fn(){S.path='l';S.f.tower=1;S.f.short=1;go('tower')}},{t:'もどる',go:'map',c:'back'}]},
+ mori_r:{art:'mori_r',crowd:true,
+  text:()=>{if(!S.reply&&SET.music)return 'くらい みちが つづいている。\nかぜの おとしか しない。';if(!S.reply)return 'まわりが しずかに なると、くらやみから こえが した。¶ひだりから「{{bad}}……」\nみぎから「{{name}}……」\nだれかが、{名前|なまえ}を よんでいる。';
+   return {bad:'「……ありがとう。」\nこえは すっと きえた。',good:'「とうの うえで、おおきな ひとが まってるよ。」',none:'こえは、だんだん とおざかって いった。'}[S.reply]},
+  ghosts:()=>[{id:'meda',x:26,b:70,th:10,say:SET.music?'……':'{{bad}}……'},{id:'ao',x:74,b:70,th:40,say:SET.music?'……':'{{name}}……'}],
+  choices:()=>!S.reply&&!SET.music?[{t:'ひだりの こえに へんじを する',c:'warn',fn(){S.reply='bad';S.name=miss(S.orig);render()}},{t:'みぎの こえに へんじを する',c:'warn',fn(){S.reply='good';render()}},{t:'へんじを しない',c:'warn',fn(){S.reply='none';render()}}]:[{t:'さきへ すすむ',go:'sign'}]},
+ sign:{art:'sign',lit:true,
+  enter(){S.f.tower=1},
+  text:()=>SET.flip?'がめんを はんてんしたら、たてふだが よめた!\n「ちびの すがたで みんなを だます。 なまえどろぼう」':'ふるい たてふだが ある。\nでも、もじが ぜんぶ ぎゃくむきで よめない。',
+  layers:()=>'<div class="memo"><span class="mirror">ちびの すがたで<br>みんなを だます。<br>なまえどろぼう</span></div>',
+  choices:()=>[{t:'とうへ むかう',go:'tower'}]},
+ tower:{art:'tower',flash:'とうの かべは あおい めで みよ',
+  text:()=>(S.f.short?'みじかい みちを ぬけたら、すぐに とうに ついた。\n':'')+'かねの とうの いりぐち。\nかべの まえで、なにかが いっしゅん ひかった きがする。'+(S.f.flash?'\nひかった もじが よめた。「とうの かべは あおい めで みよ」':''),
+  leave(){S.f.short=0},
+  hot:()=>[{x:28,y:12,w:44,h:28,l:'かべ',go:'wall'}],
+  quiet:'とうの うえから、ギィ……と なにかが きしむ おと。',
+  dims:()=>[{x:41,y:45,w:18,h:35,html:'<svg viewBox="0 0 36 70" preserveAspectRatio="none" style="width:100%;height:100%">'+[0,1,2,3,4,5].map(i=>`<rect x="${4+i*2}" y="${60-i*10}" width="${28-i*4}" height="8" fill="#5a4a3a"/>`).join('')+'</svg>',dots:[[50,30],[30,70],[70,55]]}],
+  whisper:'あおい めがね……',
+  choices:()=>[{t:'ほかの ばしょへ いく',go:'map',c:'go'}]},
+ wall:{art:'wall',
+  text:()=>!S.f.stairs?'つめたい いしの かべ。なにも かいていない ように みえる。':'あおい めがねで みると、もじが うかんだ!\n「{名前|なまえ}を かえす あいてを えらべ。かいだんは この した」',
+  targets:()=>[{id:'wtxt',k:'blue',x:10,y:8,w:80,h:66,base:'',rev:'<div class="txt" style="color:#bfe0ff;text-shadow:0 0 1cqw #6ab0ff;font-size:4cqw;text-align:center;padding-top:12%">'+T('{名前|なまえ}を かえす あいてを えらべ。<br>かいだんは この した ↓')+'</div>',on(){S.f.stairs=1}}],
+  hot:()=>S.f.stairs?[{x:38,y:78,w:24,h:18,l:'かいだん',go:'top'}]:[],
+  choices:()=>[{t:'いりぐちに もどる',go:'tower',c:'back'}]},
+ top:{art:'top',
+  text:()=>'とうの いちばん うえ。おおきな かねが ある。\nかねつきの {名前|なまえ}を かえせば、かねが なる はずだ。'+(visibleGhosts().length?'':'\n……ここには だれも いない みたいだ。'),
+  ghosts:()=>[{id:'nop',x:76,b:94,th:20,say:'……(しずかに こちらを みている)'},{id:'chibi',x:24,b:86,th:30,say:'ぼくが かねつきだよ。{名前|なまえ}を ちょうだい。[ぼ]くに!'},{id:'meda',x:50,b:66,th:10,say:'わたしに かえして[く]れ。'}],
+  choices:()=>[...visibleGhosts().map(g=>({t:GH[g.id].n+'に {名前|なまえ}を かえす',c:'warn',fn(){S.f.giveTo=g.id;go('give')}})),{t:'だれにも かえさず、かねを ならす',c:'warn',fn(){finish(null,'')}},{t:'したに おりる',go:'wall',c:'back'}]},
+ give:{art:'top',form:'give',
+  text:()=>GH[S.f.giveTo].n+'に、かねつきの {名前|なまえ}を おしえる。\nひらがなで かいてね。',
+  choices:()=>[{t:'やめる',go:'top',c:'back'}]},
+ e2ask:{art:'morning',form:'newname',
+  text:()=>'⟨bell:16,23⟩かねが ごーん、ごーんと なった! そらが しろく なって いく。\nそのとき、ちびおばけが すみで ないているのに きづいた。¶ちびおばけ「ぼく、じぶんの {名前|なまえ}が なかったんだ。だから、みんなの {名前|なまえ}が ほしかった……」¶ちびおばけに、あたらしい {名前|なまえ}を つけてあげる?',
+  choices:()=>[{t:'つけない',fn(){endWith('e1')},c:'back'}]},
+ end:{art:()=>['e1','e2'].includes(S.end)?'morning':'night',head:endHead,text:endText,choices:endChoices}
+};
+const NOISE='<svg viewBox="0 0 100 100" preserveAspectRatio="none" style="position:absolute;inset:0;width:100%;height:100%"><g stroke="#d42020" stroke-width="2.4" fill="none" opacity=".92">'+Array.from({length:46},(_,i)=>{const y=(i*7.3)%100,x=(i*37)%60;return `<path d="M${x} ${y} q8 -8 16 0 t16 0 t16 0 t16 0"/>`}).join('')+'</g></svg>';
+const ENDS={e1:'あさが きた',e2:'ほんとうの おわり',e3:'なまえを なくした',e4:'にせものを しんじた',e5:'ルールを まもりつづけた'};
+const GOOD=['e1','e2'];
+function endHead(){const e=S.end;return `<div class="endt${GOOD.includes(e)?'':' bad'}">${ENDS[e]}</div>`}
+function endText(){const e=S.end;
+ const t={e1:'⟨bell:16,23⟩かねが ごーん、ごーんと なった。\nそらが しろく なって、あさが きた!¶むらびとたちが {名前|なまえ}を とりもどして、あたらしい ことを はなしはじめた。\nむらびと「おはよう、{{name}}!」',
+  e2:'ちびおばけは「'+esc(S.f.newname||'')+'」に なった。\nなまえどろぼうは、もう いない。「'+esc(S.f.newname||'')+'」は、むらの あたらしい なかまだ。\nあさの ひかりの なかで、のっぺらおばけ……ううん、かねつきの りんたろうも わらっていた。',
+  e3:'⟨thud⟩かねを ならそうと したけれど、かねは ぴくりとも うごかない。\nどこかで だれかが、きみの {名前|なまえ}で くすくす わらった。',
+  e4:'⟨thud⟩{名前|なまえ}を かえしたけれど、かねは ならなかった。\nくらやみで、だれかが くすくす わらった。',
+  e5:'とうの うえには、だれも いない。かねも しずかな まま。\nルールは ぜんぶ まもったのに、よるは まだ つづいている。'}[e];
+ let s=t;
+ if(!GOOD.includes(e)){s+='¶あさは こなかった……\nてがかり '+S.clues.length+'/5';if(META.fails>=2)s+='\nむらびとの こえ「'+hintCh()+'を もういちど よみかえして ごらん。」'}
+ return s+'¶みつけた おわりかた '+META.ends.length+'/5'}
+function hintCh(){const e=S.end;if(e==='e3')return 'だい3しょう';if(e==='e5')return 'だい1しょう';
+ if(!S.clues.includes('k2')||!S.clues.includes('k5'))return 'だい2しょう';if(!S.clues.includes('k1'))return 'だい1しょう';return 'だい3しょう'}
+function endChoices(){const c=[];if(!GOOD.includes(S.end))[3,2,1].forEach(ch=>{if(META.snaps[ch])c.push({t:CH_NAME[ch]+'の はじめから',fn(){restart(ch)}})});
+ c.push({t:'さいしょから あそぶ',c:'back',fn(){S=fresh();META.snaps={};bgmStop();go('intro')}});return c}
+function restart(ch){S=JSON.parse(META.snaps[ch]);if(bgm&&bgm.mode!==bgmMode()){bgmStop();setTimeout(bgmStart,600)}[1,2,3].forEach(k=>{if(k>ch)delete META.snaps[k]});tool=null;render()}
+function finish(id,val){
+ if(S.name!==S.orig)return endWith('e3');
+ if(!S.everDark)return endWith('e5');
+ if(id==='nop'&&kata(val)==='りんたろう')return S.clues.length===5?go('e2ask'):endWith('e1');
+ endWith('e4')}
+function endWith(e){if(!META.ends.includes(e))META.ends.push(e);if(!GOOD.includes(e)){META.fails++;if(META.fails>=3)META.ack=false}S.end=e;go('end')}
+
+/* ===== engine ===== */
+let tool=null; // {id,x,y,w,h,snap}
+const node=()=>NODES[S.node]||NODES.intro;
+function curGhosts(){return node().ghosts?node().ghosts():[]}
+function visibleGhosts(){return curGhosts().filter(g=>vis(g.th)===1)}
+function go(n){hotaruCall=false;BUBOFF.clear();lastAct=Date.now();const o=node();if(o.leave)o.leave();S.node=n;S.say=null;S.sheet=null;tool=null;const nn=node();if(nn.enter)nn.enter();if(bgm&&bgm.mode!==bgmMode()){bgmStop();setTimeout(bgmStart,600)}render()}
+function render(){renderStage();renderPanel();renderHeader();if(!$('#setwrap').hidden)renderSet();applyLook();save()}
+function renderHeader(){$('#ends').innerHTML=Object.keys(ENDS).map(k=>`<i class="${META.ends.includes(k)?'on':''}" title="${META.ends.includes(k)?ENDS[k]:'？'}"></i>`).join('');
+ $('#setbtn').classList.toggle('glow',!META.ack);$('#bookbtn').hidden=!S.f.techo}
+function renderStage(){const n=node();const art=typeof n.art==='function'?n.art():n.art;
+ let h=`<div class="bg">${bgHTML(art)}</div><div class="lay">`;
+ (n.targets?n.targets():[]).forEach(t=>{const pos=`left:${t.x}%;top:${t.y}%;width:${t.w}%;height:${t.h}%`;
+  if(t.k==='mag')h+=`<div class="tg" style="${pos}">${t.html}</div>`;
+  else if(t.k==='tiny')h+=`<div class="tg tiny" style="${pos}"><span>${T(t.html)}</span></div>`;
+  else if(t.k==='grid')h+=`<div class="tg grid" style="${pos}">${GRIDS[t.id].map(c=>`<b>${c}</b>`).join('')}</div>`;
+  else h+=`<div class="tg" data-t="${t.id}" style="${pos}"><div class="base">${t.base}</div><div class="rev" style="clip-path:inset(50% 50% 50% 50%)">${t.rev}</div></div>`});
+ if(n.layers)h+=n.layers();
+ h+=`</div><div class="dark" style="opacity:${darkOp()}"></div>`;
+ (n.dims?n.dims():[]).forEach(o=>{h+=`<div class="dim" style="left:${o.x}%;top:${o.y}%;width:${o.w}%;height:${o.h}%;opacity:${dimOp()}">${o.html}</div><div class="dots" style="left:${o.x}%;top:${o.y}%;width:${o.w}%;height:${o.h}%;opacity:${Math.max(0,.9-dimOp())}">${(o.dots||[]).map(([a,b])=>`<i style="left:${a}%;top:${b}%"></i>`).join('')}</div>`});
+ if(n.crowd)for(let i=0;i<14;i++){const x=4+(i*37)%90,b=30+(i*53)%62;h+=`<div class="ghost crowd" style="opacity:${SET.bright<=10?.5:0};left:${x}%;top:${b-24}%;width:7%;animation-delay:-${i*.4}s">${ghostSVG('crowd')}</div>`}
+ curGhosts().forEach((g,i)=>{const w=GH[g.id].w,hh=w*1.6*48/50;h+=`<button type="button" class="ghost" data-g="${i}" aria-label="${GH[g.id].n}" style="opacity:${vis(g.th)};left:${g.x-w/2}%;top:${g.b-hh}%;width:${w}%;background:none;border:0;padding:0">${ghostSVG(g.id)}</button>`});
+ if(n.books){for(let i=1;i<=9;i++){const lab=`<ruby>${NUM[i-1]}<rt>${NUMR[i-1]}</rt></ruby>`;h+=`<button type="button" class="hot book" data-b="${i}" ${S.book||S.node==='bookask'?'disabled':''} style="left:${7+(i-1)*9.8}%;top:16%;width:8.6%;height:66%;background:${['#a03a3a','#3a6aa0','#3a8a4a','#9a7a2a','#7a4a9a'][i%5]};border:.4cqw solid #1a0e06"><span>${lab}</span></button>`}}
+ (n.hot?n.hot():[]).forEach((o,i)=>{h+=`<button type="button" class="hot" data-h="${i}" style="left:${o.x}%;top:${o.y}%;width:${o.w}%;height:${o.h}%"><span>${T(o.l)}</span></button>`});
+ if(n.flash)h+=`<div class="flash" id="flash">${T(n.flash)}</div>`;
+ if(S.f.hotaruOn&&S.node!=='end')h+=`<button type="button" class="hotaru${hotaruCall?' call':''}" aria-label="ほたる">${ghostSVG('hotaru')}</button>`;
+ if(tool)h+=toolHTML();
+ $('#flip').innerHTML=h;if(tool)updateTool()}
+function renderPanel(){const n=node();const p=$('#panel');
+ if(bookOpen){p.innerHTML=notebook();return}
+ let h='';if(S.node!=='end'&&S.node!=='intro')h+=`<div class="chap">${CH_NAME[S.ch]}</div>`;
+ if(n.head)h+=n.head();
+ const pages=pagesOf(n.text());
+ if(PG.node!==S.node)PG.i=0;else if(pages.join('¶')!==PG.pages.join('¶')){let d=0;while(d<pages.length&&d<PG.pages.length&&pages[d]===PG.pages[d])d++;PG.i=Math.min(d,pages.length-1)}
+ PG.node=S.node;PG.pages=pages;PG.i=Math.min(PG.i,pages.length-1);
+ const last=PG.i===pages.length-1;if(last)S.f['read_'+S.node]=1;const open=last||S.f['read_'+S.node];
+ h+='<div class="story" id="story">'+pages.map((pl,i)=>`<div class="pg"${i===PG.i?'':' hidden'}>`+pl.split('\n').map(l=>'<p>'+T(l.replace(/⟨[^⟩]*⟩/g,''))+'</p>').join('')+'</div>').join('')+'</div>';
+ if(pages.length>1)h+=`<div class="pager"><button type="button" id="pprev" ${PG.i?'':'disabled'}>◀ まえへ</button><span>${PG.i+1}/${pages.length}</span><button type="button" class="nx" id="pnext" ${last?'disabled':''}>つぎへ ▶</button></div>`;
+ let b='';
+ if(S.say)b+=`<p class="say" data-bub="say"><b>${GH[S.say.id].n}</b>「${T(S.say.t)}」</p>`;
+ if(!SET.music&&n.whisper&&!BUBOFF.has('w'))b+=`<p class="whisper" data-bub="w">（ちいさな こえ）${T(n.whisper)}</p>`;
+ if(!SET.music&&n.quiet&&!BUBOFF.has('q'))b+=`<p class="whisper" data-bub="q">${T(n.quiet)}</p>`;
+ if(S.sheet)b+=`<p class="found" data-bub="sheet">${T(S.sheet)}</p>`;
+ if(b)h+=`<div class="bubs">${b}</div>`;
+ if(n.form&&open)h+=`<form class="ask" id="ask"><input id="askin" maxlength="8" autocomplete="off" aria-label="なまえ" placeholder="ひらがなで"><button>${n.form==='give'?'かえす':'きめる'}</button></form>`;
+ const it=S.items.filter(i=>i!=='key'&&i!=='lantern');
+ if(it.length||has('key')||has('lantern'))h+='<div class="items"><span class="lbl">もちもの</span>'+it.map(i=>`<button type="button" class="chip" data-tool="${i}" aria-pressed="${tool&&tool.id===i}">${ITEM[i]}</button>`).join('')+(has('lantern')?'<span class="chip key">ランタン</span>':'')+(has('key')?'<span class="chip key">かぎ</span>':'')+'</div>';
+ const cs=open&&n.choices?n.choices():[];
+ h+='<div class="choices">'+cs.map((c,i)=>`<button type="button" class="choice ${c.c||''}" data-c="${i}" ${c.dis?'disabled':''}>${c.plain?esc(c.t):T(c.t)}</button>`).join('')+'</div>';
+ if(S.node==='intro'||S.node==='end')h+='<a class="homelink" href="../index.html">← ゲームせんたくにもどる</a>';
+ p.innerHTML=h;p._cs=cs;const st=p.querySelector('.pg:not([hidden])');if(st){typeStory(st,S.node+'|'+PG.i+'|'+st.textContent);cue(pages[PG.i])}}
+const PG={node:'',pages:[],i:0},BUBOFF=new Set(),CUED=new Set();
+function pagesOf(t){const out=[];String(t).split('¶').forEach(c=>{const ls=c.split('\n').filter(l=>l!=='');for(let i=0;i<ls.length;i+=3)out.push(ls.slice(i,i+3).join('\n'))});return out.length?out:['']}
+function cue(pt){const m=pt.match(/⟨(bell|thud)(?::([\d.]+),([\d.]+))?⟩/);if(!m)return;const k=S.node+'|'+(S.end||'')+'|'+pt;if(CUED.has(k))return;CUED.add(k);
+ if(m[1]==='bell'){bellSFX();ringFX(+m[2],+m[3])}else thudSFX()}
+function turn(d){const ni=PG.i+d;if(ni<0||ni>=PG.pages.length)return;typeDone();PG.i=ni;tick();renderPanel();save()}
+let typeKey='',typeT=null,typeNodes=[];
+function typeDone(){clearInterval(typeT);typeNodes.forEach(([n,f])=>n.nodeValue=f);typeNodes=[];document.querySelectorAll('.typing').forEach(s=>s.classList.remove('typing'))}
+function typeStory(el,key){const sp=[90,35,0][SET.speed];const prev=typeKey;if(key===typeKey){if(typeNodes.length)typeDone();return}typeDone();typeKey=key;if(!sp)return;
+ const [pn,pt]=[prev.split('|')[0],prev.slice(prev.indexOf('|')+1)],[kn,kt]=[key.split('|')[0],key.slice(key.indexOf('|')+1)];if(pn===kn&&kt.startsWith(pt.slice(0,Math.min(pt.length,40))))return;
+ const w=document.createTreeWalker(el,NodeFilter.SHOW_TEXT);let n;while(n=w.nextNode()){typeNodes.push([n,n.nodeValue]);n.nodeValue=''}
+ el.classList.add('typing');let i=0,j=0;typeT=setInterval(()=>{if(i>=typeNodes.length){typeDone();return}const [nd,f]=typeNodes[i];j++;nd.nodeValue=f.slice(0,j);if(j>=f.length){i++;j=0}},sp)}
+const ITEM={lantern:'ランタン',mag:'むしめがね',red:'あかめがね',blue:'あおめがね',star:'ほしの シート',moon:'つきの シート'};
+let bookOpen=false;
+function notebook(){let h='<div class="book"><div class="endt">たんていてちょう</div>';
+ h+='<h3>てがかり</h3>'+(S.clues.length?'<ul>'+S.clues.map(k=>'<li>'+T(CLUE[k])+'</li>').join('')+'</ul>':'<p>まだ なにも ない。</p>');
+ h+='<h3>メモ</h3>'+(S.memos.length?'<ul>'+S.memos.map(m=>'<li>'+P(m[1])+'</li>').join('')+'</ul>':'<p>まだ なにも ない。</p>');
+ h+='<div class="choices"><button type="button" class="choice back" id="closebook">とじる</button></div></div>';return h}
+
+/* settings */
+const SEGS=[['vol','おんりょう',[0,1,2,3,4].map(v=>[v,String(v)])],['furi','ふりがな',[[1,'あり'],[0,'なし']]],['size','もじの おおきさ',[[0,'ちいさい'],[1,'ふつう'],[2,'おおきい']]],['speed','もじの はやさ',[[0,'おそい'],[1,'ふつう'],[2,'はやい']]],['gray','めに やさしい モード',[[0,'オフ'],[1,'オン']]],['flip','ひだりきき モード',[[0,'オフ'],[1,'オン']]]];
+function renderSet(){let h='<div class="shead"><h2>せってい</h2><button type="button" class="x" id="setx" aria-label="とじる">×</button></div>';
+ if(S.ch>=1)h+=`<div class="row"><label for="nmin">なまえ</label><input id="nmin" maxlength="8" value="${esc(S.name)}"><button type="button" class="small" id="nmset">かえる</button></div>`;
+ h+=`<div class="row"><label class="k" for="brin">あかるさ</label><input type="range" id="brin" min="0" max="100" step="1" value="${SET.bright}"></div>`;
+ SEGS.forEach(([k,l,o])=>{h+=`<div class="row"><span class="k">${l}</span><div class="seg" role="group" aria-label="${l}">${o.map(([v,t])=>`<button type="button" data-k="${k}" data-v="${v}" aria-pressed="${SET[k]===v}">${t}</button>`).join('')}</div></div>`});
+ h+='<div class="row">'+(S.ch>=1&&META.snaps[S.ch]&&S.node!=='end'?`<button type="button" class="small" id="chback">このしょうの はじめに もどる</button>`:'')+`<button type="button" class="small warn" id="wipe">${wipeArm?'ほんとうに けす?(もういちど おす)':'きろくを ぜんぶ けす'}</button></div>`;
+ $('#set').innerHTML=h}
+let wipeArm=false;
+function setVal(k,v,live){SET[k]=v;if(k==='bright'&&v<50&&S.ch>=1)S.everDark=true;if(k==='vol')bgmVol();if(k==='music'){v?bgmStart():bgmStop()}if(!live)tick();applyLook();renderPanel();if(!live)renderSet();save()}
+function applyLook(){const st=$('#stage');document.body.classList.toggle('gray',!!SET.gray);document.body.classList.toggle('lefty',!!SET.flip);
+ const mb=$('#musbtn');mb.classList.toggle('off',!SET.music);mb.setAttribute('aria-pressed',SET.music?'true':'false');
+ st.querySelectorAll('.dim').forEach(d=>d.style.opacity=dimOp());st.querySelectorAll('.dots').forEach(d=>d.style.opacity=Math.max(0,.9-dimOp()));
+ st.classList.toggle('gray',!!SET.gray);st.classList.toggle('flip',!!SET.flip);
+ document.body.classList.toggle('nofuri',!SET.furi);
+ document.documentElement.style.setProperty('--ts',[17,20,25][SET.size]+'px');
+ document.documentElement.style.setProperty('--tiny',[.14,.3,1][SET.size]);
+ const d=st.querySelector('.dark');if(d)d.style.opacity=darkOp();
+ st.querySelectorAll('.ghost.crowd').forEach(g=>g.style.opacity=SET.bright<=10?.5:0);
+ const gs=curGhosts();st.querySelectorAll('.ghost[data-g]').forEach(el=>{const g=gs[+el.dataset.g];const v=vis(g.th);el.style.opacity=v;el.style.pointerEvents=v===1?'auto':'none';el.tabIndex=v===1?0:-1});
+ let changed=false;
+ if(S.node==='sign'&&SET.flip&&!S.clues.includes('k4')){clue('k4');changed=true}
+ if(S.node==='tree'&&SET.bright>=85)memo('tree','おおきな きに ほってあった むらの ひとの {名前|なまえ}。ひとつだけ けずられていて、「り」だけ のこっていた。');
+ if(S.node==='lib'&&SET.size===2)memo('note','としょかんの はりがみ「しおりの ページに ほしを あてよ」');
+ if(changed)renderPanel()}
+
+/* tools: drag a prop over the scene */
+function toolDims(id){if(id==='mag')return{w:26,h:26*1.6};if(id==='red'||id==='blue')return{w:36,h:44};return{w:GRECT.w,h:GRECT.h}}
+function toolHTML(){const id=tool.id;
+ if(id==='mag')return '<div id="tool" class="mag"><div class="lin"></div></div>';
+ if(id==='red'||id==='blue')return `<div id="tool" class="${id}"></div>`;
+ const holes=id==='star'?STAR:MOON;return `<div id="tool" class="sheet"><span class="tag">${ITEM[id]}</span>${Array.from({length:30},(_,i)=>`<i class="${holes.includes(i)?'h':''}"></i>`).join('')}</div>`}
+function pickTool(id){if(tool&&tool.id===id){tool=null}else{const d=toolDims(id);tool={id,...d,x:50-d.w/2,y:50-d.h/2}}renderStage();applyLook();renderPanel()}
+function pct(e){const r=$('#stage').getBoundingClientRect();let x=(e.clientX-r.left)/r.width*100;if(SET.flip)x=100-x;return{x,y:(e.clientY-r.top)/r.height*100}}
+function moveTo(cx,cy){tool.x=Math.max(-tool.w/2,Math.min(100-tool.w/2,cx-tool.w/2));tool.y=Math.max(-tool.h/2,Math.min(100-tool.h/2,cy-tool.h/2));updateTool()}
+function updateTool(){const el=$('#tool');if(!el||!tool)return;const n=node();const ts=n.targets?n.targets():[];tool.snap=null;
+ if(tool.id==='star'||tool.id==='moon'){const g=ts.find(t=>t.k==='grid'&&Math.abs(tool.x-t.x)<6&&Math.abs(tool.y-t.y)<8);if(g){tool.x=g.x;tool.y=g.y;tool.snap=g}}
+ Object.assign(el.style,{left:tool.x+'%',top:tool.y+'%',width:tool.w+'%',height:tool.h+'%'});
+ const cx=tool.x+tool.w/2,cy=tool.y+tool.h/2,inside=t=>cx>=t.x&&cx<=t.x+t.w&&cy>=t.y&&cy<=t.y+t.h;
+ if(tool.id==='mag'){const lin=el.querySelector('.lin');const t=ts.find(t=>t.k==='mag'&&inside(t));
+  if(!t){lin.innerHTML='';lin._t=null}else{const r=$('#stage').getBoundingClientRect(),k=3,tw=r.width*t.w/100,th=r.height*t.h/100,lw=r.width*tool.w/100,lh=r.height*tool.h/100;
+   if(lin._t!==t.id){lin.innerHTML=t.html;lin._t=t.id}const px=(cx-t.x)/t.w*tw,py=(cy-t.y)/t.h*th;
+   Object.assign(lin.style,{width:tw+'px',height:th+'px',transform:`translate(${lw/2-px*k}px,${lh/2-py*k}px) scale(${k})`});seen(t)}}
+ if(tool.id==='red'||tool.id==='blue')ts.filter(t=>t.k===tool.id).forEach(t=>{const rev=$('#stage').querySelector(`[data-t="${t.id}"] .rev`);if(!rev)return;
+  const x1=Math.max(tool.x,t.x),x2=Math.min(tool.x+tool.w,t.x+t.w),y1=Math.max(tool.y,t.y),y2=Math.min(tool.y+tool.h,t.y+t.h);
+  rev.style.clipPath=x2>x1&&y2>y1?`inset(${(y1-t.y)/t.h*100}% ${(t.x+t.w-x2)/t.w*100}% ${(t.y+t.h-y2)/t.h*100}% ${(x1-t.x)/t.w*100}%)`:'inset(50% 50% 50% 50%)';
+  if(inside(t))seen(t)});
+ el.classList.toggle('snap',!!tool.snap);
+ if(tool.id==='star'||tool.id==='moon'){const msg=tool.snap?'あなから みえる もじ「'+(tool.id==='star'?STAR:MOON).map(i=>GRIDS[tool.snap.id][i]).join(' ')+'」':null;
+  if(msg&&msg!==S.sheet){S.sheet=msg;sheetFound(tool.id,tool.snap.id);renderPanel()}}}
+function sheetFound(sh,g){if(sh==='star'&&g==='dgrid')clue('k2');if(sh==='moon'&&g==='bgrid')memo('moon','けいじばんの うらに つきの シート「ふたりの うち ひとりは うそ」')}
+function seen(t){const key='seen_'+t.id;if(S.f[key])return;S.f[key]=1;if(t.on)t.on();renderPanel();save()}
+
+/* events */
+const stage=$('#stage');let drag=null;
+stage.addEventListener('pointerdown',e=>{const t=e.target.closest('#tool');if(!t)return;e.preventDefault();const p=pct(e);drag={dx:p.x-(tool.x+tool.w/2),dy:p.y-(tool.y+tool.h/2),id:e.pointerId};t.setPointerCapture(e.pointerId)});
+stage.addEventListener('pointermove',e=>{if(!drag||!tool)return;const p=pct(e);moveTo(p.x-drag.dx,p.y-drag.dy)});
+const endDrag=()=>{if(drag){drag=null;save()}};
+stage.addEventListener('pointerup',endDrag);stage.addEventListener('pointercancel',endDrag);
+stage.addEventListener('click',e=>{if(e.target.closest('.hotaru')){tick();hotaruCall=false;S.say=sayLine('hotaru',nextHint());renderStage();applyLook();renderPanel();save();return}
+ const g=e.target.closest('.ghost[data-g]');if(g){const gh=curGhosts()[+g.dataset.g];if(vis(gh.th)!==1)return;tick();S.say=sayLine(gh.id,gh.say);if(gh.on)gh.on();renderPanel();save();return}
+ const b=e.target.closest('.hot.book');if(b&&!b.disabled){tick();S.f.pick=+b.dataset.b;go('bookask');return}
+ const h=e.target.closest('.hot[data-h]');if(h){tick();const o=node().hot()[+h.dataset.h];if(o.go)go(o.go);else{const was=S.node;o.fn();if(S.node===was)render()}}});
+/* drag straight from an item chip */
+let chipDrag=null;
+$('#panel').addEventListener('pointerdown',e=>{const c=e.target.closest('.chip[data-tool]');if(!c)return;e.preventDefault();chipDrag={id:c.dataset.tool,x:e.clientX,y:e.clientY,moved:false}});
+addEventListener('pointermove',e=>{if(!chipDrag)return;if(!chipDrag.moved&&Math.hypot(e.clientX-chipDrag.x,e.clientY-chipDrag.y)<12)return;
+ if(!chipDrag.moved){chipDrag.moved=true;if(!tool||tool.id!==chipDrag.id)pickTool(chipDrag.id)}const p=pct(e);if(tool)moveTo(p.x,p.y)});
+addEventListener('pointerup',e=>{if(!chipDrag)return;const d=chipDrag;chipDrag=null;if(!d.moved){tick();pickTool(d.id)}else save()});
+$('#panel').addEventListener('click',e=>{const c=e.target.closest('.choice[data-c]');if(c&&!c.disabled){tick();const o=$('#panel')._cs[+c.dataset.c];if(o.go)go(o.go);else o.fn();return}
+ if(e.target.closest('#closebook')){bookOpen=false;renderPanel();return}
+ const bub=e.target.closest('[data-bub]');if(bub){const k=bub.dataset.bub;if(k==='say')S.say=null;else if(k==='sheet')S.sheet=null;else BUBOFF.add(k);renderPanel();save();return}
+ if(e.target.closest('#pprev')){turn(-1);return}if(e.target.closest('#pnext')){turn(1);return}
+ if(e.target.closest('.story')){if(document.querySelector('.pg.typing'))typeDone();else turn(1)}});
+$('#panel').addEventListener('submit',e=>{e.preventDefault();const v=$('#askin').value.trim();if(!v){$('#askin').focus();return}tick();const f=node().form;
+ if(f==='name'){S.orig=S.name=v;go('gate')}else if(f==='give')finish(S.f.giveTo,v);else if(f==='newname'){S.f.newname=v;if(!META.ends.includes('e1'))META.ends.push('e1');endWith('e2')}});
+$('#bookbtn').addEventListener('click',()=>{tick();bookOpen=!bookOpen;renderPanel();if(bookOpen)$('#panel').scrollIntoView({block:'nearest'})});
+function openSet(){tick();$('#setwrap').hidden=false;wipeArm=false;META.ack=true;renderSet();renderHeader();save();const x=$('#setx');if(x)x.focus()}
+function closeSet(){$('#setwrap').hidden=true;tick();$('#setbtn').focus()}
+$('#setbtn').addEventListener('click',openSet);$('#setbg').addEventListener('click',closeSet);
+addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#setwrap').hidden)closeSet()});
+$('#set').addEventListener('input',e=>{if(e.target.id==='brin')setVal('bright',+e.target.value,true)});
+$('#set').addEventListener('change',e=>{if(e.target.id==='brin'){tick();save()}});
+$('#musbtn').addEventListener('click',()=>{setVal('music',SET.music?0:1)});
+document.addEventListener('pointerdown',()=>{lastAct=Date.now();if(SET.music&&!bgm)bgmStart()},true);
+/* the firefly: generic help after a minute without progress; never says which setting goes where */
+const HINTS=['くらくて みえにくい? せっていで あかるさを かえられるよ。','もちものは、えの うえに うごかして つかえるよ。','いろんな せっていや ボタンを ためして みよう。','てちょうを よみかえすと、なにか わかるかも。','ほかの ばしょにも、もういちど いって みよう。','けいじばんの ルールを、よく よんで みよう。'];
+function nextHint(){const i=(S.f.hintI||0)%HINTS.length;S.f.hintI=i+1;return HINTS[i]}
+let lastAct=Date.now(),hotaruCall=false;
+setInterval(()=>{if(hotaruCall||!S.f.hotaruOn||S.node==='end'||!$('#setwrap').hidden||Date.now()-lastAct<60000)return;hotaruCall=true;S.say=sayLine('hotaru',nextHint());lastAct=Date.now();renderStage();applyLook();renderPanel();save()},5000);
+/* chapter 3: setting names glitch for a moment */
+setInterval(()=>{if($('#setwrap').hidden||S.ch<3||Math.random()<.5)return;const ks=[...document.querySelectorAll('#set .row .k')];if(!ks.length)return;const k=ks[Math.floor(Math.random()*ks.length)],o=k.textContent;
+ k.textContent=[...o].map(c=>Math.random()<.5?'ゃ゛ゞぬ▒#ゐゑ'[Math.floor(Math.random()*8)]:c).join('');setTimeout(()=>{if(k.isConnected)k.textContent=o},260)},2400);
+$('#set').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;
+ if(b.id==='setx'){closeSet();return}
+ if(b.dataset.k){setVal(b.dataset.k,+b.dataset.v);return}
+ if(b.id==='nmset'){const v=$('#nmin').value.trim();if(v){S.name=v;tick();toast('なまえを かえた');save();renderSet()}return}
+ if(b.id==='chback'){restart(S.ch);closeSet();return}
+ if(b.id==='wipe'){if(!wipeArm){wipeArm=true;renderSet();return}try{localStorage.removeItem(KEY)}catch(e){}S=fresh();SET={...DEF};META={ends:[],fails:0,snaps:{},ack:true};wipeArm=false;bgmStop();tool=null;bookOpen=false;$('#setwrap').hidden=true;render()}});
+/* the flash in the tower: how long it stays depends on the text speed setting */
+setInterval(()=>{const f=document.getElementById('flash');if(!f)return;const d=[3000,350,110][SET.speed];f.classList.add('on');
+ setTimeout(()=>{f.classList.remove('on');if(SET.speed===0&&S.node==='tower'&&!S.f.flash){S.f.flash=1;memo('flash','とうの いりぐちで ひかった もじ「とうの かべは あおい めで みよ」');renderPanel();save()}},d)},4200);
+addEventListener('resize',()=>{if(tool)updateTool()});
+render();
+}
+</script>
+<script>window.PAUSE_UI_CONFIG = { trigger: '#pauseTrigger' };</script>
+<script src="../pause-ui.js"></script>
+</body>
+</html>

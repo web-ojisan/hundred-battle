@@ -3,7 +3,7 @@
 //
 // キャッシュの中身を変えたとき（画像やゲームの追加/更新）は、
 // CACHE_VERSION の値を書き換えてデプロイすること（古いキャッシュを破棄して新しいものに切り替わる）。
-const CACHE_VERSION = 'v67';
+const CACHE_VERSION = 'v68';
 const CACHE_NAME = `oyako-arcade-${CACHE_VERSION}`;
 const FONT_CACHE_NAME = 'oyako-arcade-fonts';
 
@@ -34,6 +34,7 @@ const PRECACHE_URLS = [
   './games/amida-mahoujin.html',
   './games/mikiri-tap-ken.html',
   './games/sliding-bakudan.html',
+  './games/asa-no-konai-mura.html',
   './games/img/dragon.png',
   './games/img/dragon_atack.png',
   './games/img/fighter.png',
